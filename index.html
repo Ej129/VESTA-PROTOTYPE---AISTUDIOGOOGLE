@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vesta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+      if (localStorage.getItem('vesta-theme') === 'dark' || (!('vesta-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .btn-primary {
+        background-color: #2C5282; /* primary-blue */
+        color: white;
+        transition: background-color 0.3s;
+      }
+      .btn-primary:hover {
+        background-color: #2A4365; /* A slightly darker blue for hover */
+      }
+      
+      .card-shadow {
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+      }
+      .dark .card-shadow {
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+
+      .login-bg {
+        background-color: #1a2639; /* dark-sidebar */
+        background-image: radial-gradient(#ffffff1a 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+
+      mark.mark-critical, .highlight-critical {
+        background-color: rgba(239, 68, 68, 0.1); /* red-500/10 */
+        border-left: 3px solid #EF4444; /* red-500 */
+        padding-left: 8px;
+        margin-left: -11px;
+        border-radius: 3px;
+      }
+      mark.mark-warning, .highlight-warning {
+        background-color: rgba(234, 179, 8, 0.1); /* yellow-500/10 */
+        border-left: 3px solid #EAB308; /* yellow-500 */
+        padding-left: 8px;
+        margin-left: -11px;
+        border-radius: 3px;
+      }
+      mark.mark-flash {
+        animation: glow 1.2s ease-out;
+        box-shadow: 0 0 8px 4px rgba(44, 82, 130, 0.4);
+        transition: box-shadow 0.3s ease-in-out;
+      }
+      .highlight-added {
+        background-color: rgba(34, 197, 94, 0.15); /* green-500/15 */
+      }
+      .highlight-removed {
+        background-color: rgba(239, 68, 68, 0.15); /* red-500/15 */
+      }
+      .highlight-removed del {
+        text-decoration-color: rgba(239, 68, 68, 0.7);
+        text-decoration-thickness: 1.5px;
+      }
+      @keyframes glow {
+        0%, 100% {
+          background-color: inherit;
+        }
+        50% {
+          background-color: rgba(44, 82, 130, 0.4);
+        }
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              // New Color Palette
+              'primary-blue': '#2C5282',
+              'light-sidebar': '#F9FAFB',
+              'light-main': '#F3F4F6',
+              'light-card': '#FFFFFF',
+              'dark-sidebar': '#1a2639',
+              'dark-main': '#233149',
+              'dark-card': '#1e2a3e',
+
+              'primary-text-light': '#1F2937',
+              'secondary-text-light': '#6B7280',
+              'primary-text-dark': '#E5E7EB',
+              'secondary-text-dark': '#9CA3AF',
+              
+              'border-light': '#E5E7EB',
+              'border-dark': '#374151',
+
+              'accent-success': '#22C55E',
+              'accent-warning': '#EAB308',
+              'accent-critical': '#EF4444',
+            },
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "react": "https://esm.sh/react@^19.1.1",
+    "recharts": "https://esm.sh/recharts@^3.1.2",
+    "@google/genai": "https://esm.sh/@google/genai@^1.13.0",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1",
+    "docx": "https://esm.sh/docx@^8.5.0",
+    "react-dom": "https://esm.sh/react-dom@^19.1.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
