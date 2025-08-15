@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole } from './types';
 
-import netlifyIdentity from 'netlify-identity-widget';
+import { useAuth } from './contexts/AuthContext';
 
 import LoginScreen from './screens/LoginScreen';
 import WorkspaceDashboard from './screens/WorkspaceDashboard';
@@ -16,8 +16,9 @@ import ManageMembersModal from './components/ManageMembersModal';
 import * as workspaceApi from './api/workspace';
 
 const App: React.FC = () => {
+  const { user: currentUser, isInitialized, logout: authLogout } = useAuth();
+  
   const [screen, setScreen] = useState<Screen>(Screen.Login);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -63,51 +64,29 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    netlifyIdentity.init();
-
-    const handleLogin = async (netlifyUser: any) => {
-      const appUser = await workspaceApi.getOrCreateUser(netlifyUser);
-      setCurrentUser(appUser);
-      setScreen(Screen.WorkspaceDashboard);
-      netlifyIdentity.close();
-    };
-
-    const handleLogout = () => {
-      setCurrentUser(null);
-      setSelectedWorkspace(null);
-      setWorkspaces([]);
-      setReports([]);
-      setAuditLogs([]);
-      setKnowledgeBaseSources([]);
-      setDismissalRules([]);
-      setScreen(Screen.Login);
-    };
-
-    netlifyIdentity.on('login', handleLogin);
-    netlifyIdentity.on('logout', handleLogout);
-    netlifyIdentity.on('init', (user) => {
-        if (user) {
-            handleLogin(user);
-        } else {
-            setScreen(Screen.Login);
+    if (isInitialized) {
+      if (currentUser) {
+        refreshWorkspaces();
+        // On login or refresh, if no workspace is selected, go to the dashboard
+        if (!selectedWorkspace) {
+            setScreen(Screen.WorkspaceDashboard);
         }
-    });
-
-    return () => {
-        // Not cleaning up listeners as Netlify Identity widget is a singleton
-    };
-  }, []);
-
-
-  useEffect(() => {
-    if (currentUser) {
-      refreshWorkspaces();
-    } else {
-      setWorkspaces([]);
-      setSelectedWorkspace(null);
+      } else {
+        // User logged out, reset all state
+        setScreen(Screen.Login);
+        setSelectedWorkspace(null);
+        setWorkspaces([]);
+        setReports([]);
+        setAuditLogs([]);
+        setKnowledgeBaseSources([]);
+        setDismissalRules([]);
+        setActiveReport(null);
+        setCreateWorkspaceModalOpen(false);
+        setManageMembersModalOpen(false);
+      }
     }
-  }, [currentUser, refreshWorkspaces]);
-  
+  }, [currentUser, isInitialized, selectedWorkspace, refreshWorkspaces]);
+
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
     if(!currentUser || !selectedWorkspace) return;
     await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser, action, details);
@@ -115,7 +94,7 @@ const App: React.FC = () => {
   }, [currentUser, selectedWorkspace, loadWorkspaceData]);
   
   const handleLogout = () => {
-    netlifyIdentity.logout();
+    authLogout();
   };
 
   const handleCreateWorkspace = async (name: string) => {
@@ -235,7 +214,14 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    if (!currentUser) return <LoginScreen />;
+    if (!isInitialized) {
+        // Render a blank screen or a loading spinner while waiting for auth
+        return <div className="min-h-screen bg-light-main dark:bg-dark-main" />;
+    }
+
+    if (!currentUser) {
+        return <LoginScreen />;
+    }
 
     if (!selectedWorkspace) {
         return (
