@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole } from './types';
-import { useAuth } from './contexts/AuthContext';
 
 import LoginScreen from './screens/LoginScreen';
 import WorkspaceDashboard from './screens/WorkspaceDashboard';
@@ -12,11 +11,12 @@ import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
 import ManageMembersModal from './components/ManageMembersModal';
 
+import * as auth from './api/auth';
 import * as workspaceApi from './api/workspace';
 
 const App: React.FC = () => {
-  const { currentUser, loading, logout } = useAuth();
-  const [screen, setScreen] = useState<Screen>(Screen.WorkspaceDashboard);
+  const [screen, setScreen] = useState<Screen>(Screen.Login);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -50,48 +50,62 @@ const App: React.FC = () => {
     
     const members = await workspaceApi.getWorkspaceMembers(workspaceId);
     setWorkspaceMembers(members);
-    const member = members.find(m => m.userId === currentUser.id);
+    const member = members.find(m => m.email === currentUser.email);
     setUserRole(member?.role || 'Member');
 
   }, [currentUser]);
 
   const refreshWorkspaces = useCallback(async () => {
     if (!currentUser) return;
-    const userWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.id);
+    const userWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.email);
     setWorkspaces(userWorkspaces);
   }, [currentUser]);
 
   useEffect(() => {
     if (currentUser) {
       refreshWorkspaces();
-      setSelectedWorkspace(null);
-      setScreen(Screen.WorkspaceDashboard);
-    } else if (!loading) {
-      setScreen(Screen.Login);
-      setSelectedWorkspace(null);
+    } else {
       setWorkspaces([]);
-      setReports([]);
-      setAuditLogs([]);
-      setKnowledgeBaseSources([]);
-      setDismissalRules([]);
-      setActiveReport(null);
+      setSelectedWorkspace(null);
     }
-  }, [currentUser, loading, refreshWorkspaces]);
+  }, [currentUser, refreshWorkspaces]);
   
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
     if(!currentUser || !selectedWorkspace) return;
-    await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser, action, details);
+    await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action, details);
     loadWorkspaceData(selectedWorkspace.id);
   }, [currentUser, selectedWorkspace, loadWorkspaceData]);
   
+  const loadUserSession = async (user: User) => {
+      setCurrentUser(user);
+      setScreen(Screen.WorkspaceDashboard);
+  };
+
+  useEffect(() => {
+    const user = auth.getCurrentUser();
+    if (user) {
+        loadUserSession(user);
+    } else {
+      setScreen(Screen.Login);
+    }
+  }, []);
+
+  const handleLoginSuccess = async (user: User) => {
+    await loadUserSession(user);
+    // Note: The global audit log for login is not tied to a workspace
+  };
+  
   const handleLogout = () => {
-    logout();
+    auth.logout();
+    setCurrentUser(null);
+    setSelectedWorkspace(null);
+    setScreen(Screen.Login);
   };
 
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
-    const newWorkspace = await workspaceApi.createWorkspace(name, currentUser);
-    await workspaceApi.addAuditLog(newWorkspace.id, currentUser, 'Workspace Created', `Workspace "${name}" created.`);
+    await workspaceApi.createWorkspace(name, currentUser);
+    addAuditLog('Workspace Created', `Workspace "${name}" created.`);
     await refreshWorkspaces();
     setCreateWorkspaceModalOpen(false);
   };
@@ -157,6 +171,15 @@ const App: React.FC = () => {
     await workspaceApi.deleteDismissalRule(selectedWorkspace.id, id);
     await loadWorkspaceData(selectedWorkspace.id);
   };
+
+  const handleUserUpdate = async (updatedUser: User) => {
+    try {
+        const user = await auth.updateUser(updatedUser);
+        setCurrentUser(user);
+    } catch(err) {
+        console.error("Failed to update user:", err);
+    }
+  };
   
   const handleInviteUser = async (email: string, role: UserRole) => {
       if (!selectedWorkspace) return;
@@ -169,21 +192,17 @@ const App: React.FC = () => {
       }
   };
 
-  const handleRemoveUser = async (userId: string) => {
-      if (!selectedWorkspace || !currentUser) return;
-      const member = workspaceMembers.find(m => m.userId === userId);
-      if(!member) return;
-      await workspaceApi.removeUser(selectedWorkspace.id, userId);
-      await addAuditLog('User Removed', `Removed user ${member.email}.`);
+  const handleRemoveUser = async (email: string) => {
+      if (!selectedWorkspace) return;
+      await workspaceApi.removeUser(selectedWorkspace.id, email);
+      await addAuditLog('User Removed', `Removed user ${email}.`);
       await loadWorkspaceData(selectedWorkspace.id);
   };
 
-  const handleUpdateRole = async (userId: string, role: UserRole) => {
-      if (!selectedWorkspace || !currentUser) return;
-      const member = workspaceMembers.find(m => m.userId === userId);
-      if(!member) return;
-      await workspaceApi.updateUserRole(selectedWorkspace.id, userId, role);
-      await addAuditLog('Role Changed', `Changed role for ${member.email} to ${role}.`);
+  const handleUpdateRole = async (email: string, role: UserRole) => {
+      if (!selectedWorkspace) return;
+      await workspaceApi.updateUserRole(selectedWorkspace.id, email, role);
+      await addAuditLog('Role Changed', `Changed role for ${email} to ${role}.`);
       await loadWorkspaceData(selectedWorkspace.id);
   };
 
@@ -205,15 +224,7 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-light-main dark:bg-dark-main">
-                <p className="text-secondary-text-light dark:text-secondary-text-dark">Initializing Session...</p>
-            </div>
-        );
-    }
-    
-    if (!currentUser) return <LoginScreen />;
+    if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
 
     if (!selectedWorkspace) {
         return (
@@ -261,7 +272,7 @@ const App: React.FC = () => {
         screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={addAutomatedKnowledgeSource} />;
         break;
       case Screen.Settings:
-        screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} />;
+        screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} />;
         break;
       default:
         screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
@@ -274,7 +285,7 @@ const App: React.FC = () => {
                 <ManageMembersModal 
                     onClose={() => setManageMembersModalOpen(false)}
                     currentMembers={workspaceMembers}
-                    currentUserId={currentUser.id}
+                    currentUserEmail={currentUser.email}
                     onInviteUser={handleInviteUser}
                     onRemoveUser={handleRemoveUser}
                     onUpdateRole={handleUpdateRole}

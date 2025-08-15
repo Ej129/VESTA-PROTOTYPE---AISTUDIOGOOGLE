@@ -6,6 +6,7 @@ import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon
 interface SettingsScreenProps extends ScreenLayoutProps {
   dismissalRules: DismissalRule[];
   onDeleteDismissalRule: (id: string) => void;
+  onUserUpdate: (user: User) => void;
 }
 
 const SettingsCard = ({ title, subtitle, children, footer }: { title: string, subtitle: string, children: React.ReactNode, footer?: React.ReactNode }) => (
@@ -44,9 +45,16 @@ const SettingsToggle = ({ label, enabled, setEnabled }: { label: string, enabled
     </div>
 );
 
-const ProfileSettings = ({ user }: { user: User }) => {
+const ProfileSettings = ({ user, onUserUpdate }: { user: User, onUserUpdate: (user: User) => void }) => {
     const [theme, setTheme] = useState(localStorage.getItem('vesta-theme') || 'light');
-    
+    const [name, setName] = useState(user.name);
+    const [profilePic, setProfilePic] = useState<string | null>(user.avatar || null);
+    const profilePicInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setName(user.name);
+    }, [user]);
+
     useEffect(() => {
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -57,20 +65,53 @@ const ProfileSettings = ({ user }: { user: User }) => {
         }
     }, [theme]);
     
+    const handlePictureUpload = () => profilePicInputRef.current?.click();
+    
+    const onProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => setProfilePic(event.target?.result as string);
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSaveChanges = () => {
+        onUserUpdate({ ...user, name, avatar: profilePic || undefined });
+        alert('Changes Saved!');
+    };
+
+    const handleCancel = () => {
+        setName(user.name);
+        setProfilePic(user.avatar || null);
+    }
+
     return (
         <div className="space-y-8">
-            <SettingsCard title="Personal Information" subtitle="Your profile is managed by our authentication provider.">
+            <SettingsCard title="Personal Information" subtitle="Update your photo and personal details here.">
+                <input type="file" accept="image/*" ref={profilePicInputRef} onChange={onProfilePicChange} className="hidden" />
                 <div className="flex items-center space-x-6">
                     <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center overflow-hidden">
-                        {user.avatar ? <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" /> : <UserProfileIcon className="w-12 h-12 text-gray-400" />}
+                        {profilePic ? <img src={profilePic} alt="Profile" className="w-full h-full object-cover" /> : <UserProfileIcon className="w-12 h-12 text-gray-400" />}
                     </div>
-                    <div>
-                        <p className="text-sm text-secondary-text-light dark:text-secondary-text-dark">To update your picture or name, please visit your identity provider's settings.</p>
+                    <div className="space-x-2">
+                         <button onClick={handlePictureUpload} className="px-4 py-2 text-sm font-semibold text-white bg-primary-blue rounded-lg hover:bg-opacity-90">Upload new picture</button>
+                         <button onClick={() => setProfilePic(null)} className="px-4 py-2 text-sm font-semibold text-secondary-text-light dark:text-secondary-text-dark bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">Remove</button>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <SettingsInput label="Full Name" id="name" type="text" value={user.name} onChange={() => {}} disabled />
+                    <SettingsInput label="Full Name" id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
                     <SettingsInput label="Email Address" id="email" type="email" value={user.email} onChange={() => {}} disabled />
+                </div>
+            </SettingsCard>
+
+             <SettingsCard title="Password Management" subtitle="Manage your password for added security.">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SettingsInput label="New Password" id="newPassword" type="password" value="" onChange={() => {}} />
+                    <SettingsInput label="Confirm New Password" id="confirmPassword" type="password" value="" onChange={() => {}} />
+                </div>
+                 <div className="flex justify-end">
+                    <button className="px-6 py-2 font-semibold text-white bg-primary-blue rounded-lg hover:bg-opacity-90">Update Password</button>
                 </div>
             </SettingsCard>
             
@@ -87,6 +128,11 @@ const ProfileSettings = ({ user }: { user: User }) => {
                     </div>
                 </div>
             </SettingsCard>
+
+             <div className="flex justify-end space-x-3">
+                <button onClick={handleCancel} className="px-6 py-2 font-semibold text-secondary-text-light dark:text-secondary-text-dark bg-light-card dark:bg-dark-card border border-border-light dark:border-border-dark rounded-lg hover:bg-gray-200 dark:hover:bg-dark-sidebar">Cancel</button>
+                <button onClick={handleSaveChanges} className="px-6 py-2 font-semibold text-white bg-primary-blue rounded-lg hover:bg-opacity-90">Save Changes</button>
+            </div>
         </div>
     );
 };
@@ -116,18 +162,29 @@ const NotificationsSettings = () => {
     );
 };
 
-const SecuritySettings = () => (
-    <div className="space-y-8">
-        <SettingsCard 
-            title="Account Security" 
-            subtitle="Password and Two-Factor Authentication are managed through your identity provider (e.g., Google, Microsoft, or email)."
-        >
-            <div className="p-4 text-center bg-light-main dark:bg-dark-main rounded-lg">
-                <p className="text-secondary-text-light dark:text-secondary-text-dark">Please manage your security settings directly with your authentication provider for the highest level of security.</p>
-            </div>
-        </SettingsCard>
-    </div>
-);
+const SecuritySettings = () => {
+    const [is2faEnabled, setIs2faEnabled] = useState(false);
+
+    const handle2faToggle = () => {
+        if (!is2faEnabled) {
+            alert("This would begin the 2FA setup process, likely involving a QR code scan.");
+        }
+        setIs2faEnabled(!is2faEnabled);
+    };
+
+    return (
+        <div className="space-y-8">
+            <SettingsCard title="Two-Factor Authentication (2FA)" subtitle="Add an extra layer of security to your account.">
+                <div className="flex items-center justify-between">
+                    <p className="text-primary-text-light dark:text-primary-text-dark">{is2faEnabled ? "2FA is currently enabled." : "2FA is currently disabled."}</p>
+                    <button onClick={handle2faToggle} className={`px-4 py-2 font-semibold text-white rounded-lg hover:bg-opacity-90 ${is2faEnabled ? 'bg-accent-critical' : 'bg-accent-success'}`}>
+                        {is2faEnabled ? "Disable 2FA" : "Enable 2FA"}
+                    </button>
+                </div>
+            </SettingsCard>
+        </div>
+    );
+}
 
 const IntegrationsSettings = () => (
     <div className="space-y-8">
@@ -199,7 +256,7 @@ const AICustomizationSettings = ({ rules, onDeleteRule }: { rules: DismissalRule
 };
 
 
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, ...layoutProps }) => {
+const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, ...layoutProps }) => {
     const [activeTab, setActiveTab] = useState('profile');
     const { currentUser } = layoutProps;
     
@@ -213,12 +270,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDelet
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'profile': return <ProfileSettings user={currentUser} />;
+            case 'profile': return <ProfileSettings user={currentUser} onUserUpdate={onUserUpdate} />;
             case 'notifications': return <NotificationsSettings />;
             case 'security': return <SecuritySettings />;
             case 'integrations': return <IntegrationsSettings />;
             case 'ai': return <AICustomizationSettings rules={dismissalRules} onDeleteRule={onDeleteDismissalRule} />;
-            default: return <ProfileSettings user={currentUser} />;
+            default: return <ProfileSettings user={currentUser} onUserUpdate={onUserUpdate} />;
         }
     };
 
