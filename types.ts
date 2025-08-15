@@ -45,7 +45,7 @@ export interface User {
     avatar?: string;
 }
 
-export type UserRole = "Administrator" | "Member";
+export type UserRole = "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
 
 export type FeedbackReason = "Not relevant to this project" | "This is a false positive" | "This is an accepted business risk";
 
@@ -99,6 +99,15 @@ export interface DismissalRule {
     timestamp: string;
 }
 
+export interface CustomRegulation {
+    id: string;
+    workspaceId: string;
+    ruleText: string;
+    createdAt: string;
+    createdBy: string;
+}
+
+
 export interface Workspace {
     id: string;
     name: string;
@@ -133,4 +142,5 @@ export interface WorkspaceData {
     auditLogs: AuditLog[];
     knowledgeBaseSources: KnowledgeSource[];
     dismissalRules: DismissalRule[];
+    customRegulations: CustomRegulation[];
 }

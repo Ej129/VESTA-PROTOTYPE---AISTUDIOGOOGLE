@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole } from './types';
+import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import WorkspaceDashboard from './screens/WorkspaceDashboard';
@@ -37,6 +37,7 @@ const App: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [knowledgeBaseSources, setKnowledgeBaseSources] = useState<KnowledgeSource[]>([]);
   const [dismissalRules, setDismissalRules] = useState<DismissalRule[]>([]);
+  const [customRegulations, setCustomRegulations] = useState<CustomRegulation[]>([]);
   
   const [activeReport, setActiveReport] = useState<AnalysisReport | null>(null);
   
@@ -55,6 +56,7 @@ const App: React.FC = () => {
     setAuditLogs(data.auditLogs);
     setKnowledgeBaseSources(data.knowledgeBaseSources);
     setDismissalRules(data.dismissalRules);
+    setCustomRegulations(data.customRegulations);
     
     const members = await workspaceApi.getWorkspaceMembers(workspaceId);
     setWorkspaceMembers(members);
@@ -88,6 +90,7 @@ const App: React.FC = () => {
       setAuditLogs([]);
       setKnowledgeBaseSources([]);
       setDismissalRules([]);
+      setCustomRegulations([]);
       setActiveReport(null);
       setScreen(Screen.WorkspaceDashboard);
     }
@@ -160,6 +163,18 @@ const App: React.FC = () => {
     if (!selectedWorkspace) return;
     await workspaceApi.deleteDismissalRule(selectedWorkspace.id, id);
     await loadWorkspaceData(selectedWorkspace.id);
+  };
+
+  const handleAddRegulation = async (ruleText: string) => {
+      if (!selectedWorkspace || !currentUser) return;
+      await workspaceApi.addCustomRegulation(selectedWorkspace.id, ruleText, currentUser.email);
+      await loadWorkspaceData(selectedWorkspace.id);
+  };
+
+  const handleDeleteRegulation = async (regulationId: string) => {
+      if (!selectedWorkspace) return;
+      await workspaceApi.deleteCustomRegulation(selectedWorkspace.id, regulationId);
+      await loadWorkspaceData(selectedWorkspace.id);
   };
 
   const handleUserUpdate = async (updatedUser: User) => {
@@ -254,7 +269,7 @@ const App: React.FC = () => {
         screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
         break;
       case Screen.Analysis:
-        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} dismissalRules={dismissalRules} onAddDismissalRule={addDismissalRule} />;
+        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} dismissalRules={dismissalRules} onAddDismissalRule={addDismissalRule} customRegulations={customRegulations} />;
         break;
       case Screen.AuditTrail:
         screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} />;
@@ -263,7 +278,7 @@ const App: React.FC = () => {
         screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={addAutomatedKnowledgeSource} />;
         break;
       case Screen.Settings:
-        screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} />;
+        screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
         break;
       default:
         screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;

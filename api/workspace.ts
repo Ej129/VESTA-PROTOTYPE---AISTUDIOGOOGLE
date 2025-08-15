@@ -1,4 +1,4 @@
-import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, KnowledgeCategory, WorkspaceData } from '../types';
+import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, KnowledgeCategory, WorkspaceData, CustomRegulation } from '../types';
 import * as auth from './auth';
 
 // --- LocalStorage Simulation of Firestore ---
@@ -19,6 +19,7 @@ const DB = {
     auditLogs: get<AuditLog[]>('vesta-audit-logs', []),
     knowledgeSources: get<KnowledgeSource[]>('vesta-knowledge-sources', []),
     dismissalRules: get<DismissalRule[]>('vesta-dismissal-rules', []),
+    customRegulations: get<Record<string, CustomRegulation[]>>('vesta-custom-regulations', {}),
 };
 
 const persist = () => {
@@ -28,6 +29,7 @@ const persist = () => {
     set('vesta-audit-logs', DB.auditLogs);
     set('vesta-knowledge-sources', DB.knowledgeSources);
     set('vesta-dismissal-rules', DB.dismissalRules);
+    set('vesta-custom-regulations', DB.customRegulations);
 };
 
 // --- User Management (from Netlify Identity) ---
@@ -98,6 +100,7 @@ export const createWorkspace = async (name: string, creator: User): Promise<Work
         };
         DB.workspaces.push(newWorkspace);
         DB.workspaceMembers[newWorkspace.id] = [{ email: creator.email, role: 'Administrator' }];
+        DB.customRegulations[newWorkspace.id] = [];
         
         // Add default knowledge sources for the new workspace
         const initialSources: Omit<KnowledgeSource, 'id'|'workspaceId'>[] = [
@@ -182,6 +185,7 @@ export const getWorkspaceData = async (workspaceId: string): Promise<WorkspaceDa
             auditLogs: DB.auditLogs.filter(log => log.workspaceId === workspaceId),
             knowledgeBaseSources: DB.knowledgeSources.filter(ks => ks.workspaceId === workspaceId),
             dismissalRules: DB.dismissalRules.filter(dr => dr.workspaceId === workspaceId),
+            customRegulations: DB.customRegulations[workspaceId] || [],
         };
         resolve(data);
     });
@@ -275,6 +279,34 @@ export const deleteDismissalRule = async (workspaceId: string, ruleId: string): 
     return new Promise(resolve => {
         DB.dismissalRules = DB.dismissalRules.filter(dr => !(dr.id === ruleId && dr.workspaceId === workspaceId));
         persist();
+        resolve();
+    });
+};
+
+export const addCustomRegulation = async (workspaceId: string, ruleText: string, createdBy: string): Promise<CustomRegulation> => {
+    return new Promise(resolve => {
+        const newRegulation: CustomRegulation = {
+            id: `cr-${Date.now()}`,
+            workspaceId,
+            ruleText,
+            createdBy,
+            createdAt: new Date().toISOString(),
+        };
+        if (!DB.customRegulations[workspaceId]) {
+            DB.customRegulations[workspaceId] = [];
+        }
+        DB.customRegulations[workspaceId].push(newRegulation);
+        persist();
+        resolve(newRegulation);
+    });
+};
+
+export const deleteCustomRegulation = async (workspaceId: string, regulationId: string): Promise<void> => {
+    return new Promise(resolve => {
+        if (DB.customRegulations[workspaceId]) {
+            DB.customRegulations[workspaceId] = DB.customRegulations[workspaceId].filter(r => r.id !== regulationId);
+            persist();
+        }
         resolve();
     });
 };

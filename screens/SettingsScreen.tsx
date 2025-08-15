@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Screen, User, DismissalRule, ScreenLayoutProps } from '../types';
+import { Screen, User, DismissalRule, ScreenLayoutProps, CustomRegulation } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon, MoonIcon, SunIcon, TrashIcon, BrainCircuitIcon } from '../components/Icons';
+import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon, MoonIcon, SunIcon, TrashIcon, BrainCircuitIcon, PlusIcon } from '../components/Icons';
 
 interface SettingsScreenProps extends ScreenLayoutProps {
   dismissalRules: DismissalRule[];
   onDeleteDismissalRule: (id: string) => void;
   onUserUpdate: (user: User) => void;
+  customRegulations: CustomRegulation[];
+  onAddRegulation: (ruleText: string) => void;
+  onDeleteRegulation: (regulationId: string) => void;
 }
 
 const SettingsCard = ({ title, subtitle, children, footer }: { title: string, subtitle: string, children: React.ReactNode, footer?: React.ReactNode }) => (
@@ -186,27 +189,6 @@ const SecuritySettings = () => {
     );
 }
 
-const IntegrationsSettings = () => (
-    <div className="space-y-8">
-        <SettingsCard title="Project Management" subtitle="Connect to your team's project management tool.">
-            <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-border-light dark:border-border-dark rounded-lg">
-                    <span className="font-bold text-lg text-primary-text-light dark:text-primary-text-dark">Jira</span>
-                    <button className="px-4 py-2 font-semibold text-white bg-primary-blue rounded-lg hover:bg-opacity-90">Connect</button>
-                </div>
-                <div className="flex items-center justify-between p-4 border border-border-light dark:border-border-dark rounded-lg">
-                    <span className="font-bold text-lg text-primary-text-light dark:text-primary-text-dark">Asana</span>
-                    <button className="px-4 py-2 font-semibold text-white bg-primary-blue rounded-lg hover:bg-opacity-90">Connect</button>
-                </div>
-                 <div className="flex items-center justify-between p-4 border border-border-light dark:border-border-dark rounded-lg">
-                    <span className="font-bold text-lg text-primary-text-light dark:text-primary-text-dark">Trello</span>
-                    <button className="px-4 py-2 font-semibold text-gray-500 bg-gray-200 dark:bg-gray-600 dark:text-gray-300 rounded-lg cursor-not-allowed">Coming Soon</button>
-                </div>
-            </div>
-        </SettingsCard>
-    </div>
-);
-
 const AICustomizationSettings = ({ rules, onDeleteRule }: { rules: DismissalRule[], onDeleteRule: (id: string) => void }) => {
     return (
         <SettingsCard
@@ -255,26 +237,74 @@ const AICustomizationSettings = ({ rules, onDeleteRule }: { rules: DismissalRule
     );
 };
 
+const RegulationsSettings = ({ regulations, onAdd, onDelete }: { regulations: CustomRegulation[], onAdd: (ruleText: string) => void, onDelete: (id: string) => void }) => {
+    const [newRule, setNewRule] = useState('');
 
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, ...layoutProps }) => {
-    const [activeTab, setActiveTab] = useState('profile');
-    const { currentUser } = layoutProps;
+    const handleAddClick = () => {
+        if (newRule.trim()) {
+            onAdd(newRule.trim());
+            setNewRule('');
+        }
+    };
     
-    const TABS = [
+    return (
+        <SettingsCard
+            title="Custom Regulations"
+            subtitle="Define workspace-specific rules that Vesta must check for in every analysis."
+        >
+            <div className="space-y-4">
+                <textarea
+                    value={newRule}
+                    onChange={(e) => setNewRule(e.target.value)}
+                    placeholder="e.g., All project plans must explicitly mention data encryption standards."
+                    className="w-full h-24 p-3 border border-border-light dark:border-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue bg-light-main dark:bg-dark-main"
+                />
+                <div className="flex justify-end">
+                    <button onClick={handleAddClick} disabled={!newRule.trim()} className="flex items-center px-4 py-2 bg-primary-blue text-white font-semibold rounded-lg hover:bg-opacity-90 disabled:opacity-50">
+                        <PlusIcon className="w-5 h-5 mr-2" /> Add Rule
+                    </button>
+                </div>
+            </div>
+
+            <div className="space-y-3 mt-6">
+                {regulations.map(reg => (
+                    <div key={reg.id} className="flex items-center justify-between p-3 bg-light-main dark:bg-dark-main rounded-lg">
+                        <p className="text-sm text-primary-text-light dark:text-primary-text-dark flex-1 pr-4">{reg.ruleText}</p>
+                        <button onClick={() => onDelete(reg.id)} aria-label="Delete regulation">
+                            <TrashIcon className="w-5 h-5 text-gray-400 hover:text-accent-critical" />
+                        </button>
+                    </div>
+                ))}
+                {regulations.length === 0 && <p className="text-center text-sm text-secondary-text-light dark:text-secondary-text-dark py-4">No custom regulations defined.</p>}
+            </div>
+        </SettingsCard>
+    );
+}
+
+
+const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, customRegulations, onAddRegulation, onDeleteRegulation, ...layoutProps }) => {
+    const [activeTab, setActiveTab] = useState('profile');
+    const { currentUser, userRole } = layoutProps;
+    
+    const baseTabs = [
         { id: 'profile', label: 'Profile', icon: <UserProfileIcon className="w-5 h-5 mr-3" /> },
         { id: 'notifications', label: 'Notifications', icon: <BellIcon className="w-5 h-5 mr-3" /> },
         { id: 'security', label: 'Security', icon: <ShieldIcon className="w-5 h-5 mr-3" /> },
-        { id: 'integrations', label: 'Integrations', icon: <LinkIcon className="w-5 h-5 mr-3" /> },
         { id: 'ai', label: 'AI Customization', icon: <BrainCircuitIcon className="w-5 h-5 mr-3" /> },
     ];
+
+    const TABS = [...baseTabs];
+    if (userRole === 'Administrator') {
+        TABS.push({ id: 'regulations', label: 'Custom Regulations', icon: <ShieldIcon className="w-5 h-5 mr-3" /> });
+    }
 
     const renderContent = () => {
         switch (activeTab) {
             case 'profile': return <ProfileSettings user={currentUser} onUserUpdate={onUserUpdate} />;
             case 'notifications': return <NotificationsSettings />;
             case 'security': return <SecuritySettings />;
-            case 'integrations': return <IntegrationsSettings />;
             case 'ai': return <AICustomizationSettings rules={dismissalRules} onDeleteRule={onDeleteDismissalRule} />;
+            case 'regulations': return <RegulationsSettings regulations={customRegulations} onAdd={onAddRegulation} onDelete={onDeleteRegulation} />;
             default: return <ProfileSettings user={currentUser} onUserUpdate={onUserUpdate} />;
         }
     };

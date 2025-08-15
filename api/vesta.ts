@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { AnalysisReport, Finding, KnowledgeSource, DismissalRule } from '../types';
+import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -40,7 +40,7 @@ const reportSchema = {
     required: ["resilienceScore", "findings"],
 };
 
-export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
+export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
     if (!planContent.trim()) {
         return {
             title: "Analysis Failed",
@@ -68,6 +68,11 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
     if (dismissalRules.length > 0) {
         const rulesText = dismissalRules.map(r => `- "${r.findingTitle}" (Reason: ${r.reason})`).join('\n');
         contextPrompt += `\n\nLEARNED DISMISSAL RULES (Do NOT report findings with these titles):\n${rulesText}`;
+    }
+
+    if (customRegulations && customRegulations.length > 0) {
+        const rulesText = customRegulations.map(r => `- ${r.ruleText}`).join('\n');
+        contextPrompt += `\n\nWORKSPACE-SPECIFIC CUSTOM REGULATIONS:\nThese are mandatory requirements for this workspace. For each rule below that is NOT followed by the project plan, you MUST generate a 'critical' finding. The finding's title should clearly state which custom rule was violated, for example: "Custom Rule Violation: [Rule Text]".\n${rulesText}`;
     }
 
     try {

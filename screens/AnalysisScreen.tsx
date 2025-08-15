@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole } from '../types';
+import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole, CustomRegulation } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
 import { SparklesIcon, DownloadIcon, CheckCircleIcon, ChevronDownIcon } from '../components/Icons';
 import UploadModal from '../components/UploadModal';
@@ -122,9 +122,10 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   knowledgeBaseSources: KnowledgeSource[];
   dismissalRules: DismissalRule[];
   onAddDismissalRule: (finding: Finding, reason: FeedbackReason) => void;
+  customRegulations: CustomRegulation[];
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, ...layoutProps }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, customRegulations, ...layoutProps }) => {
   const { navigateTo } = layoutProps;
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [editorHtml, setEditorHtml] = useState('');
@@ -203,7 +204,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       addAuditLog('Document Upload', `File uploaded: ${fileName}`);
       setShowUploadModal(false);
       setIsLoading(true);
-      const reportData = await analyzePlan(content, knowledgeBaseSources, dismissalRules);
+      const reportData = await analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
       const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
       onAnalysisComplete(report);
       setIsLoading(false);
@@ -239,8 +240,24 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       if (format === 'PDF') {
           const doc = new jsPDF();
           doc.setFontSize(10);
-          const lines = doc.splitTextToSize(plainTextContent, 180);
-          doc.text(lines, 15, 15);
+          doc.setFont('helvetica', 'normal');
+          
+          const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+          const margin = 15;
+          let y = margin;
+          
+          const lines = doc.splitTextToSize(plainTextContent, 180); // 180mm width
+          const lineHeight = 7; // Approx line height for font size 10
+
+          lines.forEach((line: string) => {
+              if (y + lineHeight > pageHeight - margin) {
+                  doc.addPage();
+                  y = margin;
+              }
+              doc.text(line, margin, y);
+              y += lineHeight;
+          });
+          
           doc.save(`${title}.pdf`);
       } else if (format === 'DOCX') {
           const doc = new Document({
@@ -293,7 +310,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
     setFeedbackFinding(null);
   };
 
-  const canEdit = userRole === 'Administrator' || userRole === 'Member';
+  const canEdit = userRole === 'Administrator' || userRole === 'Member' || userRole === 'Risk Management Officer' || userRole === 'Strategy Officer';
 
   if (showUploadModal) {
       return (
