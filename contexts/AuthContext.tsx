@@ -4,62 +4,70 @@ import { User } from '../types';
 import * as workspaceApi from '../api/workspace';
 
 interface AuthContextType {
-    user: User | null;
-    isInitialized: boolean;
-    logout: () => void;
+  currentUser: User | null;
+  loading: boolean;
+  logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [isInitialized, setIsInitialized] = useState(false);
-
-    useEffect(() => {
-        netlifyIdentity.init();
-
-        const handleLogin = async (netlifyUser: any) => {
-            try {
-                const appUser = await workspaceApi.getOrCreateUser(netlifyUser);
-                setUser(appUser);
-                netlifyIdentity.close();
-            } catch (error) {
-                console.error("Error during login sync:", error);
-            }
-        };
-
-        const handleLogout = () => {
-            setUser(null);
-        };
-
-        netlifyIdentity.on('init', (netlifyUser) => {
-            if (netlifyUser) {
-                handleLogin(netlifyUser);
-            }
-            setIsInitialized(true);
-        });
-
-        netlifyIdentity.on('login', handleLogin);
-        netlifyIdentity.on('logout', handleLogout);
-
-        return () => {
-            // Per Netlify docs, event listeners on the widget are not meant to be cleaned up
-        };
-    }, []);
-
-    const logout = useCallback(() => {
-        netlifyIdentity.logout();
-    }, []);
-
-    const value = { user, isInitialized, logout };
-
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };
 
-export const useAuth = (): AuthContextType => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    netlifyIdentity.init();
+
+    const handleLogin = async (netlifyUser: any) => {
+      setLoading(true);
+      const appUser = await workspaceApi.getOrCreateUser(netlifyUser);
+      setCurrentUser(appUser);
+      setLoading(false);
+      netlifyIdentity.close();
+    };
+
+    const handleLogout = () => {
+      setCurrentUser(null);
+    };
+
+    netlifyIdentity.on('init', (user) => {
+      if (user) {
+        handleLogin(user);
+      } else {
+        setLoading(false); // No user, finished loading
+      }
+    });
+    
+    netlifyIdentity.on('login', handleLogin);
+    netlifyIdentity.on('logout', handleLogout);
+
+    return () => {
+      netlifyIdentity.off('login', handleLogin);
+      netlifyIdentity.off('logout', handleLogout);
+    };
+  }, []);
+
+  const logout = useCallback(() => {
+    netlifyIdentity.logout();
+  }, []);
+
+  const value = { currentUser, loading, logout };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

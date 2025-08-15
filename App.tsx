@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole } from './types';
-
 import { useAuth } from './contexts/AuthContext';
 
 import LoginScreen from './screens/LoginScreen';
@@ -16,9 +15,8 @@ import ManageMembersModal from './components/ManageMembersModal';
 import * as workspaceApi from './api/workspace';
 
 const App: React.FC = () => {
-  const { user: currentUser, isInitialized, logout: authLogout } = useAuth();
-  
-  const [screen, setScreen] = useState<Screen>(Screen.Login);
+  const { currentUser, loading, logout } = useAuth();
+  const [screen, setScreen] = useState<Screen>(Screen.WorkspaceDashboard);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -64,29 +62,22 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    if (isInitialized) {
-      if (currentUser) {
-        refreshWorkspaces();
-        // On login or refresh, if no workspace is selected, go to the dashboard
-        if (!selectedWorkspace) {
-            setScreen(Screen.WorkspaceDashboard);
-        }
-      } else {
-        // User logged out, reset all state
-        setScreen(Screen.Login);
-        setSelectedWorkspace(null);
-        setWorkspaces([]);
-        setReports([]);
-        setAuditLogs([]);
-        setKnowledgeBaseSources([]);
-        setDismissalRules([]);
-        setActiveReport(null);
-        setCreateWorkspaceModalOpen(false);
-        setManageMembersModalOpen(false);
-      }
+    if (currentUser) {
+      refreshWorkspaces();
+      setSelectedWorkspace(null);
+      setScreen(Screen.WorkspaceDashboard);
+    } else if (!loading) {
+      setScreen(Screen.Login);
+      setSelectedWorkspace(null);
+      setWorkspaces([]);
+      setReports([]);
+      setAuditLogs([]);
+      setKnowledgeBaseSources([]);
+      setDismissalRules([]);
+      setActiveReport(null);
     }
-  }, [currentUser, isInitialized, selectedWorkspace, refreshWorkspaces]);
-
+  }, [currentUser, loading, refreshWorkspaces]);
+  
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
     if(!currentUser || !selectedWorkspace) return;
     await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser, action, details);
@@ -94,7 +85,7 @@ const App: React.FC = () => {
   }, [currentUser, selectedWorkspace, loadWorkspaceData]);
   
   const handleLogout = () => {
-    authLogout();
+    logout();
   };
 
   const handleCreateWorkspace = async (name: string) => {
@@ -214,14 +205,15 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    if (!isInitialized) {
-        // Render a blank screen or a loading spinner while waiting for auth
-        return <div className="min-h-screen bg-light-main dark:bg-dark-main" />;
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-light-main dark:bg-dark-main">
+                <p className="text-secondary-text-light dark:text-secondary-text-dark">Initializing Session...</p>
+            </div>
+        );
     }
-
-    if (!currentUser) {
-        return <LoginScreen />;
-    }
+    
+    if (!currentUser) return <LoginScreen />;
 
     if (!selectedWorkspace) {
         return (
