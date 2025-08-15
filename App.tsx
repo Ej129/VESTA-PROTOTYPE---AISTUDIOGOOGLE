@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole } from './types';
 
+import netlifyIdentity from 'netlify-identity-widget';
+
 import LoginScreen from './screens/LoginScreen';
 import WorkspaceDashboard from './screens/WorkspaceDashboard';
 import DashboardScreen from './screens/DashboardScreen';
@@ -11,7 +13,6 @@ import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
 import ManageMembersModal from './components/ManageMembersModal';
 
-import * as auth from './api/auth';
 import * as workspaceApi from './api/workspace';
 
 const App: React.FC = () => {
@@ -50,16 +51,53 @@ const App: React.FC = () => {
     
     const members = await workspaceApi.getWorkspaceMembers(workspaceId);
     setWorkspaceMembers(members);
-    const member = members.find(m => m.email === currentUser.email);
+    const member = members.find(m => m.userId === currentUser.id);
     setUserRole(member?.role || 'Member');
 
   }, [currentUser]);
 
   const refreshWorkspaces = useCallback(async () => {
     if (!currentUser) return;
-    const userWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.email);
+    const userWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.id);
     setWorkspaces(userWorkspaces);
   }, [currentUser]);
+
+  useEffect(() => {
+    netlifyIdentity.init();
+
+    const handleLogin = async (netlifyUser: any) => {
+      const appUser = await workspaceApi.getOrCreateUser(netlifyUser);
+      setCurrentUser(appUser);
+      setScreen(Screen.WorkspaceDashboard);
+      netlifyIdentity.close();
+    };
+
+    const handleLogout = () => {
+      setCurrentUser(null);
+      setSelectedWorkspace(null);
+      setWorkspaces([]);
+      setReports([]);
+      setAuditLogs([]);
+      setKnowledgeBaseSources([]);
+      setDismissalRules([]);
+      setScreen(Screen.Login);
+    };
+
+    netlifyIdentity.on('login', handleLogin);
+    netlifyIdentity.on('logout', handleLogout);
+    netlifyIdentity.on('init', (user) => {
+        if (user) {
+            handleLogin(user);
+        } else {
+            setScreen(Screen.Login);
+        }
+    });
+
+    return () => {
+        // Not cleaning up listeners as Netlify Identity widget is a singleton
+    };
+  }, []);
+
 
   useEffect(() => {
     if (currentUser) {
@@ -72,40 +110,18 @@ const App: React.FC = () => {
   
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
     if(!currentUser || !selectedWorkspace) return;
-    await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action, details);
+    await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser, action, details);
     loadWorkspaceData(selectedWorkspace.id);
   }, [currentUser, selectedWorkspace, loadWorkspaceData]);
   
-  const loadUserSession = async (user: User) => {
-      setCurrentUser(user);
-      setScreen(Screen.WorkspaceDashboard);
-  };
-
-  useEffect(() => {
-    const user = auth.getCurrentUser();
-    if (user) {
-        loadUserSession(user);
-    } else {
-      setScreen(Screen.Login);
-    }
-  }, []);
-
-  const handleLoginSuccess = async (user: User) => {
-    await loadUserSession(user);
-    // Note: The global audit log for login is not tied to a workspace
-  };
-  
   const handleLogout = () => {
-    auth.logout();
-    setCurrentUser(null);
-    setSelectedWorkspace(null);
-    setScreen(Screen.Login);
+    netlifyIdentity.logout();
   };
 
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
-    await workspaceApi.createWorkspace(name, currentUser);
-    addAuditLog('Workspace Created', `Workspace "${name}" created.`);
+    const newWorkspace = await workspaceApi.createWorkspace(name, currentUser);
+    await workspaceApi.addAuditLog(newWorkspace.id, currentUser, 'Workspace Created', `Workspace "${name}" created.`);
     await refreshWorkspaces();
     setCreateWorkspaceModalOpen(false);
   };
@@ -171,15 +187,6 @@ const App: React.FC = () => {
     await workspaceApi.deleteDismissalRule(selectedWorkspace.id, id);
     await loadWorkspaceData(selectedWorkspace.id);
   };
-
-  const handleUserUpdate = async (updatedUser: User) => {
-    try {
-        const user = await auth.updateUser(updatedUser);
-        setCurrentUser(user);
-    } catch(err) {
-        console.error("Failed to update user:", err);
-    }
-  };
   
   const handleInviteUser = async (email: string, role: UserRole) => {
       if (!selectedWorkspace) return;
@@ -192,17 +199,21 @@ const App: React.FC = () => {
       }
   };
 
-  const handleRemoveUser = async (email: string) => {
-      if (!selectedWorkspace) return;
-      await workspaceApi.removeUser(selectedWorkspace.id, email);
-      await addAuditLog('User Removed', `Removed user ${email}.`);
+  const handleRemoveUser = async (userId: string) => {
+      if (!selectedWorkspace || !currentUser) return;
+      const member = workspaceMembers.find(m => m.userId === userId);
+      if(!member) return;
+      await workspaceApi.removeUser(selectedWorkspace.id, userId);
+      await addAuditLog('User Removed', `Removed user ${member.email}.`);
       await loadWorkspaceData(selectedWorkspace.id);
   };
 
-  const handleUpdateRole = async (email: string, role: UserRole) => {
-      if (!selectedWorkspace) return;
-      await workspaceApi.updateUserRole(selectedWorkspace.id, email, role);
-      await addAuditLog('Role Changed', `Changed role for ${email} to ${role}.`);
+  const handleUpdateRole = async (userId: string, role: UserRole) => {
+      if (!selectedWorkspace || !currentUser) return;
+      const member = workspaceMembers.find(m => m.userId === userId);
+      if(!member) return;
+      await workspaceApi.updateUserRole(selectedWorkspace.id, userId, role);
+      await addAuditLog('Role Changed', `Changed role for ${member.email} to ${role}.`);
       await loadWorkspaceData(selectedWorkspace.id);
   };
 
@@ -224,7 +235,7 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    if (!currentUser) return <LoginScreen />;
 
     if (!selectedWorkspace) {
         return (
@@ -272,7 +283,7 @@ const App: React.FC = () => {
         screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={addAutomatedKnowledgeSource} />;
         break;
       case Screen.Settings:
-        screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} />;
+        screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} />;
         break;
       default:
         screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
@@ -285,7 +296,7 @@ const App: React.FC = () => {
                 <ManageMembersModal 
                     onClose={() => setManageMembersModalOpen(false)}
                     currentMembers={workspaceMembers}
-                    currentUserEmail={currentUser.email}
+                    currentUserId={currentUser.id}
                     onInviteUser={handleInviteUser}
                     onRemoveUser={handleRemoveUser}
                     onUpdateRole={handleUpdateRole}

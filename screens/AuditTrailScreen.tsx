@@ -56,7 +56,7 @@ const AuditTrailScreen: React.FC<AuditTrailScreenProps> = ({ logs, ...layoutProp
                     {logs.map((log) => (
                       <tr key={log.id} className="border-b border-border-light dark:border-border-dark last:border-b-0 hover:bg-gray-50 dark:hover:bg-dark-main/20 transition-colors">
                         <td className="p-4 text-secondary-text-light dark:text-secondary-text-dark whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
-                        <td className="p-4 text-primary-text-light dark:text-primary-text-dark font-medium">{log.user}</td>
+                        <td className="p-4 text-primary-text-light dark:text-primary-text-dark font-medium">{log.userName}</td>
                         <td className="p-4 text-secondary-text-light dark:text-secondary-text-dark">
                             <span className="px-3 py-1 text-xs font-semibold text-primary-blue bg-primary-blue/10 rounded-full">
                               {log.action}

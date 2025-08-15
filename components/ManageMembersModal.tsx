@@ -5,10 +5,10 @@ import { TrashIcon, ChevronDownIcon, PlusIcon } from './Icons';
 interface ManageMembersModalProps {
   onClose: () => void;
   currentMembers: WorkspaceMember[];
-  currentUserEmail: string;
+  currentUserId: string;
   onInviteUser: (email: string, role: UserRole) => void;
-  onRemoveUser: (email: string) => void;
-  onUpdateRole: (email: string, role: UserRole) => void;
+  onRemoveUser: (userId: string) => void;
+  onUpdateRole: (userId: string, role: UserRole) => void;
 }
 
 const MemberRow: React.FC<{
@@ -58,7 +58,7 @@ const MemberRow: React.FC<{
     );
 };
 
-const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, currentMembers, currentUserEmail, onInviteUser, onRemoveUser, onUpdateRole }) => {
+const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, currentMembers, currentUserId, onInviteUser, onRemoveUser, onUpdateRole }) => {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<UserRole>('Member');
     
@@ -110,12 +110,12 @@ const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, curren
                     <div className="mt-2 max-h-64 overflow-y-auto pr-2 divide-y divide-border-light dark:divide-border-dark">
                         {currentMembers.map(member => (
                             <MemberRow 
-                                key={member.email}
+                                key={member.userId}
                                 member={member}
-                                isCurrentUser={member.email === currentUserEmail}
+                                isCurrentUser={member.userId === currentUserId}
                                 isLastAdmin={member.role === 'Administrator' && adminCount === 1}
-                                onRemove={() => onRemoveUser(member.email)}
-                                onRoleChange={(newRole) => onUpdateRole(member.email, newRole)}
+                                onRemove={() => onRemoveUser(member.userId)}
+                                onRoleChange={(newRole) => onUpdateRole(member.userId, newRole)}
                             />
                         ))}
                     </div>

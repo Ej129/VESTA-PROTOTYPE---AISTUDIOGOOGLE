@@ -40,6 +40,7 @@ export interface AnalysisReport {
 }
 
 export interface User {
+    id: string;
     name: string;
     email: string;
     avatar?: string;
@@ -70,7 +71,7 @@ export interface AuditLog {
     id: string;
     workspaceId: string;
     timestamp: string;
-    user: string;
+    userName: string;
     action: AuditLogAction;
     details: string;
 }
@@ -107,6 +108,7 @@ export interface Workspace {
 }
 
 export interface WorkspaceMember {
+    userId: string;
     email: string;
     role: UserRole;
 }
