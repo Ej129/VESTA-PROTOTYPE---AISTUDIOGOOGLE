@@ -53,14 +53,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const netlifyIdentity = window.netlifyIdentity;
 
+    const onAuthAction = (netlifyUser: NetlifyUser | null) => {
+      handleLogin(netlifyUser);
+
+      // After authentication, Netlify redirects with a URL hash. The widget
+      // processes it and should remove it, but sometimes an empty '#' remains.
+      // This logic cleans up the URL for a cleaner user experience.
+      if (window.location.hash === '#') {
+        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      }
+    };
+
     if (netlifyIdentity) {
-      netlifyIdentity.on('init', (netlifyUser: NetlifyUser | null) => {
-        handleLogin(netlifyUser);
-      });
+      // The 'init' event fires when the widget is initialized, and it may
+      // contain a user if they were already logged in (or just returned from an external provider).
+      netlifyIdentity.on('init', onAuthAction);
       
-      netlifyIdentity.on('login', (netlifyUser: NetlifyUser) => {
-        handleLogin(netlifyUser);
-      });
+      // The 'login' event fires after a user successfully logs in using the widget.
+      netlifyIdentity.on('login', onAuthAction);
       
       netlifyIdentity.on('logout', () => {
         setUser(null);
@@ -74,8 +84,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       if (netlifyIdentity) {
-        netlifyIdentity.off('init');
-        netlifyIdentity.off('login');
+        netlifyIdentity.off('init', onAuthAction);
+        netlifyIdentity.off('login', onAuthAction);
         netlifyIdentity.off('logout');
       }
     };
