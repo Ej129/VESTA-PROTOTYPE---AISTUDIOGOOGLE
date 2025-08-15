@@ -39,7 +39,7 @@ const LoginScreen: React.FC = () => {
             Login or Sign Up
           </button>
            <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark mt-4">
-            Secure authentication powered by Auth0.
+            Powered by Netlify Identity.
           </p>
         </div>
       </div>
