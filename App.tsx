@@ -51,7 +51,7 @@ const App: React.FC = () => {
   
   const loadWorkspaceData = useCallback(async (workspaceId: string) => {
     if (!currentUser) return;
-    const data = await workspaceApi.getWorkspaceData(workspaceId);
+    const data = await workspaceApi.getWorkspaceData(workspaceId, currentUser.email);
     setReports(data.reports);
     setAuditLogs(data.auditLogs);
     setKnowledgeBaseSources(data.knowledgeBaseSources);
@@ -131,7 +131,7 @@ const App: React.FC = () => {
     await workspaceApi.addReport(newReport);
     await addAuditLog('Analysis Run', `Analysis completed for: ${report.title}`);
     await loadWorkspaceData(selectedWorkspace.id);
-    const fullReport = (await workspaceApi.getWorkspaceData(selectedWorkspace.id)).reports[0];
+    const fullReport = (await workspaceApi.getWorkspaceData(selectedWorkspace.id, currentUser!.email)).reports[0];
     setActiveReport(fullReport);
   };
 

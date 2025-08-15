@@ -16,7 +16,7 @@ const DB = {
     workspaces: get<Workspace[]>('vesta-workspaces', []),
     workspaceMembers: get<Record<string, WorkspaceMember[]>>('vesta-workspace-members', {}),
     reports: get<AnalysisReport[]>('vesta-reports', []),
-    auditLogs: get<AuditLog[]>('vesta-audit-logs', []),
+    auditLogs: get<Record<string, AuditLog[]>>('vesta-audit-logs', {}),
     knowledgeSources: get<KnowledgeSource[]>('vesta-knowledge-sources', []),
     dismissalRules: get<DismissalRule[]>('vesta-dismissal-rules', []),
     customRegulations: get<Record<string, CustomRegulation[]>>('vesta-custom-regulations', {}),
@@ -101,6 +101,7 @@ export const createWorkspace = async (name: string, creator: User): Promise<Work
         DB.workspaces.push(newWorkspace);
         DB.workspaceMembers[newWorkspace.id] = [{ email: creator.email, role: 'Administrator' }];
         DB.customRegulations[newWorkspace.id] = [];
+        DB.auditLogs[newWorkspace.id] = [];
         
         // Add default knowledge sources for the new workspace
         const initialSources: Omit<KnowledgeSource, 'id'|'workspaceId'>[] = [
@@ -178,11 +179,27 @@ export const updateUserRole = async (workspaceId: string, email: string, role: U
 
 // --- Workspace Data Management ---
 
-export const getWorkspaceData = async (workspaceId: string): Promise<WorkspaceData> => {
+export const getWorkspaceData = async (workspaceId: string, userEmail: string): Promise<WorkspaceData> => {
     return new Promise(resolve => {
+        // Security Rule Simulation: A user can only get data for a workspace they are a member of.
+        const members = DB.workspaceMembers[workspaceId] || [];
+        if (!members.some(member => member.email === userEmail)) {
+            console.error(`SECURITY CHECK FAILED: User ${userEmail} attempted to access workspace ${workspaceId} without being a member.`);
+            // In a real Firestore scenario, this would throw a permission denied error.
+            // Here, we return empty/default data to simulate the effect of the security rule.
+            resolve({
+                reports: [],
+                auditLogs: [],
+                knowledgeBaseSources: [],
+                dismissalRules: [],
+                customRegulations: [],
+            });
+            return;
+        }
+
         const data: WorkspaceData = {
             reports: DB.reports.filter(r => r.workspaceId === workspaceId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-            auditLogs: DB.auditLogs.filter(log => log.workspaceId === workspaceId),
+            auditLogs: DB.auditLogs[workspaceId] || [],
             knowledgeBaseSources: DB.knowledgeSources.filter(ks => ks.workspaceId === workspaceId),
             dismissalRules: DB.dismissalRules.filter(dr => dr.workspaceId === workspaceId),
             customRegulations: DB.customRegulations[workspaceId] || [],
@@ -228,13 +245,15 @@ export const addAuditLog = async (workspaceId: string, userEmail: string, action
     return new Promise(resolve => {
         const newLog: AuditLog = {
             id: `log-${Date.now()}`,
-            workspaceId,
             timestamp: new Date().toISOString(),
-            user: userEmail,
+            userEmail,
             action,
             details,
         };
-        DB.auditLogs.unshift(newLog);
+        if (!DB.auditLogs[workspaceId]) {
+            DB.auditLogs[workspaceId] = [];
+        }
+        DB.auditLogs[workspaceId].unshift(newLog);
         persist();
         resolve();
     });

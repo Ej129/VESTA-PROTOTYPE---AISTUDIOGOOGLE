@@ -68,9 +68,8 @@ export type AuditLogAction =
 
 export interface AuditLog {
     id: string;
-    workspaceId: string;
     timestamp: string;
-    user: string;
+    userEmail: string;
     action: AuditLogAction;
     details: string;
 }
