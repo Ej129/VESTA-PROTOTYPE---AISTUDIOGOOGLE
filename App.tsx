@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole } from './types';
-
+import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import WorkspaceDashboard from './screens/WorkspaceDashboard';
 import DashboardScreen from './screens/DashboardScreen';
@@ -10,13 +10,21 @@ import KnowledgeBaseScreen from './screens/KnowledgeBaseScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
 import ManageMembersModal from './components/ManageMembersModal';
-
-import * as auth from './api/auth';
 import * as workspaceApi from './api/workspace';
 
+const InitializingScreen: React.FC = () => (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-light-main dark:bg-dark-main">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-blue"></div>
+        <p className="mt-4 text-lg font-semibold text-secondary-text-light dark:text-secondary-text-dark">
+            Initializing Session...
+        </p>
+    </div>
+);
+
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<Screen>(Screen.Login);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user: currentUser, loading, logout: handleLogout } = useAuth();
+
+  const [screen, setScreen] = useState<Screen>(Screen.WorkspaceDashboard);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -52,7 +60,6 @@ const App: React.FC = () => {
     setWorkspaceMembers(members);
     const member = members.find(m => m.email === currentUser.email);
     setUserRole(member?.role || 'Member');
-
   }, [currentUser]);
 
   const refreshWorkspaces = useCallback(async () => {
@@ -61,12 +68,28 @@ const App: React.FC = () => {
     setWorkspaces(userWorkspaces);
   }, [currentUser]);
 
+  const handleBackToWorkspaces = () => {
+    setSelectedWorkspace(null);
+    setActiveReport(null);
+    navigateTo(Screen.WorkspaceDashboard);
+  };
+
   useEffect(() => {
     if (currentUser) {
       refreshWorkspaces();
+      if(selectedWorkspace) {
+        handleBackToWorkspaces();
+      }
     } else {
+      // Clear all state when user logs out
       setWorkspaces([]);
       setSelectedWorkspace(null);
+      setReports([]);
+      setAuditLogs([]);
+      setKnowledgeBaseSources([]);
+      setDismissalRules([]);
+      setActiveReport(null);
+      setScreen(Screen.WorkspaceDashboard);
     }
   }, [currentUser, refreshWorkspaces]);
   
@@ -75,37 +98,10 @@ const App: React.FC = () => {
     await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action, details);
     loadWorkspaceData(selectedWorkspace.id);
   }, [currentUser, selectedWorkspace, loadWorkspaceData]);
-  
-  const loadUserSession = async (user: User) => {
-      setCurrentUser(user);
-      setScreen(Screen.WorkspaceDashboard);
-  };
-
-  useEffect(() => {
-    const user = auth.getCurrentUser();
-    if (user) {
-        loadUserSession(user);
-    } else {
-      setScreen(Screen.Login);
-    }
-  }, []);
-
-  const handleLoginSuccess = async (user: User) => {
-    await loadUserSession(user);
-    // Note: The global audit log for login is not tied to a workspace
-  };
-  
-  const handleLogout = () => {
-    auth.logout();
-    setCurrentUser(null);
-    setSelectedWorkspace(null);
-    setScreen(Screen.Login);
-  };
 
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
     await workspaceApi.createWorkspace(name, currentUser);
-    addAuditLog('Workspace Created', `Workspace "${name}" created.`);
     await refreshWorkspaces();
     setCreateWorkspaceModalOpen(false);
   };
@@ -115,12 +111,6 @@ const App: React.FC = () => {
     await loadWorkspaceData(workspace.id);
     navigateTo(Screen.Dashboard);
   };
-  
-  const handleBackToWorkspaces = () => {
-    setSelectedWorkspace(null);
-    setActiveReport(null);
-    navigateTo(Screen.WorkspaceDashboard);
-  }
 
   const handleStartNewAnalysis = () => {
     setActiveReport(null);
@@ -174,8 +164,8 @@ const App: React.FC = () => {
 
   const handleUserUpdate = async (updatedUser: User) => {
     try {
-        const user = await auth.updateUser(updatedUser);
-        setCurrentUser(user);
+        await workspaceApi.updateUser(updatedUser);
+        alert("Profile updated. Note: some changes from Netlify may override this on your next session.");
     } catch(err) {
         console.error("Failed to update user:", err);
     }
@@ -224,7 +214,8 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    if (loading) return <InitializingScreen />;
+    if (!currentUser) return <LoginScreen />;
 
     if (!selectedWorkspace) {
         return (

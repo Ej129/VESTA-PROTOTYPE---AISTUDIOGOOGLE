@@ -30,6 +30,62 @@ const persist = () => {
     set('vesta-dismissal-rules', DB.dismissalRules);
 };
 
+// --- User Management (from Netlify Identity) ---
+
+const USERS_KEY = 'vesta-users';
+
+// Minimal Netlify User type
+interface NetlifyUser {
+  email: string;
+  user_metadata?: {
+    full_name?: string;
+    avatar_url?: string;
+  };
+}
+
+export const getOrCreateUser = (netlifyUser: NetlifyUser): Promise<User> => {
+  return new Promise((resolve) => {
+    const users = get<any[]>(USERS_KEY, []);
+    let appUser = users.find((u) => u.email === netlifyUser.email);
+
+    const name = netlifyUser.user_metadata?.full_name || netlifyUser.email.split('@')[0];
+    const avatar = netlifyUser.user_metadata?.avatar_url;
+
+    if (!appUser) {
+      appUser = {
+        name,
+        email: netlifyUser.email,
+        avatar,
+        password: `netlify-${Date.now()}`, // Dummy password for mock DB structure
+      };
+      users.push(appUser);
+    } else {
+      // Update existing user's info from Netlify on every login
+      appUser.name = name;
+      appUser.avatar = avatar;
+    }
+    
+    set(USERS_KEY, users);
+
+    const vestaUser: User = { name: appUser.name, email: appUser.email, avatar: appUser.avatar };
+    resolve(vestaUser);
+  });
+};
+
+export const updateUser = (userToUpdate: User): Promise<User> => {
+    return new Promise((resolve) => {
+        const users = get<any[]>(USERS_KEY, []);
+        const userIndex = users.findIndex((u) => u.email === userToUpdate.email);
+
+        if (userIndex !== -1) {
+            users[userIndex].name = userToUpdate.name;
+            users[userIndex].avatar = userToUpdate.avatar;
+            set(USERS_KEY, users);
+        }
+        resolve(userToUpdate);
+    });
+};
+
 // --- API Functions ---
 
 export const createWorkspace = async (name: string, creator: User): Promise<Workspace> => {
@@ -73,9 +129,12 @@ export const getWorkspaceMembers = async (workspaceId: string): Promise<Workspac
 
 export const inviteUser = async (workspaceId: string, email: string, role: UserRole): Promise<void> => {
     return new Promise(async (resolve, reject) => {
-        const userExists = await auth.userExists(email);
-        if (!userExists) {
-            reject(new Error(`User with email "${email}" does not exist.`));
+        const users = get<any[]>(USERS_KEY, []);
+        const userExistsInApp = users.some(u => u.email === email);
+        
+        if (!userExistsInApp) {
+             // In a real app, you'd check Netlify Identity. Here we check our own DB.
+            reject(new Error(`User with email "${email}" must sign up to Vesta first.`));
             return;
         }
 
@@ -119,7 +178,7 @@ export const updateUserRole = async (workspaceId: string, email: string, role: U
 export const getWorkspaceData = async (workspaceId: string): Promise<WorkspaceData> => {
     return new Promise(resolve => {
         const data: WorkspaceData = {
-            reports: DB.reports.filter(r => r.workspaceId === workspaceId),
+            reports: DB.reports.filter(r => r.workspaceId === workspaceId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
             auditLogs: DB.auditLogs.filter(log => log.workspaceId === workspaceId),
             knowledgeBaseSources: DB.knowledgeSources.filter(ks => ks.workspaceId === workspaceId),
             dismissalRules: DB.dismissalRules.filter(dr => dr.workspaceId === workspaceId),
