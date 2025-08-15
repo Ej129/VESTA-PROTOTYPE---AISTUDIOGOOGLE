@@ -1,4 +1,4 @@
-import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, KnowledgeCategory, WorkspaceData, CustomRegulation } from '../types';
+import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, KnowledgeCategory, WorkspaceData, CustomRegulation, Auth0User } from '../types';
 import * as auth from './auth';
 
 // --- LocalStorage Simulation of Firestore ---
@@ -32,37 +32,34 @@ const persist = () => {
     set('vesta-custom-regulations', DB.customRegulations);
 };
 
-// --- User Management (from Netlify Identity) ---
+// --- User Management ---
 
 const USERS_KEY = 'vesta-users';
 
-// Minimal Netlify User type
-interface NetlifyUser {
-  email: string;
-  user_metadata?: {
-    full_name?: string;
-    avatar_url?: string;
-  };
-}
-
-export const getOrCreateUser = (netlifyUser: NetlifyUser): Promise<User> => {
-  return new Promise((resolve) => {
+export const getOrCreateUser = (auth0User: Auth0User): Promise<User> => {
+  return new Promise((resolve, reject) => {
     const users = get<any[]>(USERS_KEY, []);
-    let appUser = users.find((u) => u.email === netlifyUser.email);
+    
+    if (!auth0User.email) {
+      console.error("Auth0 user object is missing an email address.", auth0User);
+      return reject(new Error("Cannot create user profile without an email address."));
+    }
 
-    const name = netlifyUser.user_metadata?.full_name || netlifyUser.email.split('@')[0];
-    const avatar = netlifyUser.user_metadata?.avatar_url;
+    let appUser = users.find((u) => u.email === auth0User.email);
+
+    const name = auth0User.name || auth0User.email.split('@')[0];
+    const avatar = auth0User.picture;
 
     if (!appUser) {
       appUser = {
         name,
-        email: netlifyUser.email,
+        email: auth0User.email,
         avatar,
-        password: `netlify-${Date.now()}`, // Dummy password for mock DB structure
+        password: `auth0-${Date.now()}`, // Dummy password for mock DB structure
       };
       users.push(appUser);
     } else {
-      // Update existing user's info from Netlify on every login
+      // Update existing user's info from Auth0 on every login for freshness
       appUser.name = name;
       appUser.avatar = avatar;
     }
@@ -135,9 +132,10 @@ export const inviteUser = async (workspaceId: string, email: string, role: UserR
         const users = get<any[]>(USERS_KEY, []);
         const userExistsInApp = users.some(u => u.email === email);
         
+        // In a real app with Auth0, you can't check if a user exists before they sign up.
+        // The logic here remains to simulate that the user must have logged into Vesta at least once.
         if (!userExistsInApp) {
-             // In a real app, you'd check Netlify Identity. Here we check our own DB.
-            reject(new Error(`User with email "${email}" must sign up to Vesta first.`));
+            reject(new Error(`User with email "${email}" must sign up and log in to Vesta first before they can be invited.`));
             return;
         }
 

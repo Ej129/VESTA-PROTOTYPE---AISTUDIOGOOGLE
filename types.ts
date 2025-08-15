@@ -144,3 +144,11 @@ export interface WorkspaceData {
     dismissalRules: DismissalRule[];
     customRegulations: CustomRegulation[];
 }
+
+// User profile object provided by Auth0
+export interface Auth0User {
+  email?: string;
+  name?: string;
+  picture?: string;
+  // Auth0 includes many other fields, but these are the ones we need.
+}

@@ -1,13 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
-import { User } from '../types';
+import { useAuth0 } from '@auth0/auth0-react';
+import { User, Auth0User } from '../types';
 import * as workspaceApi from '../api/workspace';
-
-// Global declaration for the netlifyIdentity object provided by the widget script
-declare global {
-  interface Window {
-    netlifyIdentity: any;
-  }
-}
 
 interface AuthContextType {
   user: User | null;
@@ -26,74 +20,54 @@ export const useAuth = () => {
   return context;
 };
 
-// A minimal type for the Netlify user object we receive from events
-interface NetlifyUser {
-  email: string;
-  user_metadata?: {
-    full_name?: string;
-    avatar_url?: string;
-  };
-}
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { 
+    user: auth0User, 
+    isAuthenticated, 
+    isLoading: isAuth0Loading, 
+    loginWithRedirect, 
+    logout: auth0Logout 
+  } = useAuth0<Auth0User>();
 
-  const handleLogin = useCallback(async (netlifyUser: NetlifyUser | null) => {
-    setLoading(true);
-    if (netlifyUser) {
-      const vestaUser = await workspaceApi.getOrCreateUser(netlifyUser);
-      setUser(vestaUser);
-    } else {
-      setUser(null);
-    }
-    setLoading(false);
-  }, []);
+  const [vestaUser, setVestaUser] = useState<User | null>(null);
+  const [isSyncing, setIsSyncing] = useState(true);
 
   useEffect(() => {
-    const netlifyIdentity = window.netlifyIdentity;
-
-    if (netlifyIdentity) {
-      netlifyIdentity.on('init', (netlifyUser: NetlifyUser | null) => {
-        handleLogin(netlifyUser);
-      });
-      
-      netlifyIdentity.on('login', (netlifyUser: NetlifyUser) => {
-        handleLogin(netlifyUser);
-      });
-      
-      netlifyIdentity.on('logout', () => {
-        setUser(null);
-      });
-
-      netlifyIdentity.init();
-    } else {
-        console.warn("Netlify Identity widget not found. Make sure the script is included in your HTML.");
-        setLoading(false);
-    }
-
-    return () => {
-      if (netlifyIdentity) {
-        netlifyIdentity.off('init');
-        netlifyIdentity.off('login');
-        netlifyIdentity.off('logout');
-      }
+    const syncUser = async (currentAuth0User: Auth0User) => {
+      // The user is authenticated with Auth0, now get/create them in our app's user database
+      const appUser = await workspaceApi.getOrCreateUser(currentAuth0User);
+      setVestaUser(appUser);
+      setIsSyncing(false);
     };
-  }, [handleLogin]);
 
-  const login = () => {
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.open();
+    if (isAuth0Loading) {
+      // If Auth0 is still figuring things out, we are in a loading state.
+      setIsSyncing(true);
+      return;
     }
-  };
 
-  const logout = () => {
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.logout();
+    if (isAuthenticated && auth0User) {
+      // Auth0 is done, and we have a user. Sync them.
+      syncUser(auth0User);
+    } else {
+      // Auth0 is done, and there is no user.
+      setVestaUser(null);
+      setIsSyncing(false);
     }
-  };
+  }, [auth0User, isAuthenticated, isAuth0Loading]);
 
-  const value = { user, loading, login, logout };
+  const login = useCallback(() => {
+    loginWithRedirect();
+  }, [loginWithRedirect]);
+
+  const logout = useCallback(() => {
+    auth0Logout({ logoutParams: { returnTo: window.location.origin } });
+  }, [auth0Logout]);
+
+  // The overall loading state is true if Auth0 is loading OR if we are syncing our internal user.
+  const loading = isAuth0Loading || isSyncing;
+
+  const value = { user: vestaUser, loading, login, logout };
 
   return (
     <AuthContext.Provider value={value}>
