@@ -1,5 +1,6 @@
 export enum Screen {
   Login,
+  WorkspaceDashboard,
   Dashboard,
   Analysis,
   AuditTrail,
@@ -23,6 +24,8 @@ export interface Finding {
 }
 
 export interface AnalysisReport {
+  id: string;
+  workspaceId: string;
   title: string;
   resilienceScore: number;
   findings: Finding[];
@@ -32,59 +35,40 @@ export interface AnalysisReport {
     checks: number;
   };
   documentContent: string;
+  createdAt: string;
+  status?: 'active' | 'archived';
 }
 
-export type UserRole = 'Administrator' | 'Risk Management Officer' | 'Strategy Officer' | 'Compliance Officer' | 'Member';
-
-// A user is now a global entity without a fixed role.
 export interface User {
     name: string;
     email: string;
     avatar?: string;
 }
 
-// Represents a user's membership and role within a specific workspace.
-export interface WorkspaceMember {
-    email: string;
-    role: UserRole;
-}
-
-export interface Workspace {
-    id: string;
-    name: string;
-    members: WorkspaceMember[];
-}
-
-export interface Invitation {
-    id: string;
-    workspaceId: string;
-    workspaceName: string;
-    inviterName: string;
-    status: 'pending' | 'accepted' | 'declined';
-}
-
-
-// This is a display type for the settings screen.
-export interface WorkspaceUser {
-    id: string;
-    name: string;
-    email: string;
-    role: UserRole;
-}
+export type UserRole = "Administrator" | "Member";
 
 export type FeedbackReason = "Not relevant to this project" | "This is a false positive" | "This is an accepted business risk";
 
-export interface TourStep {
-    selector: string;
-    title: string;
-    content: string;
-    position?: 'top' | 'bottom' | 'left' | 'right';
-}
-
-export type AuditLogAction = 'User Login' | 'User Logout' | 'Social Login' | 'Analysis Run' | 'Document Upload' | 'Auto-Fix' | 'Finding Resolved' | 'Finding Dismissed' | 'Workspace Created' | 'User Invited' | 'User Joined';
+export type AuditLogAction = 
+  | 'User Login' 
+  | 'User Logout' 
+  | 'Social Login' 
+  | 'Analysis Run' 
+  | 'Document Upload' 
+  | 'Auto-Fix' 
+  | 'Finding Resolved' 
+  | 'Finding Dismissed'
+  | 'Workspace Created'
+  | 'User Invited'
+  | 'User Removed'
+  | 'Role Changed'
+  | 'Analysis Archived'
+  | 'Analysis Unarchived'
+  | 'Analysis Deleted';
 
 export interface AuditLog {
     id: string;
+    workspaceId: string;
     timestamp: string;
     user: string;
     action: AuditLogAction;
@@ -99,6 +83,7 @@ export enum KnowledgeCategory {
 
 export interface KnowledgeSource {
     id: string;
+    workspaceId: string;
     title: string;
     content: string;
     category: KnowledgeCategory;
@@ -108,20 +93,44 @@ export interface KnowledgeSource {
 
 export interface DismissalRule {
     id: string;
+    workspaceId: string;
     findingTitle: string;
     reason: FeedbackReason;
     timestamp: string;
+}
+
+export interface Workspace {
+    id: string;
+    name: string;
+    creatorId: string;
+    createdAt: string;
+}
+
+export interface WorkspaceMember {
+    email: string;
+    role: UserRole;
 }
 
 export interface ScreenLayoutProps {
   navigateTo: NavigateTo;
   currentUser: User;
   onLogout: () => void;
-  workspaces: Workspace[];
-  activeWorkspace: Workspace | null;
-  invitations: Invitation[];
-  onSwitchWorkspace: (workspaceId: string) => void;
-  onCreateWorkspace: (name: string) => void;
-  onAcceptInvitation: (invitationId: string) => void;
-  onDeclineInvitation: (invitationId: string) => void;
+  currentWorkspace: Workspace;
+  onBackToWorkspaces: () => void;
+  onManageMembers: () => void;
+  userRole: UserRole;
+}
+
+export interface TourStep {
+  selector: string;
+  title: string;
+  content: string;
+  position: 'top' | 'bottom' | 'left' | 'right';
+}
+
+export interface WorkspaceData {
+    reports: AnalysisReport[];
+    auditLogs: AuditLog[];
+    knowledgeBaseSources: KnowledgeSource[];
+    dismissalRules: DismissalRule[];
 }

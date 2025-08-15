@@ -1,22 +1,20 @@
-import React, { useState, useMemo } from 'react';
-import { NavigateTo, Screen, User, KnowledgeSource, KnowledgeCategory, UserRole, ScreenLayoutProps } from '../types';
+import React, { useState } from 'react';
+import { Screen, KnowledgeSource, KnowledgeCategory, ScreenLayoutProps, UserRole } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { Header } from '../components/Header';
-import { PlusIcon, TrashIcon, LibraryIcon, ChevronDownIcon, GlobeIcon, RefreshIcon, BriefcaseIcon, KeyIcon, ShieldIcon } from '../components/Icons';
+import { PlusIcon, TrashIcon, ChevronDownIcon, GlobeIcon, RefreshIcon, ShieldIcon, KeyIcon } from '../components/Icons';
 
 interface KnowledgeBaseScreenProps extends ScreenLayoutProps {
   sources: KnowledgeSource[];
   onAddSource: (title: string, content: string, category: KnowledgeCategory) => void;
   onDeleteSource: (id: string) => void;
-  onAddAutomatedSource: (source: Omit<KnowledgeSource, 'id'>) => void;
-  userRole?: UserRole;
+  onAddAutomatedSource: (source: Omit<KnowledgeSource, 'id' | 'workspaceId'>) => void;
 }
 
 const KnowledgeSourceCard = ({ source, onDelete, canDelete }: { source: KnowledgeSource, onDelete: (id: string) => void, canDelete: boolean }) => {
     const [isOpen, setIsOpen] = useState(false);
     
     return (
-        <div className="bg-light-card dark:bg-dark-card rounded-lg card-shadow border border-border-light dark:border-border-dark relative overflow-hidden">
+        <div className="bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-border-light dark:border-border-dark relative overflow-hidden">
              {source.isNew && (
                 <div className="absolute top-2 right-2 bg-accent-success text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse z-10">
                     NEW
@@ -68,7 +66,7 @@ const AddSourceForm = ({ category, onAddSource }: { category: KnowledgeCategory,
     };
 
     return (
-        <div className="bg-light-card dark:bg-dark-card p-6 rounded-lg card-shadow border border-border-light dark:border-border-dark mt-4">
+        <div className="bg-light-card dark:bg-dark-card p-6 rounded-lg shadow-sm border border-border-light dark:border-border-dark mt-4">
             <h3 className="text-lg font-bold text-primary-text-light dark:text-primary-text-dark mb-4">Add New Document</h3>
             <div className="space-y-4">
                 <input 
@@ -90,7 +88,7 @@ const AddSourceForm = ({ category, onAddSource }: { category: KnowledgeCategory,
                     <button 
                         onClick={handleAddSource}
                         disabled={isAdding || !newTitle.trim() || !newContent.trim()}
-                        className="flex-shrink-0 flex items-center justify-center px-6 py-2 btn-primary text-white font-bold rounded-lg hover:bg-opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        className="flex-shrink-0 flex items-center justify-center px-6 py-2 bg-primary-blue text-white font-bold rounded-lg hover:bg-opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Add Document
@@ -102,7 +100,7 @@ const AddSourceForm = ({ category, onAddSource }: { category: KnowledgeCategory,
 }
 
 const KnowledgeCategorySection = ({ title, icon, children, actionButton }: { title: string, icon: React.ReactNode, children: React.ReactNode, actionButton?: React.ReactNode }) => (
-    <div className="bg-light-card dark:bg-dark-card p-6 rounded-lg card-shadow border border-border-light dark:border-border-dark">
+    <div className="bg-light-card dark:bg-dark-card p-6 rounded-lg shadow-md border border-border-light dark:border-border-dark">
         <div className="flex justify-between items-center mb-4">
             <div className="flex items-center">
                 {icon}
@@ -130,9 +128,9 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
                 isEditable: false,
                 isNew: true,
             };
-            onAddAutomatedSource(newRegulation);
             
             if (!sources.some(s => s.title === newRegulation.title)) {
+                onAddAutomatedSource(newRegulation);
                 setUpdateMessage(`New regulation found: "${newRegulation.title}"`);
             } else {
                 setUpdateMessage('Knowledge base is up-to-date.');
@@ -143,24 +141,20 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
         }, 1500);
     };
 
-    const canEditRisk = useMemo(() => userRole === 'Administrator' || userRole === 'Risk Management Officer', [userRole]);
-    const canEditStrategy = useMemo(() => userRole === 'Administrator' || userRole === 'Strategy Officer', [userRole]);
-
     const getCanDelete = (source: KnowledgeSource) => {
-        if (!source.isEditable) return false;
-        if (userRole === 'Administrator') return true;
-        if (source.category === KnowledgeCategory.Risk) return canEditRisk;
-        if (source.category === KnowledgeCategory.Strategy) return canEditStrategy;
-        return false;
+        return source.isEditable && userRole === 'Administrator';
     };
+    
+    const getCanAdd = () => {
+        return userRole === 'Administrator';
+    }
 
     const governmentSources = sources.filter(s => s.category === KnowledgeCategory.Government);
     const riskSources = sources.filter(s => s.category === KnowledgeCategory.Risk);
     const strategySources = sources.filter(s => s.category === KnowledgeCategory.Strategy);
 
   return (
-    <SidebarMainLayout {...layoutProps} activeScreen={Screen.KnowledgeBase}>
-      <Header title="Knowledge Base" />
+    <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.KnowledgeBase}>
       <div className="p-8 space-y-8">
         
         {updateMessage && (
@@ -180,7 +174,7 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
             title={KnowledgeCategory.Government}
             icon={<GlobeIcon className="w-6 h-6 mr-3 text-primary-blue" />}
             actionButton={
-                <button onClick={handleCheckForUpdates} disabled={isChecking} className="flex items-center px-4 py-2 btn-primary text-sm font-semibold rounded-lg disabled:opacity-50">
+                <button onClick={handleCheckForUpdates} disabled={isChecking} className="flex items-center px-4 py-2 bg-primary-blue text-white text-sm font-semibold rounded-lg disabled:opacity-50">
                     <RefreshIcon className={`w-5 h-5 mr-2 ${isChecking ? 'animate-spin' : ''}`} />
                     {isChecking ? 'Checking...' : 'Check for New Regulations'}
                 </button>
@@ -208,7 +202,7 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
           ) : (
             <p className="text-center text-secondary-text-light dark:text-secondary-text-dark p-4">No risk management plans have been added yet.</p>
           )}
-          {canEditRisk && <AddSourceForm category={KnowledgeCategory.Risk} onAddSource={onAddSource} />}
+          {getCanAdd() && <AddSourceForm category={KnowledgeCategory.Risk} onAddSource={onAddSource} />}
         </KnowledgeCategorySection>
         
         <KnowledgeCategorySection
@@ -222,7 +216,7 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
           ) : (
             <p className="text-center text-secondary-text-light dark:text-secondary-text-dark p-4">No strategic direction documents have been added yet.</p>
           )}
-          {canEditStrategy && <AddSourceForm category={KnowledgeCategory.Strategy} onAddSource={onAddSource} />}
+          {getCanAdd() && <AddSourceForm category={KnowledgeCategory.Strategy} onAddSource={onAddSource} />}
         </KnowledgeCategorySection>
 
       </div>

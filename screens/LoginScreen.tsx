@@ -5,7 +5,7 @@ import * as auth from '../api/auth';
 import SocialLoginModal from '../components/SocialLoginModal';
 
 interface LoginScreenProps {
-  onLoginSuccess: (user: User, isSocialLogin?: boolean) => void;
+  onLoginSuccess: (user: User) => void;
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
@@ -36,7 +36,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       } else {
         user = await auth.signUp(name, email, password);
       }
-      onLoginSuccess(user, false);
+      onLoginSuccess(user);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -54,7 +54,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
     try {
         const user = await auth.socialLogin(email);
-        onLoginSuccess(user, true);
+        onLoginSuccess(user);
     } catch(err) {
         setError((err as Error).message);
     } finally {
@@ -139,7 +139,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full mt-2 btn-primary font-bold py-3 rounded-lg hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-2 bg-primary-blue text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Processing...' : (isLoginView ? 'Login Securely' : 'Create Account')}
               </button>

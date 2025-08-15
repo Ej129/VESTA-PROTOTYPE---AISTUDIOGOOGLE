@@ -1,22 +1,18 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { NavigateTo, Screen, AnalysisReport, Finding, User, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, UserRole, ScreenLayoutProps } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { SparklesIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, ChevronDownIcon, AlertTriangleIcon, AlertCircleIcon } from '../components/Icons';
+import { SparklesIcon, DownloadIcon, CheckCircleIcon, ChevronDownIcon } from '../components/Icons';
 import UploadModal from '../components/UploadModal';
 import { analyzePlan, improvePlan } from '../api/vesta';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph } from 'docx';
-import { useTour } from '../contexts/TourContext';
-import TourTooltip from '../components/TourTooltip';
-import { sampleReportForTour } from '../data/sample-report';
 import FeedbackModal from '../components/FeedbackModal';
-
 
 // --- SUB-COMPONENTS for AnalysisScreen ---
 
 const MetricCard: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
-    <div className="bg-light-card dark:bg-dark-card p-4 rounded-lg card-shadow">
+    <div className="bg-light-card dark:bg-dark-card p-4 rounded-lg shadow-sm">
         <p className="text-sm font-semibold text-secondary-text-light dark:text-secondary-text-dark">{title}</p>
         <div className="mt-2">
             {children}
@@ -121,12 +117,11 @@ const improvingSteps = [
 
 interface AnalysisScreenProps extends ScreenLayoutProps {
   activeReport: AnalysisReport | null;
-  onAnalysisComplete: (report: AnalysisReport) => void;
+  onAnalysisComplete: (report: Omit<AnalysisReport, 'id'|'workspaceId'|'createdAt'>) => void;
   addAuditLog: (action: AuditLogAction, details: string) => void;
   knowledgeBaseSources: KnowledgeSource[];
   dismissalRules: DismissalRule[];
   onAddDismissalRule: (finding: Finding, reason: FeedbackReason) => void;
-  userRole?: UserRole;
 }
 
 const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, ...layoutProps }) => {
@@ -142,16 +137,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
   
-  const tour = useTour();
-  const editorRef = useRef<HTMLDivElement>(null);
-  const findingsRef = useRef<HTMLDivElement>(null);
-  const autoFixRef = useRef<HTMLButtonElement>(null);
   const downloadButtonRef = useRef<HTMLDivElement>(null);
-  
-  const canEdit = useMemo(() => {
-    if (!userRole) return false;
-    return ['Administrator', 'Risk Management Officer', 'Strategy Officer', 'Compliance Officer'].includes(userRole);
-  }, [userRole]);
 
   const highlightContent = (content: string, findings: Finding[]): string => {
     const paragraphs = content.split('\n');
@@ -179,9 +165,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
   useEffect(() => {
     if (activeReport) {
-        if(tour && tour.isActive && activeReport.title === sampleReportForTour.title) {
-            // This is the tour's sample report
-        }
         updateReportData(activeReport);
         setShowUploadModal(false);
     } else {
@@ -201,29 +184,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-   useEffect(() => {
-        if (tour && editorRef.current && findingsRef.current && autoFixRef.current) {
-            tour.addStep({
-                selector: '#editor-panel',
-                title: 'Your Document',
-                content: 'Your document appears here. The AI will highlight sections that need your attention.',
-                position: 'right'
-            });
-            tour.addStep({
-                selector: '#findings-panel',
-                title: 'AI Findings',
-                content: 'All findings from the analysis are listed here. Hover over one to see it in the document.',
-                position: 'left'
-            });
-            tour.addStep({
-                selector: '#auto-fix-button',
-                title: 'One-Click Fix',
-                content: 'Use the "Auto-Fix" button to let the AI rewrite your document and resolve all issues automatically.',
-                position: 'bottom'
-            });
-        }
-    }, [tour, editorRef.current, findingsRef.current, autoFixRef.current]);
-
   const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
     addAuditLog(status === 'resolved' ? 'Finding Resolved' : 'Finding Dismissed', `Status of finding ${findingId} changed to ${status}.`);
     setCurrentReport(prev => {
@@ -237,22 +197,20 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
   const handleHoverFinding = (findingId: string | null) => {
       // Future feature: This can be used to scroll document to highlighted paragraph.
-      // For now, the visual connection is made via color-coded highlights.
   };
 
   const handleFileUpload = async (content: string, fileName: string) => {
       addAuditLog('Document Upload', `File uploaded: ${fileName}`);
       setShowUploadModal(false);
       setIsLoading(true);
-      const report = await analyzePlan(content, knowledgeBaseSources, dismissalRules);
-      report.title = fileName || "Pasted Text Analysis";
-      onAnalysisComplete(report); // Add to dashboard history
-      updateReportData(report);
+      const reportData = await analyzePlan(content, knowledgeBaseSources, dismissalRules);
+      const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
+      onAnalysisComplete(report);
       setIsLoading(false);
   };
 
   const handleAutoFix = async () => {
-      if (!currentReport || !canEdit) return;
+      if (!currentReport) return;
       addAuditLog('Auto-Fix', `Auto-fix initiated for: ${currentReport.title}`);
       setIsImproving(true);
       
@@ -261,10 +219,8 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       
       const newFindings = currentReport.findings.map(f => ({ ...f, status: 'resolved' as FindingStatus }));
       
-      // Create HTML with diff highlights
       const diffHtml = createDiffHtml(originalPlainText, improvedText);
 
-      // Directly update state to show diff
       setEditorHtml(diffHtml);
       setPlainTextContent(improvedText);
       setCurrentReport(prev => prev ? {
@@ -337,28 +293,34 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
     setFeedbackFinding(null);
   };
 
+  const canEdit = userRole === 'Administrator' || userRole === 'Member';
+
   if (showUploadModal) {
       return (
-        <SidebarMainLayout {...layoutProps} activeScreen={Screen.Analysis}>
-          <UploadModal onUpload={handleFileUpload} onClose={() => navigateTo(Screen.Dashboard)} showTourStep={tour?.isActive && tour?.currentStep === 1} />
+        <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
+          <UploadModal onUpload={handleFileUpload} onClose={() => navigateTo(Screen.Dashboard)} />
         </SidebarMainLayout>
       );
   }
   
   if (isLoading) {
       return (
-          <SidebarMainLayout {...layoutProps} activeScreen={Screen.Analysis}>
-              <div className="flex-1 flex flex-col items-center justify-center">
+          <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
+              <div className="flex-1 flex flex-col items-center justify-center h-full">
                   <AnimatedChecklist steps={analysisSteps} title="Analyzing Your Document..." />
               </div>
           </SidebarMainLayout>
       );
   }
 
-  if (!currentReport) return <div className="flex-1"></div>;
+  if (!currentReport) return (
+    <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
+        <div className="p-8">No report selected.</div>
+    </SidebarMainLayout>
+  );
   
   return (
-    <SidebarMainLayout {...layoutProps} activeScreen={Screen.Analysis}>
+    <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
         <div className="p-6 space-y-6">
             {/* Header and Metrics */}
             <div className="flex justify-between items-start">
@@ -382,7 +344,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                         )}
                     </div>
                      {isEditing ? (
-                        <button onClick={handleSaveChanges} disabled={!canEdit} className="flex items-center px-4 py-2 bg-accent-success text-white font-bold rounded-lg transition text-sm disabled:opacity-50">
+                        <button onClick={handleSaveChanges} className="flex items-center px-4 py-2 bg-accent-success text-white font-bold rounded-lg transition text-sm">
                             Save Changes
                         </button>
                     ) : (
@@ -390,7 +352,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                             Edit Manually
                         </button>
                     )}
-                    <button id="auto-fix-button" ref={autoFixRef} onClick={handleAutoFix} disabled={isImproving || isEditing || !canEdit} className="relative flex items-center px-4 py-2 btn-primary text-white font-bold rounded-lg transition text-sm disabled:opacity-50">
+                    <button id="auto-fix-button" onClick={handleAutoFix} disabled={isImproving || isEditing || !canEdit} className="relative flex items-center px-4 py-2 bg-primary-blue text-white font-bold rounded-lg transition text-sm disabled:opacity-50">
                         <SparklesIcon className="w-4 h-4 mr-2" />
                         Auto-Fix & Enhance
                     </button>
@@ -415,7 +377,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
             {/* Main Content */}
             <div className="grid grid-cols-5 gap-6">
                 {/* Left Panel: Document Editor */}
-                <div id="editor-panel" ref={editorRef} className="col-span-3 h-[60vh] flex flex-col relative bg-light-card dark:bg-dark-card rounded-lg card-shadow border border-border-light dark:border-border-dark">
+                <div id="editor-panel" className="col-span-3 h-[60vh] flex flex-col relative bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-border-light dark:border-border-dark">
                     {isImproving && (
                         <div className="absolute inset-0 bg-dark-main/80 flex items-center justify-center z-20 rounded-lg">
                             <AnimatedChecklist steps={improvingSteps} title="Enhancing Document..." textColorClass="text-gray-200"/>
@@ -437,7 +399,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                 </div>
 
                 {/* Right Panel: Findings */}
-                <div id="findings-panel" ref={findingsRef} className="col-span-2 h-[60vh] overflow-y-auto pr-2 space-y-4">
+                <div id="findings-panel" className="col-span-2 h-[60vh] overflow-y-auto pr-2 space-y-4">
                      {currentReport.findings.length > 0 ? (
                         currentReport.findings.map(finding => (
                             <FindingCard
@@ -449,7 +411,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                             />
                         ))
                     ) : (
-                        <div className="bg-light-card dark:bg-dark-card p-8 rounded-lg card-shadow text-center h-full flex flex-col justify-center items-center">
+                        <div className="bg-light-card dark:bg-dark-card p-8 rounded-lg shadow-sm text-center h-full flex flex-col justify-center items-center">
                             <CheckCircleIcon className="w-12 h-12 text-accent-success" />
                             <h3 className="text-lg font-semibold text-accent-success mt-4">No Issues Found</h3>
                             <p className="text-secondary-text-light dark:text-secondary-text-dark mt-1">This document meets all checks.</p>
@@ -459,9 +421,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
             </div>
         </div>
         
-        {tour && tour.isActive && editorRef.current && tour.currentStep === 2 && <TourTooltip targetElement={editorRef.current} step={tour.steps[2]} onNext={tour.nextStep} onSkip={tour.endTour}/>}
-        {tour && tour.isActive && findingsRef.current && tour.currentStep === 3 && <TourTooltip targetElement={findingsRef.current} step={tour.steps[3]} onNext={tour.nextStep} onSkip={tour.endTour}/>}
-        {tour && tour.isActive && autoFixRef.current && tour.currentStep === 4 && <TourTooltip targetElement={autoFixRef.current} step={tour.steps[4]} onNext={tour.endTour} onSkip={tour.endTour} nextLabel="Finish"/>}
         {feedbackFinding && (
             <FeedbackModal 
                 finding={feedbackFinding}

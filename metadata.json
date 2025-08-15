@@ -1,6 +1,5 @@
 {
-  "name": "Vesta",
-  "description": "An AI-powered digital resilience tool for analyzing project plans against financial regulations and best practices.",
-  "requestFramePermissions": [],
-  "prompt": "Based on feedback from Ms. Jel Suson, one key challenge is that government regulations (e.g., BSP, BIR, PDIC, SEC) are continuously changing. Compliance officers need an automatic way to add new regulations to our database as soon as they are published by the government.\n\nI want the app to:\n\nHave a knowledge base with three main categories:\n\nGovernment Regulations & Compliance (read-only, uneditable)\n\nIn-House Risk Management Plan (editable only by Risk Management Officer)\n\nLong-Term Strategic Direction (editable only by Strategy Officer)\n\nAutomatically register new government regulations in the “Government Regulations & Compliance” category so no manual input is needed.\n\nEnsure government regulation entries cannot be edited or deleted by any user.\n\nAllow the other categories to remain editable based on role-based access control.\n\nPlease guide me on:\n\nHow to structure my data tables to support these categories and permissions.\n\nHow to automate the registration of new government regulations into the database.\n\nHow to set role-based edit restrictions in the app."
+  "name": "Vesta Workspaces",
+  "description": "An AI-powered collaborative platform for teams to analyze project plans against financial regulations and best practices within a shared workspace.",
+  "requestFramePermissions": []
 }

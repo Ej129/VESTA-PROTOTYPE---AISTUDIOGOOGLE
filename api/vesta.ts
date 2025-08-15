@@ -40,7 +40,7 @@ const reportSchema = {
     required: ["resilienceScore", "findings"],
 };
 
-export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[]): Promise<AnalysisReport> {
+export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
     if (!planContent.trim()) {
         return {
             title: "Analysis Failed",
@@ -92,7 +92,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
             title: "Project Plan Analysis",
             resilienceScore: parsedReport.resilienceScore,
             findings: parsedReport.findings.map((f: any, index: number): Finding => ({
-                id: `finding-${index}-${Date.now()}`,
+                id: `finding-${index}`, // This will be replaced by a real ID in the backend/API layer
                 title: f.title,
                 severity: f.severity,
                 sourceSnippet: f.sourceSnippet,

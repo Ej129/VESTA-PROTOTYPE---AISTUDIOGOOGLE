@@ -1,6 +1,9 @@
 import { AnalysisReport } from '../types';
 
 export const sampleReportForTour: AnalysisReport = {
+  id: 'tour-report-1',
+  workspaceId: 'tour-ws-1',
+  createdAt: new Date().toISOString(),
   title: "Sample Project: Digital Wallet Expansion",
   resilienceScore: 68,
   summary: {

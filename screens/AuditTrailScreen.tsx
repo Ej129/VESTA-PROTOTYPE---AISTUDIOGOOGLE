@@ -1,7 +1,6 @@
 import React from 'react';
-import { NavigateTo, Screen, User, AuditLog, ScreenLayoutProps } from '../types';
+import { Screen, AuditLog, ScreenLayoutProps } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { Header } from '../components/Header';
 import { ExportIcon, HistoryIcon } from '../components/Icons';
 
 
@@ -17,9 +16,8 @@ const AuditTrailScreen: React.FC<AuditTrailScreenProps> = ({ logs, ...layoutProp
 
   return (
     <SidebarMainLayout {...layoutProps} activeScreen={Screen.AuditTrail}>
-      <Header title="Audit Trail" />
       <div className="p-8 space-y-6">
-        <div className="bg-light-card dark:bg-dark-card p-4 rounded-lg card-shadow border border-border-light dark:border-border-dark flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-light-card dark:bg-dark-card p-4 rounded-lg shadow-md border border-border-light dark:border-border-dark flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex flex-col md:flex-row items-center gap-4 w-full">
                 <input
                     type="search"
@@ -27,22 +25,22 @@ const AuditTrailScreen: React.FC<AuditTrailScreenProps> = ({ logs, ...layoutProp
                     className="w-full md:w-72 px-4 py-2 border border-border-light dark:border-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue bg-light-main dark:bg-dark-main text-primary-text-light dark:text-primary-text-dark"
                 />
                 <select className="w-full md:w-64 px-4 py-2 border border-border-light dark:border-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue bg-light-main dark:bg-dark-main text-primary-text-light dark:text-primary-text-dark appearance-none bg-no-repeat" style={{backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em'}}>
-                    <option>Filter by Project</option>
-                    <option>Q3 Mobile Banking App Relaunch</option>
-                    <option>Digital Onboarding Revamp</option>
-                    <option>Internal Process Automation</option>
+                    <option>Filter by Action</option>
+                    <option>Analysis Run</option>
+                    <option>Document Upload</option>
+                    <option>User Invited</option>
                 </select>
             </div>
             <button
                 onClick={handleExport}
-                className="flex items-center justify-center w-full md:w-auto px-4 py-2 btn-primary font-bold rounded-lg transition whitespace-nowrap"
+                className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary-blue text-white font-bold rounded-lg transition whitespace-nowrap"
             >
                 <ExportIcon className="w-5 h-5 mr-2" />
                 Export Log
             </button>
         </div>
 
-        <div className="bg-light-card dark:bg-dark-card rounded-lg card-shadow overflow-hidden border border-border-light dark:border-border-dark">
+        <div className="bg-light-card dark:bg-dark-card rounded-lg shadow-md overflow-hidden border border-border-light dark:border-border-dark">
           {logs.length > 0 ? (
             <div className="overflow-x-auto">
                 <table className="w-full text-left">

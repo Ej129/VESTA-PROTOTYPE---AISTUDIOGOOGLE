@@ -1,18 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { NavigateTo, Screen, User, WorkspaceUser, UserRole, DismissalRule, Workspace, ScreenLayoutProps } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Screen, User, DismissalRule, ScreenLayoutProps } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { Header } from '../components/Header';
-import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon, MoonIcon, SunIcon, UploadCloudIcon, PaletteIcon, PlusIcon, TrashIcon, BrainCircuitIcon } from '../components/Icons';
-import InviteUserModal from '../components/InviteUserModal';
-import * as auth from '../api/auth';
-
+import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon, MoonIcon, SunIcon, TrashIcon, BrainCircuitIcon } from '../components/Icons';
 
 interface SettingsScreenProps extends ScreenLayoutProps {
   dismissalRules: DismissalRule[];
   onDeleteDismissalRule: (id: string) => void;
   onUserUpdate: (user: User) => void;
-  userRole?: UserRole;
-  onWorkspaceRoleUpdate: (email: string, role: UserRole) => void;
 }
 
 const SettingsCard = ({ title, subtitle, children, footer }: { title: string, subtitle: string, children: React.ReactNode, footer?: React.ReactNode }) => (
@@ -39,16 +33,6 @@ const SettingsInput = ({ label, type, id, value, onChange, placeholder, disabled
     </div>
 );
 
-const SettingsSelect = ({ label, id, value, onChange, children, disabled = false }: { label: string, id: string, value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void, children: React.ReactNode, disabled?: boolean }) => (
-    <div>
-        <label htmlFor={id} className="block text-sm font-medium text-primary-text-light dark:text-primary-text-dark mb-2">{label}</label>
-        <select id={id} value={value} onChange={onChange} disabled={disabled} className="w-full px-4 py-2 border border-border-light dark:border-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue bg-light-card dark:bg-dark-card text-primary-text-light dark:text-primary-text-dark appearance-none bg-no-repeat disabled:opacity-50" style={{backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em'}}>
-            {children}
-        </select>
-    </div>
-);
-
-
 const SettingsToggle = ({ label, enabled, setEnabled }: { label: string, enabled: boolean, setEnabled: (enabled: boolean) => void }) => (
     <div className="flex items-center justify-between">
         <span className="text-primary-text-light dark:text-primary-text-dark">{label}</span>
@@ -61,17 +45,15 @@ const SettingsToggle = ({ label, enabled, setEnabled }: { label: string, enabled
     </div>
 );
 
-const ProfileSettings = ({ user, userRole, onUserUpdate, onWorkspaceRoleUpdate }: { user: User, userRole?: UserRole, onUserUpdate: (user: User) => void, onWorkspaceRoleUpdate: (email: string, role: UserRole) => void }) => {
+const ProfileSettings = ({ user, onUserUpdate }: { user: User, onUserUpdate: (user: User) => void }) => {
     const [theme, setTheme] = useState(localStorage.getItem('vesta-theme') || 'light');
     const [name, setName] = useState(user.name);
-    const [role, setRole] = useState<UserRole>(userRole || 'Member');
     const [profilePic, setProfilePic] = useState<string | null>(user.avatar || null);
     const profilePicInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setName(user.name);
-        setRole(userRole || 'Member');
-    }, [user, userRole]);
+    }, [user]);
 
     useEffect(() => {
         if (theme === 'dark') {
@@ -96,15 +78,11 @@ const ProfileSettings = ({ user, userRole, onUserUpdate, onWorkspaceRoleUpdate }
 
     const handleSaveChanges = () => {
         onUserUpdate({ ...user, name, avatar: profilePic || undefined });
-        if (role !== userRole) {
-            onWorkspaceRoleUpdate(user.email, role);
-        }
         alert('Changes Saved!');
     };
 
     const handleCancel = () => {
         setName(user.name);
-        setRole(userRole || 'Member');
         setProfilePic(user.avatar || null);
     }
 
@@ -123,26 +101,8 @@ const ProfileSettings = ({ user, userRole, onUserUpdate, onWorkspaceRoleUpdate }
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <SettingsInput label="Full Name" id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
-                    <SettingsSelect 
-                        label="Your Role in this Workspace" 
-                        id="userRole" 
-                        value={role} 
-                        onChange={(e) => setRole(e.target.value as UserRole)} 
-                        disabled={userRole === 'Administrator'}
-                    >
-                        {userRole === 'Administrator' ? (
-                            <option value="Administrator">Administrator</option>
-                        ) : (
-                            <>
-                                <option value="Member">Member</option>
-                                <option value="Risk Management Officer">Risk Management Officer</option>
-                                <option value="Strategy Officer">Strategy Officer</option>
-                                <option value="Compliance Officer">Compliance Officer</option>
-                            </>
-                        )}
-                    </SettingsSelect>
+                    <SettingsInput label="Email Address" id="email" type="email" value={user.email} onChange={() => {}} disabled />
                 </div>
-                 {userRole === 'Administrator' && <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark">As an Administrator, your role cannot be changed.</p>}
             </SettingsCard>
 
              <SettingsCard title="Password Management" subtitle="Manage your password for added security.">
@@ -177,81 +137,6 @@ const ProfileSettings = ({ user, userRole, onUserUpdate, onWorkspaceRoleUpdate }
     );
 };
 
-interface WorkspaceSettingsProps {
-    currentUser: User;
-    userRole?: UserRole;
-    workspace: Workspace;
-    onInviteClick: () => void;
-    onDeleteUser: (workspaceId: string, email: string) => void;
-    onRoleChange: (workspaceId: string, email: string, newRole: UserRole) => void;
-}
-
-const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ currentUser, userRole, workspace, onInviteClick, onDeleteUser, onRoleChange }) => {
-    // In a real app, this would be a more sophisticated user search.
-    // For now, we simulate by getting the member details from the workspace.
-    const [users, setUsers] = useState<WorkspaceUser[]>([]);
-
-    useEffect(() => {
-        const workspaceUsers = workspace.members.map(member => ({
-            id: member.email,
-            email: member.email,
-            name: member.email === currentUser.email ? `${currentUser.name} (You)` : 'Registered User', // Name would be looked up
-            role: member.role,
-        }));
-        setUsers(workspaceUsers);
-    }, [workspace, currentUser]);
-
-    return (
-        <div className="space-y-8">
-            {userRole !== 'Administrator' && <p className="text-sm bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 p-3 rounded-lg">These settings are workspace-wide and can only be modified by an administrator.</p>}
-            <SettingsCard 
-              title="User Management" 
-              subtitle="Invite new users and manage their roles."
-              footer={
-                <button onClick={onInviteClick} disabled={userRole !== 'Administrator'} className="flex items-center justify-center px-4 py-2 bg-primary-blue text-white font-bold rounded-lg hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <PlusIcon className="w-5 h-5 mr-2" /> Invite User
-                </button>
-              }
-            >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="border-b border-border-light dark:border-border-dark">
-                        <tr>
-                          <th className="p-2 font-semibold text-secondary-text-light dark:text-secondary-text-dark text-sm">Name</th>
-                          <th className="p-2 font-semibold text-secondary-text-light dark:text-secondary-text-dark text-sm">Role</th>
-                          <th className="p-2"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {users.map(user => (
-                             <tr key={user.id} className="border-b border-border-light dark:border-border-dark last:border-b-0">
-                                <td className="p-2 text-primary-text-light dark:text-primary-text-dark">
-                                    <p className="font-medium">{user.name}</p>
-                                    <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark">{user.email}</p>
-                                </td>
-                                <td className="p-2 text-secondary-text-light dark:text-secondary-text-dark">
-                                     <SettingsSelect id={`role-${user.id}`} value={user.role} onChange={e => onRoleChange(workspace.id, user.email, e.target.value as UserRole)} label="" disabled={userRole !== 'Administrator' || user.role === 'Administrator'}>
-                                        <option value="Administrator">Administrator</option>
-                                        <option value="Risk Management Officer">Risk Management Officer</option>
-                                        <option value="Strategy Officer">Strategy Officer</option>
-                                        <option value="Compliance Officer">Compliance Officer</option>
-                                        <option value="Member">Member</option>
-                                     </SettingsSelect>
-                                </td>
-                                <td className="p-2 text-right">
-                                    <button onClick={() => onDeleteUser(workspace.id, user.email)} disabled={user.role === 'Administrator' || userRole !== 'Administrator'} className="disabled:opacity-50 disabled:cursor-not-allowed">
-                                        <TrashIcon className="w-5 h-5 text-gray-400 hover:text-accent-critical cursor-pointer" />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                </div>
-            </SettingsCard>
-        </div>
-    );
-};
 
 const NotificationsSettings = () => {
     const [email, setEmail] = useState(true);
@@ -371,37 +256,12 @@ const AICustomizationSettings = ({ rules, onDeleteRule }: { rules: DismissalRule
 };
 
 
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, userRole, onWorkspaceRoleUpdate, ...layoutProps }) => {
+const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, ...layoutProps }) => {
     const [activeTab, setActiveTab] = useState('profile');
-    const [isInviteModalOpen, setInviteModalOpen] = useState(false);
-    const { currentUser, activeWorkspace } = layoutProps;
+    const { currentUser } = layoutProps;
     
-    const handleInviteUser = async (email: string, role: UserRole) => {
-        if (!activeWorkspace || !currentUser) return;
-        try {
-            await auth.inviteUserToWorkspace(activeWorkspace.id, currentUser.email, email);
-            alert(`Invitation sent to ${email}`);
-            setInviteModalOpen(false);
-        } catch (error) {
-            alert((error as Error).message);
-        }
-    };
-
-    const handleDeleteUser = async (workspaceId: string, email: string) => {
-        if (email === currentUser.email) {
-            alert("You cannot remove yourself from the workspace.");
-            return;
-        }
-        if (window.confirm(`Are you sure you want to remove ${email} from this workspace?`)) {
-            await auth.removeUserFromWorkspace(workspaceId, email);
-            // Refresh logic will be handled in App.tsx after a state update
-             window.location.reload(); // simple way to refresh state
-        }
-    };
-
     const TABS = [
         { id: 'profile', label: 'Profile', icon: <UserProfileIcon className="w-5 h-5 mr-3" /> },
-        { id: 'workspace', label: 'Workspace', icon: <BriefcaseIcon className="w-5 h-5 mr-3" /> },
         { id: 'notifications', label: 'Notifications', icon: <BellIcon className="w-5 h-5 mr-3" /> },
         { id: 'security', label: 'Security', icon: <ShieldIcon className="w-5 h-5 mr-3" /> },
         { id: 'integrations', label: 'Integrations', icon: <LinkIcon className="w-5 h-5 mr-3" /> },
@@ -409,30 +269,19 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDelet
     ];
 
     const renderContent = () => {
-        if (!activeWorkspace) {
-            return (
-                <div className="p-8 text-center bg-light-card dark:bg-dark-card rounded-lg">
-                    <h3 className="text-lg font-semibold text-primary-text-light dark:text-primary-text-dark mt-4">No Workspace Selected</h3>
-                    <p className="mt-1 text-secondary-text-light dark:text-secondary-text-dark">Please select or create a workspace to manage its settings.</p>
-                </div>
-            )
-        }
         switch (activeTab) {
-            case 'profile': return <ProfileSettings user={currentUser} userRole={userRole} onUserUpdate={onUserUpdate} onWorkspaceRoleUpdate={onWorkspaceRoleUpdate} />;
-            case 'workspace': return <WorkspaceSettings currentUser={currentUser} userRole={userRole} workspace={activeWorkspace} onInviteClick={() => setInviteModalOpen(true)} onDeleteUser={handleDeleteUser} onRoleChange={onWorkspaceRoleUpdate} />;
+            case 'profile': return <ProfileSettings user={currentUser} onUserUpdate={onUserUpdate} />;
             case 'notifications': return <NotificationsSettings />;
             case 'security': return <SecuritySettings />;
             case 'integrations': return <IntegrationsSettings />;
             case 'ai': return <AICustomizationSettings rules={dismissalRules} onDeleteRule={onDeleteDismissalRule} />;
-            default: return <ProfileSettings user={currentUser} userRole={userRole} onUserUpdate={onUserUpdate} onWorkspaceRoleUpdate={onWorkspaceRoleUpdate} />;
+            default: return <ProfileSettings user={currentUser} onUserUpdate={onUserUpdate} />;
         }
     };
 
     return (
         <SidebarMainLayout {...layoutProps} activeScreen={Screen.Settings}>
-            <Header title="Settings" />
             <div className="p-8">
-                {isInviteModalOpen && <InviteUserModal onClose={() => setInviteModalOpen(false)} onInvite={handleInviteUser} />}
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <aside className="lg:col-span-1">
                         <nav className="space-y-1">
@@ -440,8 +289,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDelet
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    disabled={!activeWorkspace && tab.id !== 'profile'}
-                                    className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                                         activeTab === tab.id
                                             ? 'bg-primary-blue text-white'
                                             : 'text-secondary-text-light dark:text-secondary-text-dark hover:bg-gray-200 dark:hover:bg-dark-card'
