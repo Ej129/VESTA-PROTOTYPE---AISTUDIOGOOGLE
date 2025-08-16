@@ -147,10 +147,26 @@ const App: React.FC = () => {
     await loadWorkspaceData(selectedWorkspace.id);
   };
   
-  const addAutomatedKnowledgeSource = async (source: Omit<KnowledgeSource, 'id' | 'workspaceId'>) => {
-      if (!selectedWorkspace) return;
-      await workspaceApi.addKnowledgeSource(selectedWorkspace.id, source);
-      await loadWorkspaceData(selectedWorkspace.id);
+  const handleCheckForRegulatoryUpdates = async (): Promise<number> => {
+      if (!selectedWorkspace) return 0;
+      const newRegulations = await workspaceApi.checkForNewRegulations(selectedWorkspace.id);
+
+      if (newRegulations.length > 0) {
+          for (const reg of newRegulations) {
+              await workspaceApi.addKnowledgeSource(selectedWorkspace.id, {
+                  title: reg.title,
+                  content: reg.summary,
+                  category: KnowledgeCategory.Government,
+                  isEditable: false,
+                  isNew: true,
+                  circularNumber: reg.circularNumber,
+                  issueDate: reg.issueDate,
+                  sourceUrl: reg.sourceUrl,
+              });
+          }
+          await loadWorkspaceData(selectedWorkspace.id);
+      }
+      return newRegulations.length;
   };
   
   const addDismissalRule = async (finding: Finding, reason: FeedbackReason) => {
@@ -275,7 +291,7 @@ const App: React.FC = () => {
         screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} />;
         break;
       case Screen.KnowledgeBase:
-        screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={addAutomatedKnowledgeSource} />;
+        screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onCheckForRegulatoryUpdates={handleCheckForRegulatoryUpdates} />;
         break;
       case Screen.Settings:
         screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;

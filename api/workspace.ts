@@ -105,7 +105,15 @@ export const createWorkspace = async (name: string, creator: User): Promise<Work
         
         // Add default knowledge sources for the new workspace
         const initialSources: Omit<KnowledgeSource, 'id'|'workspaceId'>[] = [
-            { title: 'BSP Circular No. 1108: Guidelines on Virtual Asset Service Providers', content: 'This circular covers the rules and regulations for Virtual Asset Service Providers (VASPs) operating in the Philippines...', category: KnowledgeCategory.Government, isEditable: false },
+            { 
+                title: 'BSP Circular No. 1108: Guidelines on Virtual Asset Service Providers', 
+                content: 'This circular covers the rules and regulations for Virtual Asset Service Providers (VASPs) operating in the Philippines...', 
+                category: KnowledgeCategory.Government, 
+                isEditable: false,
+                circularNumber: 'Circular No. 1108',
+                issueDate: 'January 26, 2021',
+                sourceUrl: 'https://www.bsp.gov.ph/Regulations/Issuances/2021/c1108.pdf'
+            },
             { title: 'Q1 2024 Internal Risk Assessment', content: 'Our primary risk focus for this quarter is supply chain integrity and third-party vendor management...', category: KnowledgeCategory.Risk, isEditable: true },
             { title: '5-Year Plan: Digital Transformation', content: 'Our strategic goal is to become the leading digital-first bank in the SEA region by 2029...', category: KnowledgeCategory.Strategy, isEditable: true },
         ];
@@ -327,5 +335,60 @@ export const deleteCustomRegulation = async (workspaceId: string, regulationId: 
             persist();
         }
         resolve();
+    });
+};
+
+// --- Web Scraping Simulation ---
+const MOCK_SCRAPED_REGULATIONS = [
+    {
+        circularNumber: 'Circular No. 1184',
+        title: 'Amendments to the Foreign Exchange Regulations',
+        issueDate: 'October 26, 2023',
+        sourceUrl: 'https://www.bsp.gov.ph/Regulations/Issuances/2023/c1184.pdf',
+        summary: 'This circular details amendments to regulations on non-trade current account transactions, providing greater flexibility for foreign exchange.'
+    },
+    {
+        circularNumber: 'Circular No. 1183',
+        title: 'Amendments to the Guidelines on the Establishment of Digital Banks',
+        issueDate: 'October 20, 2023',
+        sourceUrl: 'https://www.bsp.gov.ph/Regulations/Issuances/2023/c1183.pdf',
+        summary: 'Updates to Circular No. 1105, clarifying the prudential requirements and application processes for digital banks.'
+    },
+    {
+        circularNumber: 'Circular No. 1169',
+        title: 'The Rules of Procedure of the Philippines Payments and Settlements System',
+        issueDate: 'March 15, 2023',
+        sourceUrl: 'https://www.bsp.gov.ph/Regulations/Issuances/2023/c1169.pdf',
+        summary: 'Establishes the comprehensive rules governing the PhilPaSSplus payment system for high-value transactions.'
+    },
+    {
+        circularNumber: 'Circular No. 1108',
+        title: 'BSP Circular No. 1108: Guidelines on Virtual Asset Service Providers',
+        issueDate: 'January 26, 2021',
+        sourceUrl: 'https://www.bsp.gov.ph/Regulations/Issuances/2021/c1108.pdf',
+        summary: 'This circular covers the rules and regulations for Virtual Asset Service Providers (VASPs) operating in the Philippines...'
+    }
+];
+
+type NewRegulationInfo = {
+    title: string;
+    summary: string;
+    circularNumber: string;
+    issueDate: string;
+    sourceUrl: string;
+}
+
+export const checkForNewRegulations = async (workspaceId: string): Promise<NewRegulationInfo[]> => {
+    return new Promise(resolve => {
+        const existingGovSources = DB.knowledgeSources.filter(ks => ks.workspaceId === workspaceId && ks.category === KnowledgeCategory.Government);
+        const existingCircularNumbers = new Set(existingGovSources.map(s => s.circularNumber));
+        
+        const newRegulations = MOCK_SCRAPED_REGULATIONS.filter(
+            reg => !existingCircularNumbers.has(reg.circularNumber)
+        );
+
+        setTimeout(() => { // Simulate network delay
+            resolve(newRegulations.map(r => ({ ...r })));
+        }, 1500);
     });
 };

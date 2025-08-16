@@ -88,6 +88,9 @@ export interface KnowledgeSource {
     category: KnowledgeCategory;
     isEditable: boolean;
     isNew?: boolean;
+    circularNumber?: string;
+    issueDate?: string;
+    sourceUrl?: string;
 }
 
 export interface DismissalRule {
