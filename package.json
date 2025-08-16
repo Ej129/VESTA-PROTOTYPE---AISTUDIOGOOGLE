@@ -4,7 +4,7 @@
   "description": "An AI-powered collaborative platform for analyzing project plans.",
   "private": true,
   "scripts": {
-    "build": "esbuild index.tsx --bundle --outfile=dist/index.js --define:process.env.API_KEY='\"'$API_KEY'\"' && cp index.html metadata.json dist/"
+    "build": "esbuild index.tsx --bundle --outfile=dist/index.js --define:process.env.API_KEY='\"'$API_KEY'\"' --external:react --external:react-dom --external:react-dom/client --external:react/jsx-runtime --external:recharts --external:@google/genai --external:jspdf --external:docx --external:@netlify/blobs --external:@netlify/functions && cp index.html metadata.json dist/"
   },
   "dependencies": {},
   "devDependencies": {

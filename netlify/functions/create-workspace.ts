@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import type { Context as NetlifyContext, ClientContext } from "@netlify/functions";
+import type { Context } from "@netlify/functions";
 
 // Redefining types for the serverless function.
 interface Workspace {
@@ -24,11 +24,6 @@ interface KnowledgeSource {
     content: string;
     category: KnowledgeCategory;
     isEditable: boolean;
-}
-
-// Augment the Netlify Context type for serverless function environment
-interface Context extends NetlifyContext {
-  clientContext?: ClientContext;
 }
 
 export default async (req: Request, context: Context) => {

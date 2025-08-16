@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import type { Context as NetlifyContext, ClientContext } from "@netlify/functions";
+import type { Context } from "@netlify/functions";
 
 // In a larger project or monorepo, these types would be shared.
 // For simplicity in this serverless function, we redefine the necessary types.
@@ -13,11 +13,6 @@ interface Workspace {
 interface WorkspaceMember {
     email: string;
     role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
-}
-
-// Augment the Netlify Context type for serverless function environment
-interface Context extends NetlifyContext {
-  clientContext?: ClientContext;
 }
 
 export default async (req: Request, context: Context) => {
