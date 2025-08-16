@@ -2,7 +2,22 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let ai: GoogleGenAI | null = null;
+
+/**
+ * Lazily initializes and returns the GoogleGenAI client instance.
+ * Throws an error if the API key is not available.
+ */
+function getGenAIClient(): GoogleGenAI {
+    if (!process.env.API_KEY) {
+        // This is a safeguard. The main App component should catch this earlier.
+        throw new Error("API_KEY environment variable is not set. Please configure it in your deployment settings.");
+    }
+    if (!ai) {
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    }
+    return ai;
+}
 
 const reportSchema = {
     type: Type.OBJECT,
@@ -77,7 +92,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
     }
 
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
+        const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Analyze the following project plan:\n\n---\n\n${planContent}\n\n---\n\nPlease provide your analysis in the requested JSON format.`,
             config: {
@@ -122,7 +137,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
                 title: 'Failed to analyze the document.',
                 severity: 'critical',
                 sourceSnippet: 'N/A',
-                recommendation: 'The AI model could not process the document. This might be due to a connection issue or an internal error. Please check your network and try again. If the problem persists, the content might be unsuitable for analysis.',
+                recommendation: `The AI model could not process the document. This might be due to a connection issue or an internal error. Please check your network and try again. If the problem persists, the content might be unsuitable for analysis. Error: ${error}`,
                 status: 'active',
             }],
             summary: { critical: 1, warning: 0, checks: 0 },
@@ -143,7 +158,7 @@ export async function improvePlan(planContent: string, report: AnalysisReport): 
     ).join('\n\n');
 
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
+        const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
             model: "gemini-2.5-flash",
             contents: `The following project plan has been analyzed and several issues were found. Please rewrite the entire document to incorporate the recommendations and fix the issues. Apply professional compliance formatting, and improve the overall clarity, conciseness, and structure of the plan.\n\nORIGINAL PLAN:\n---\n${planContent}\n---\n\nISSUES AND RECOMMENDATIONS:\n---\n${findingsSummary}\n---\n\nReturn only the full, revised text of the improved project plan. Do not include any introductory text like "Here is the revised plan." or any other commentary.`,
             config: {
