@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import type { Context } from "@netlify/functions";
+import type { Context as NetlifyContext, ClientContext } from "@netlify/functions";
 
 // Redefining types for the serverless function.
 interface Workspace {
@@ -26,12 +26,17 @@ interface KnowledgeSource {
     isEditable: boolean;
 }
 
+// Augment the Netlify Context type for serverless function environment
+interface Context extends NetlifyContext {
+  clientContext?: ClientContext;
+}
+
 export default async (req: Request, context: Context) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
   }
 
-  const user = (context as any).clientContext?.user;
+  const user = context.clientContext?.user;
   if (!user) {
     return new Response(JSON.stringify({ error: "Authentication required." }), { status: 401, headers: { "Content-Type": "application/json" } });
   }

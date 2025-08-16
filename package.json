@@ -1,16 +1,13 @@
 {
   "name": "vesta-workspaces-app",
   "version": "1.0.0",
-  "description": "Backend functions for Vesta Workspaces",
+  "description": "An AI-powered collaborative platform for analyzing project plans.",
   "private": true,
   "scripts": {
     "build": "esbuild index.tsx --bundle --outfile=dist/index.js --define:process.env.API_KEY='\"'$API_KEY'\"' && cp index.html metadata.json dist/"
   },
-  "dependencies": {
-    "@netlify/blobs": "^10.0.8"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@netlify/functions": "^2.6.0",
     "typescript": "^5.4.5",
     "esbuild": "^0.20.2"
   }

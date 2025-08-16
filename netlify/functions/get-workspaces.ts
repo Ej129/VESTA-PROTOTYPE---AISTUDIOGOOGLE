@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import type { Context } from "@netlify/functions";
+import type { Context as NetlifyContext, ClientContext } from "@netlify/functions";
 
 // In a larger project or monorepo, these types would be shared.
 // For simplicity in this serverless function, we redefine the necessary types.
@@ -15,9 +15,14 @@ interface WorkspaceMember {
     role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
 }
 
+// Augment the Netlify Context type for serverless function environment
+interface Context extends NetlifyContext {
+  clientContext?: ClientContext;
+}
+
 export default async (req: Request, context: Context) => {
   // Netlify Identity automatically provides the authenticated user's context.
-  const user = (context as any).clientContext?.user;
+  const user = context.clientContext?.user;
 
   // 1. Security Check: Ensure a user is logged in.
   if (!user) {
