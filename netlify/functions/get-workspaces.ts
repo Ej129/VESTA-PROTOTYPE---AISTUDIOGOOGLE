@@ -17,7 +17,7 @@ interface WorkspaceMember {
 
 export default async (req: Request, context: Context) => {
   // Netlify Identity automatically provides the authenticated user's context.
-  const user = context.clientContext?.user;
+  const user = context.netlify.identity?.user;
 
   // 1. Security Check: Ensure a user is logged in.
   if (!user) {

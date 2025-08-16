@@ -4,7 +4,7 @@
   "description": "Backend functions for Vesta Workspaces",
   "private": true,
   "dependencies": {
-    "@netlify/blobs": "^7.5.0"
+    "@netlify/blobs": "^10.0.8"
   },
   "devDependencies": {
     "@netlify/functions": "^2.6.0",
