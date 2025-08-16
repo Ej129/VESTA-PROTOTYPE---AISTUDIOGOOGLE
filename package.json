@@ -1,24 +1,13 @@
 {
-  "name": "vesta-workspaces",
+  "name": "vesta-workspaces-app",
+  "version": "1.0.0",
+  "description": "Backend functions for Vesta Workspaces",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
   "dependencies": {
-    "react-dom": "^19.1.1",
-    "react": "^19.1.1",
-    "recharts": "^3.1.2",
-    "@google/genai": "^1.13.0",
-    "jspdf": "^2.5.1",
-    "docx": "^8.5.0"
+    "@netlify/blobs": "^7.5.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@netlify/functions": "^2.6.0",
+    "typescript": "^5.4.5"
   }
 }

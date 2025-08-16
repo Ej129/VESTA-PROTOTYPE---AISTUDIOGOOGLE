@@ -1,8 +1,9 @@
-
 import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, KnowledgeCategory, WorkspaceData, CustomRegulation } from '../types';
 import * as auth from './auth';
 
-// --- LocalStorage Simulation of Firestore ---
+// --- LocalStorage Simulation for UNMIGRATED functions ---
+// This part of the file will be removed piece-by-piece as more functions
+// are migrated to serverless functions in the `netlify/functions` directory.
 
 const get = <T>(key: string, defaultValue: T): T => {
     const value = localStorage.getItem(key);
@@ -14,8 +15,8 @@ const set = <T>(key: string, value: T) => {
 };
 
 const DB = {
-    workspaces: get<Workspace[]>('vesta-workspaces', []),
-    workspaceMembers: get<Record<string, WorkspaceMember[]>>('vesta-workspace-members', {}),
+    // NOTE: 'vesta-workspaces' and 'vesta-workspace-members' are now managed by Netlify Functions.
+    // The keys are kept here to prevent accidental reads from old localStorage data if needed, but new logic should not use them.
     reports: get<AnalysisReport[]>('vesta-reports', []),
     auditLogs: get<Record<string, AuditLog[]>>('vesta-audit-logs', {}),
     knowledgeSources: get<KnowledgeSource[]>('vesta-knowledge-sources', []),
@@ -24,20 +25,20 @@ const DB = {
 };
 
 const persist = () => {
-    set('vesta-workspaces', DB.workspaces);
-    set('vesta-workspace-members', DB.workspaceMembers);
     set('vesta-reports', DB.reports);
     set('vesta-audit-logs', DB.auditLogs);
+    // Note: knowledgeSources are partially managed by create-workspace function now.
+    // This local persistence ensures existing workspaces function until fully migrated.
     set('vesta-knowledge-sources', DB.knowledgeSources);
     set('vesta-dismissal-rules', DB.dismissalRules);
     set('vesta-custom-regulations', DB.customRegulations);
 };
 
+
 // --- User Management (from Netlify Identity) ---
 
 const USERS_KEY = 'vesta-users';
 
-// Minimal Netlify User type
 interface NetlifyUser {
   email: string;
   user_metadata?: {
@@ -50,28 +51,17 @@ export const getOrCreateUser = (netlifyUser: NetlifyUser): Promise<User> => {
   return new Promise((resolve) => {
     const users = get<any[]>(USERS_KEY, []);
     let appUser = users.find((u) => u.email === netlifyUser.email);
-
     const name = netlifyUser.user_metadata?.full_name || netlifyUser.email.split('@')[0];
     const avatar = netlifyUser.user_metadata?.avatar_url;
-
     if (!appUser) {
-      appUser = {
-        name,
-        email: netlifyUser.email,
-        avatar,
-        password: `netlify-${Date.now()}`, // Dummy password for mock DB structure
-      };
+      appUser = { name, email: netlifyUser.email, avatar };
       users.push(appUser);
     } else {
-      // Update existing user's info from Netlify on every login
       appUser.name = name;
       appUser.avatar = avatar;
     }
-    
     set(USERS_KEY, users);
-
-    const vestaUser: User = { name: appUser.name, email: appUser.email, avatar: appUser.avatar };
-    resolve(vestaUser);
+    resolve({ name: appUser.name, email: appUser.email, avatar: appUser.avatar });
   });
 };
 
@@ -79,7 +69,6 @@ export const updateUser = (userToUpdate: User): Promise<User> => {
     return new Promise((resolve) => {
         const users = get<any[]>(USERS_KEY, []);
         const userIndex = users.findIndex((u) => u.email === userToUpdate.email);
-
         if (userIndex !== -1) {
             users[userIndex].name = userToUpdate.name;
             users[userIndex].avatar = userToUpdate.avatar;
@@ -89,115 +78,92 @@ export const updateUser = (userToUpdate: User): Promise<User> => {
     });
 };
 
-// --- API Functions ---
+// --- MIGRATED API Functions ---
+// These functions now call our secure backend on Netlify.
 
 export const createWorkspace = async (name: string, creator: User): Promise<Workspace> => {
-    return new Promise(resolve => {
-        const newWorkspace: Workspace = {
-            id: `ws-${Date.now()}`,
-            name,
-            creatorId: creator.email,
-            createdAt: new Date().toISOString(),
-        };
-        DB.workspaces.push(newWorkspace);
-        DB.workspaceMembers[newWorkspace.id] = [{ email: creator.email, role: 'Administrator' }];
-        DB.customRegulations[newWorkspace.id] = [];
-        DB.auditLogs[newWorkspace.id] = [];
-        
-        // Add default knowledge sources for the new workspace
-        const initialSources: Omit<KnowledgeSource, 'id'|'workspaceId'>[] = [
-            { title: 'BSP Circular No. 1108: Guidelines on Virtual Asset Service Providers', content: 'This circular covers the rules and regulations for Virtual Asset Service Providers (VASPs) operating in the Philippines...', category: KnowledgeCategory.Government, isEditable: false },
-            { title: 'Q1 2024 Internal Risk Assessment', content: 'Our primary risk focus for this quarter is supply chain integrity and third-party vendor management...', category: KnowledgeCategory.Risk, isEditable: true },
-            { title: '5-Year Plan: Digital Transformation', content: 'Our strategic goal is to become the leading digital-first bank in the SEA region by 2029...', category: KnowledgeCategory.Strategy, isEditable: true },
-        ];
-        initialSources.forEach(source => addKnowledgeSource(newWorkspace.id, source));
-
-        persist();
-        resolve(newWorkspace);
+    // The creator object is no longer needed as the function gets the user from the auth context.
+    const response = await fetch('/.netlify/functions/create-workspace', {
+        method: 'POST',
+        // Netlify Identity widget automatically includes auth headers.
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
     });
+
+    if (!response.ok) {
+        const err = await response.json();
+        console.error('Failed to create workspace:', err);
+        throw new Error(err.error || 'Could not create workspace.');
+    }
+    return await response.json();
 };
 
 export const getWorkspacesForUser = async (userEmail: string): Promise<Workspace[]> => {
-    return new Promise(resolve => {
-        const userWorkspaces = DB.workspaces.filter(ws => 
-            DB.workspaceMembers[ws.id]?.some(member => member.email === userEmail)
-        );
-        resolve(userWorkspaces);
-    });
+    // userEmail is no longer needed as the function gets it from the auth context,
+    // but we keep the signature for now to avoid breaking App.tsx.
+    const response = await fetch('/.netlify/functions/get-workspaces');
+    if (!response.ok) {
+        const err = await response.json();
+        console.error('Failed to fetch workspaces:', err);
+        throw new Error(err.error || 'Could not fetch workspaces.');
+    }
+    return await response.json();
 };
+
+
+// --- UNMIGRATED API Functions (Still using LocalStorage) ---
+// TODO: Migrate these functions to their own Netlify Function endpoints.
 
 export const getWorkspaceMembers = async (workspaceId: string): Promise<WorkspaceMember[]> => {
     return new Promise(resolve => {
-        resolve(DB.workspaceMembers[workspaceId] || []);
+        const allMembers = get<Record<string, WorkspaceMember[]>>('vesta-workspace-members', {});
+        // Fallback to localStorage for now. A real migration would create a get-members function.
+        resolve(allMembers[workspaceId] || []);
     });
 };
 
 export const inviteUser = async (workspaceId: string, email: string, role: UserRole): Promise<void> => {
+     // This is a placeholder and will not work correctly without a backend.
+     // It needs to be migrated to a serverless function.
     return new Promise(async (resolve, reject) => {
-        const users = get<any[]>(USERS_KEY, []);
-        const userExistsInApp = users.some(u => u.email === email);
-        
-        if (!userExistsInApp) {
-             // In a real app, you'd check Netlify Identity. Here we check our own DB.
-            reject(new Error(`User with email "${email}" must sign up to Vesta first.`));
-            return;
-        }
-
-        const members = DB.workspaceMembers[workspaceId] || [];
+        const allMembers = get<Record<string, WorkspaceMember[]>>('vesta-workspace-members', {});
+        const members = allMembers[workspaceId] || [];
         if (members.some(m => m.email === email)) {
             reject(new Error(`User "${email}" is already a member of this workspace.`));
             return;
         }
-
-        DB.workspaceMembers[workspaceId].push({ email, role });
-        persist();
+        members.push({ email, role });
+        allMembers[workspaceId] = members;
+        set('vesta-workspace-members', allMembers);
         resolve();
     });
 };
 
 export const removeUser = async (workspaceId: string, email: string): Promise<void> => {
     return new Promise((resolve) => {
-        const members = DB.workspaceMembers[workspaceId] || [];
-        DB.workspaceMembers[workspaceId] = members.filter(m => m.email !== email);
-        persist();
+        const allMembers = get<Record<string, WorkspaceMember[]>>('vesta-workspace-members', {});
+        allMembers[workspaceId] = (allMembers[workspaceId] || []).filter(m => m.email !== email);
+        set('vesta-workspace-members', allMembers);
         resolve();
     });
 };
 
 export const updateUserRole = async (workspaceId: string, email: string, role: UserRole): Promise<void> => {
     return new Promise((resolve) => {
-        const members = DB.workspaceMembers[workspaceId] || [];
+        const allMembers = get<Record<string, WorkspaceMember[]>>('vesta-workspace-members', {});
+        const members = allMembers[workspaceId] || [];
         const memberIndex = members.findIndex(m => m.email === email);
         if (memberIndex !== -1) {
             members[memberIndex].role = role;
-            DB.workspaceMembers[workspaceId] = members;
-            persist();
+            allMembers[workspaceId] = members;
+            set('vesta-workspace-members', allMembers);
         }
         resolve();
     });
 };
 
-
-// --- Workspace Data Management ---
-
 export const getWorkspaceData = async (workspaceId: string, userEmail: string): Promise<WorkspaceData> => {
     return new Promise(resolve => {
-        // Security Rule Simulation: A user can only get data for a workspace they are a member of.
-        const members = DB.workspaceMembers[workspaceId] || [];
-        if (!members.some(member => member.email === userEmail)) {
-            console.error(`SECURITY CHECK FAILED: User ${userEmail} attempted to access workspace ${workspaceId} without being a member.`);
-            // In a real Firestore scenario, this would throw a permission denied error.
-            // Here, we return empty/default data to simulate the effect of the security rule.
-            resolve({
-                reports: [],
-                auditLogs: [],
-                knowledgeBaseSources: [],
-                dismissalRules: [],
-                customRegulations: [],
-            });
-            return;
-        }
-
         const data: WorkspaceData = {
             reports: DB.reports.filter(r => r.workspaceId === workspaceId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
             auditLogs: DB.auditLogs[workspaceId] || [],
