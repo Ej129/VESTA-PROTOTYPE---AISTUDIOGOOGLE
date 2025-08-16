@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -18,15 +17,15 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-main dark:bg-dark-main p-4 text-center">
         <div className="max-w-2xl bg-light-card dark:bg-dark-card p-8 rounded-lg shadow-lg border border-accent-critical">
             <AlertTriangleIcon className="w-16 h-16 mx-auto text-accent-critical" />
-            <h1 className="text-2xl font-bold text-primary-text-light dark:text-primary-text-dark mt-4">Application Error</h1>
+            <h1 className="text-2xl font-bold text-primary-text-light dark:text-primary-text-dark mt-4">Application Configuration Error</h1>
             <p className="text-secondary-text-light dark:text-secondary-text-dark mt-2">
-                The application could not start due to a configuration issue.
+                The application cannot start because a required configuration is missing.
             </p>
             <div className="mt-4 p-4 bg-red-500/10 rounded-md text-left">
                 <p className="font-mono text-sm text-accent-critical">{message}</p>
             </div>
             <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark mt-6">
-                Please ensure all required environment variables are correctly set in your hosting environment (e.g., Netlify) and redeploy the application.
+                <strong>Action Required:</strong> Please add the `API_KEY` environment variable in your Netlify site settings under "Site configuration" &gt; "Build &amp; deploy" &gt; "Environment" and then trigger a new deploy.
             </p>
         </div>
     </div>
@@ -43,8 +42,15 @@ const InitializingScreen: React.FC = () => (
 );
 
 const App: React.FC = () => {
+  // --- FAIL-FAST CHECK ---
+  // This is the most critical part of the fix. We check for the environment
+  // variable immediately. If it's missing, we render *only* the error screen
+  // and none of the other application logic runs, preventing a crash.
+  if (!process.env.API_KEY) {
+    return <ErrorScreen message="The 'API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
+  }
+  
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
-  const [appError, setAppError] = useState<string | null>(null);
 
   const [screen, setScreen] = useState<Screen>(Screen.WorkspaceDashboard);
   
@@ -97,12 +103,6 @@ const App: React.FC = () => {
     setActiveReport(null);
     navigateTo(Screen.WorkspaceDashboard);
   };
-
-  useEffect(() => {
-    if (!process.env.API_KEY) {
-      setAppError("Configuration Error: The API_KEY environment variable is missing. Please contact your administrator to set up the necessary environment variables in the deployment settings.");
-    }
-  }, []);
 
   useEffect(() => {
     if (currentUser) {
@@ -255,10 +255,6 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    if (appError) {
-      return <ErrorScreen message={appError} />;
-    }
-    
     if (loading) return <InitializingScreen />;
     if (!currentUser) return <LoginScreen />;
 
