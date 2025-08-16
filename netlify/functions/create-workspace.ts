@@ -31,7 +31,7 @@ export default async (req: Request, context: Context) => {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
   }
 
-  const user = context.netlify?.clientContext?.user as any;
+  const user = (context as any).clientContext?.user;
   if (!user) {
     return new Response(JSON.stringify({ error: "Authentication required." }), { status: 401, headers: { "Content-Type": "application/json" } });
   }
