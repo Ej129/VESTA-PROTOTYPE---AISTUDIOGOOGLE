@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, DismissalRule, ScreenLayoutProps, CustomRegulation } from '../types';
 import { SidebarMainLayout } from '../components/Layout';

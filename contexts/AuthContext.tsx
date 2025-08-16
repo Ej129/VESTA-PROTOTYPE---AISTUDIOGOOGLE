@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { User } from '../types';
 import * as workspaceApi from '../api/workspace';
@@ -39,11 +40,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const handleLogin = useCallback(async (netlifyUser: NetlifyUser | null) => {
-    setLoading(true);
+  const updateUserState = useCallback(async (netlifyUser: NetlifyUser | null) => {
     if (netlifyUser) {
-      const vestaUser = await workspaceApi.getOrCreateUser(netlifyUser);
-      setUser(vestaUser);
+      // Get or create our app-specific user from the Netlify user data
+      const appUser = await workspaceApi.getOrCreateUser(netlifyUser);
+      setUser(appUser);
     } else {
       setUser(null);
     }
@@ -53,40 +54,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const netlifyIdentity = window.netlifyIdentity;
 
-    const onAuthAction = (netlifyUser: NetlifyUser | null) => {
-      handleLogin(netlifyUser);
-
-      if (window.location.hash === '#') {
-        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
-      }
-    };
-
     if (netlifyIdentity) {
-      netlifyIdentity.on('init', (netlifyUser: NetlifyUser | null) => {
-          onAuthAction(netlifyUser);
-      });
-      
-      netlifyIdentity.on('login', (netlifyUser: NetlifyUser | null) => {
-          onAuthAction(netlifyUser);
-      });
-      
-      netlifyIdentity.on('logout', () => {
-        setUser(null);
-      });
-
+      // Initialize the widget
       netlifyIdentity.init();
-    } else {
-        setLoading(false);
-    }
 
-    return () => {
-      if (netlifyIdentity) {
-        netlifyIdentity.off('init');
+      // Bind to authentication events
+      netlifyIdentity.on('init', (netlifyUser: NetlifyUser | null) => {
+        updateUserState(netlifyUser);
+      });
+
+      netlifyIdentity.on('login', (netlifyUser: NetlifyUser) => {
+        updateUserState(netlifyUser);
+        netlifyIdentity.close(); // Close the modal on login
+      });
+
+      netlifyIdentity.on('logout', () => {
+        updateUserState(null);
+      });
+
+      // Check for an existing user on mount
+      const currentUser = netlifyIdentity.currentUser();
+      if (currentUser) {
+        updateUserState(currentUser);
+      } else {
+        setLoading(false); // No user, stop loading
+      }
+
+      // Cleanup function to remove event listeners
+      return () => {
         netlifyIdentity.off('login');
         netlifyIdentity.off('logout');
-      }
-    };
-  }, [handleLogin]);
+      };
+    } else {
+      // If the script hasn't loaded for some reason, stop loading
+      console.warn('Netlify Identity widget not found.');
+      setLoading(false);
+    }
+  }, [updateUserState]);
 
   const login = () => {
     if (window.netlifyIdentity) {
@@ -101,7 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const value = { user, loading, login, logout };
-  
+
   return (
     <AuthContext.Provider value={value}>
       {children}

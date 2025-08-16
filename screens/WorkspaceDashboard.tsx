@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Workspace, User } from '../types';
 import { VestaLogo, LogoutIcon, PlusIcon, BriefcaseIcon } from '../components/Icons';

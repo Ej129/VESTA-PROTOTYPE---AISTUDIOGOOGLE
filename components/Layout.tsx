@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
 import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, BriefcaseIcon } from './Icons';
