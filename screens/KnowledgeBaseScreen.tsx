@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Screen, KnowledgeSource, KnowledgeCategory, ScreenLayoutProps, UserRole } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { PlusIcon, TrashIcon, ChevronDownIcon, GlobeIcon, RefreshIcon, ShieldIcon, KeyIcon, LinkIcon } from '../components/Icons';
+import { PlusIcon, TrashIcon, ChevronDownIcon, GlobeIcon, RefreshIcon, ShieldIcon, KeyIcon } from '../components/Icons';
 
 interface KnowledgeBaseScreenProps extends ScreenLayoutProps {
   sources: KnowledgeSource[];
   onAddSource: (title: string, content: string, category: KnowledgeCategory) => void;
   onDeleteSource: (id: string) => void;
-  onCheckForRegulatoryUpdates: () => Promise<number>;
+  onAddAutomatedSource: () => void;
 }
 
 const KnowledgeSourceCard = ({ source, onDelete, canDelete }: { source: KnowledgeSource, onDelete: (id: string) => void, canDelete: boolean }) => {
@@ -15,11 +15,6 @@ const KnowledgeSourceCard = ({ source, onDelete, canDelete }: { source: Knowledg
     
     return (
         <div className="bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-border-light dark:border-border-dark relative overflow-hidden">
-             {source.isNew && (
-                <div className="absolute top-2 right-2 bg-accent-success text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse z-10">
-                    NEW
-                </div>
-            )}
             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
                 <h4 className="font-bold text-primary-text-light dark:text-primary-text-dark pr-12">{source.title}</h4>
                 <div className="flex items-center">
@@ -99,69 +94,6 @@ const AddSourceForm = ({ category, onAddSource }: { category: KnowledgeCategory,
     )
 }
 
-const RegulationsTable = ({ sources }: { sources: KnowledgeSource[] }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const filteredSources = sources.filter(s =>
-        s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.circularNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    return (
-        <div className="bg-light-main dark:bg-dark-main p-4 rounded-lg">
-            <input
-                type="search"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Search by title or circular number..."
-                className="w-full md:w-1/2 px-4 py-2 border border-border-light dark:border-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue bg-light-card dark:bg-dark-card text-primary-text-light dark:text-primary-text-dark"
-            />
-            <div className="overflow-x-auto mt-4">
-                <table className="w-full text-left">
-                    <thead className="border-b border-border-light dark:border-border-dark">
-                        <tr>
-                            <th className="p-3 font-semibold text-secondary-text-light dark:text-secondary-text-dark text-sm">Circular #</th>
-                            <th className="p-3 font-semibold text-secondary-text-light dark:text-secondary-text-dark text-sm">Title</th>
-                            <th className="p-3 font-semibold text-secondary-text-light dark:text-secondary-text-dark text-sm">Date Issued</th>
-                            <th className="p-3 font-semibold text-secondary-text-light dark:text-secondary-text-dark text-sm">Source</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredSources.map(source => (
-                            <tr key={source.id} className="border-b border-border-light dark:border-border-dark last:border-b-0 hover:bg-gray-200/50 dark:hover:bg-dark-sidebar/20 transition-colors">
-                                <td className="p-3 text-primary-text-light dark:text-primary-text-dark whitespace-nowrap font-medium">{source.circularNumber}</td>
-                                <td className="p-3 text-primary-text-light dark:text-primary-text-dark">
-                                    {source.title}
-                                    {source.isNew && <span className="ml-2 bg-accent-success text-white text-xs font-bold px-2 py-0.5 rounded-full">NEW</span>}
-                                </td>
-                                <td className="p-3 text-secondary-text-light dark:text-secondary-text-dark whitespace-nowrap">{source.issueDate}</td>
-                                <td className="p-3">
-                                    <a 
-                                        href={source.sourceUrl} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center text-primary-blue hover:underline font-semibold text-sm"
-                                        aria-label={`View source for ${source.title}`}
-                                    >
-                                        <LinkIcon className="w-4 h-4 mr-1.5" />
-                                        View Source
-                                    </a>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                 {filteredSources.length === 0 && (
-                     <div className="text-center p-8">
-                         <p className="text-secondary-text-light dark:text-secondary-text-dark">No regulations found matching your search.</p>
-                     </div>
-                 )}
-            </div>
-        </div>
-    );
-};
-
-
 const KnowledgeCategorySection = ({ title, icon, children, actionButton }: { title: string, icon: React.ReactNode, children: React.ReactNode, actionButton?: React.ReactNode }) => (
     <div className="bg-light-card dark:bg-dark-card p-6 rounded-lg shadow-md border border-border-light dark:border-border-dark">
         <div className="flex justify-between items-center mb-4">
@@ -177,22 +109,7 @@ const KnowledgeCategorySection = ({ title, icon, children, actionButton }: { tit
     </div>
 );
 
-const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAddSource, onDeleteSource, onCheckForRegulatoryUpdates, userRole, ...layoutProps }) => {
-    const [isChecking, setIsChecking] = useState(false);
-    const [updateMessage, setUpdateMessage] = useState<string | null>(null);
-
-    const handleCheckForUpdates = async () => {
-        setIsChecking(true);
-        const newRegulationsCount = await onCheckForRegulatoryUpdates();
-        if (newRegulationsCount > 0) {
-            setUpdateMessage(`Success! Found and added ${newRegulationsCount} new regulation(s).`);
-        } else {
-            setUpdateMessage('Knowledge base is already up-to-date.');
-        }
-        setIsChecking(false);
-        setTimeout(() => setUpdateMessage(null), 5000);
-    };
-
+const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAddSource, onDeleteSource, onAddAutomatedSource, userRole, ...layoutProps }) => {
     const getCanDelete = (source: KnowledgeSource) => {
         return source.isEditable && userRole === 'Administrator';
     };
@@ -208,36 +125,22 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
   return (
     <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.KnowledgeBase}>
       <div className="p-8 space-y-8">
-        
-        {updateMessage && (
-            <div className="fixed top-24 right-8 bg-primary-blue text-white p-4 rounded-lg shadow-lg z-50 animate-fade-in-down">
-                {updateMessage}
-                 <style>{`
-                    @keyframes fade-in-down {
-                        0% { opacity: 0; transform: translateY(-20px); }
-                        100% { opacity: 1; transform: translateY(0); }
-                    }
-                    .animate-fade-in-down { animation: fade-in-down 0.3s ease-out forwards; }
-                 `}</style>
-            </div>
-        )}
-        
         <KnowledgeCategorySection
             title={KnowledgeCategory.Government}
             icon={<GlobeIcon className="w-6 h-6 mr-3 text-primary-blue" />}
             actionButton={
-                <button onClick={handleCheckForUpdates} disabled={isChecking} className="flex items-center px-4 py-2 bg-primary-blue text-white text-sm font-semibold rounded-lg disabled:opacity-50">
-                    <RefreshIcon className={`w-5 h-5 mr-2 ${isChecking ? 'animate-spin' : ''}`} />
-                    {isChecking ? 'Checking...' : 'Check for New Regulations'}
+                <button onClick={onAddAutomatedSource} className="flex items-center px-4 py-2 bg-primary-blue text-white text-sm font-semibold rounded-lg">
+                    <RefreshIcon className="w-5 h-5 mr-2" />
+                    Add Automated Source
                 </button>
             }
         >
           {governmentSources.length > 0 ? (
-              <RegulationsTable sources={governmentSources} />
+              governmentSources.map(source => (
+                  <KnowledgeSourceCard key={source.id} source={source} onDelete={onDeleteSource} canDelete={getCanDelete(source)} />
+              ))
           ) : (
-             <div className="text-center bg-light-main dark:bg-dark-main p-8 rounded-lg">
-                <p className="text-secondary-text-light dark:text-secondary-text-dark">No government regulations found. Click "Check for New Regulations" to fetch them.</p>
-            </div>
+            <p className="text-center text-secondary-text-light dark:text-secondary-text-dark p-4">No government regulations have been added yet.</p>
           )}
         </KnowledgeCategorySection>
 

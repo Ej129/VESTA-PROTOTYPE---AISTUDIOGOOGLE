@@ -141,32 +141,14 @@ const App: React.FC = () => {
     await loadWorkspaceData(selectedWorkspace.id);
   };
 
+  const handleAddAutomatedSource = () => {
+    alert("This feature is coming soon!\nIt will automatically scan and add relevant government regulations to your knowledge base.");
+  };
+
   const deleteKnowledgeSource = async (id: string) => {
     if (!selectedWorkspace) return;
     await workspaceApi.deleteKnowledgeSource(selectedWorkspace.id, id);
     await loadWorkspaceData(selectedWorkspace.id);
-  };
-  
-  const handleCheckForRegulatoryUpdates = async (): Promise<number> => {
-      if (!selectedWorkspace) return 0;
-      const newRegulations = await workspaceApi.checkForNewRegulations(selectedWorkspace.id);
-
-      if (newRegulations.length > 0) {
-          for (const reg of newRegulations) {
-              await workspaceApi.addKnowledgeSource(selectedWorkspace.id, {
-                  title: reg.title,
-                  content: reg.summary,
-                  category: KnowledgeCategory.Government,
-                  isEditable: false,
-                  isNew: true,
-                  circularNumber: reg.circularNumber,
-                  issueDate: reg.issueDate,
-                  sourceUrl: reg.sourceUrl,
-              });
-          }
-          await loadWorkspaceData(selectedWorkspace.id);
-      }
-      return newRegulations.length;
   };
   
   const addDismissalRule = async (finding: Finding, reason: FeedbackReason) => {
@@ -291,7 +273,7 @@ const App: React.FC = () => {
         screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} />;
         break;
       case Screen.KnowledgeBase:
-        screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onCheckForRegulatoryUpdates={handleCheckForRegulatoryUpdates} />;
+        screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} />;
         break;
       case Screen.Settings:
         screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
