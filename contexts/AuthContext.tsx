@@ -39,7 +39,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // --- Start Debug Logging ---
+  useEffect(() => {
+    console.log('[Vesta Debug] AuthProvider loading state changed to:', loading);
+  }, [loading]);
+
+  useEffect(() => {
+    console.log('[Vesta Debug] AuthProvider user state changed to:', user);
+  }, [user]);
+  // --- End Debug Logging ---
+
   const handleLogin = useCallback(async (netlifyUser: NetlifyUser | null) => {
+    console.log('[Vesta Debug] AuthProvider: handleLogin triggered with user:', netlifyUser);
     setLoading(true);
     if (netlifyUser) {
       const vestaUser = await workspaceApi.getOrCreateUser(netlifyUser);
@@ -51,9 +62,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    console.log('[Vesta Debug] AuthProvider: Main effect hook initializing.');
     const netlifyIdentity = window.netlifyIdentity;
 
     const onAuthAction = (netlifyUser: NetlifyUser | null) => {
+      console.log('[Vesta Debug] AuthProvider: onAuthAction event fired.');
       handleLogin(netlifyUser);
 
       // After authentication, Netlify redirects with a URL hash. The widget
@@ -65,6 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     if (netlifyIdentity) {
+      console.log('[Vesta Debug] AuthProvider: Netlify Identity widget found. Attaching listeners.');
       // The 'init' event fires when the widget is initialized, and it may
       // contain a user if they were already logged in (or just returned from an external provider).
       netlifyIdentity.on('init', onAuthAction);
@@ -73,17 +87,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       netlifyIdentity.on('login', onAuthAction);
       
       netlifyIdentity.on('logout', () => {
+        console.log('[Vesta Debug] AuthProvider: logout event fired.');
         setUser(null);
       });
 
       netlifyIdentity.init();
     } else {
-        console.warn("Netlify Identity widget not found. Make sure the script is included in your HTML.");
+        console.warn("[Vesta Debug] AuthProvider: Netlify Identity widget not found. Make sure the script is included in your HTML.");
         setLoading(false);
     }
 
     return () => {
       if (netlifyIdentity) {
+        console.log('[Vesta Debug] AuthProvider: Cleaning up listeners.');
         netlifyIdentity.off('init', onAuthAction);
         netlifyIdentity.off('login', onAuthAction);
         netlifyIdentity.off('logout');
@@ -104,6 +120,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const value = { user, loading, login, logout };
+
+  console.log('[Vesta Debug] AuthProvider: Component has rendered.');
 
   return (
     <AuthContext.Provider value={value}>
