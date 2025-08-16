@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend functions for Vesta Workspaces",
   "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html metadata.json types.ts dist && cp -r *.tsx components api contexts data screens dist"
+  },
   "dependencies": {
     "@netlify/blobs": "^10.0.8"
   },
