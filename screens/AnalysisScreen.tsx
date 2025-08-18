@@ -7,7 +7,6 @@ import UploadModal from '../components/UploadModal';
 import { analyzePlan, improvePlan } from '../api/vesta';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 import jsPDF from 'jspdf';
-import { Document, Packer, Paragraph } from 'docx';
 import FeedbackModal from '../components/FeedbackModal';
 
 // --- SUB-COMPONENTS for AnalysisScreen ---
@@ -234,7 +233,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       setIsImproving(false);
   };
 
-  const handleDownload = (format: 'PDF' | 'DOCX' | 'TXT') => {
+  const handleDownload = (format: 'PDF' | 'TXT') => {
       setIsDownloadOpen(false);
       const title = currentReport?.title.replace(/\.[^/.]+$/, "") || 'document';
 
@@ -260,20 +259,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
           });
           
           doc.save(`${title}.pdf`);
-      } else if (format === 'DOCX') {
-          const doc = new Document({
-              sections: [{
-                  children: plainTextContent.split('\n').map(p => new Paragraph({ text: p })),
-              }],
-          });
-          Packer.toBlob(doc).then(blob => {
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${title}.docx`;
-              a.click();
-              window.URL.revokeObjectURL(url);
-          });
       } else if (format === 'TXT') {
           const blob = new Blob([plainTextContent], { type: 'text/plain' });
           const url = window.URL.createObjectURL(blob);
@@ -356,7 +341,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                         {isDownloadOpen && (
                             <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-10 border border-vesta-border-light dark:border-vesta-border-dark">
                                 <a onClick={() => handleDownload('PDF')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">PDF</a>
-                                <a onClick={() => handleDownload('DOCX')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">DOCX</a>
                                 <a onClick={() => handleDownload('TXT')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">TXT</a>
                             </div>
                         )}
