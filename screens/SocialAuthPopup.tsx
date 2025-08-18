@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { User } from '../types';
 import { GoogleIcon, MicrosoftIcon, VestaLogo } from '../components/Icons';
@@ -46,24 +45,24 @@ const SocialAuthPopup: React.FC<SocialAuthPopupProps> = ({ provider }) => {
 
     return (
         <CenteredLayout>
-            <div className="w-full max-w-sm bg-light-card dark:bg-dark-card p-8 rounded-xl shadow-lg text-center">
+            <div className="w-full max-w-sm bg-vesta-card-light dark:bg-vesta-card-dark p-8 rounded-xl shadow-lg text-center">
                  <VestaLogo className="w-20 h-20 mx-auto" />
-                 <h2 className="text-2xl font-bold text-primary-blue mt-4">Connecting to {providerName}</h2>
-                 <p className="text-secondary-text-light dark:text-secondary-text-dark mt-2 mb-6">
+                 <h2 className="text-2xl font-bold text-vesta-red mt-4">Connecting to {providerName}</h2>
+                 <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2 mb-6">
                     Please wait while we securely connect to your account.
                  </p>
                  <div className="flex justify-center items-center space-x-4 my-8">
-                    <div className="p-3 bg-gray-100 dark:bg-dark-main rounded-full">
+                    <div className="p-3 bg-gray-100 dark:bg-vesta-bg-dark rounded-full">
                         <VestaLogo className="w-10 h-10" />
                     </div>
                     <div className="w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-                    <div className="p-3 bg-gray-100 dark:bg-dark-main rounded-full">
+                    <div className="p-3 bg-gray-100 dark:bg-vesta-bg-dark rounded-full">
                         <ProviderIcon className="w-10 h-10" />
                     </div>
                  </div>
                  <div className="flex items-center justify-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-primary-blue border-t-transparent rounded-full animate-spin"></div>
-                    <p className="font-semibold text-primary-text-light dark:text-primary-text-dark">{status}</p>
+                    <div className="w-4 h-4 border-2 border-vesta-red border-t-transparent rounded-full animate-spin"></div>
+                    <p className="font-semibold text-vesta-text-light dark:text-vesta-text-dark">{status}</p>
                  </div>
             </div>
         </CenteredLayout>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CheckCircleIcon } from './Icons';
 
@@ -9,7 +8,7 @@ interface AnimatedChecklistProps {
   title?: string;
 }
 
-export const AnimatedChecklist: React.FC<AnimatedChecklistProps> = ({ steps, onComplete, textColorClass = 'text-primary-text-light dark:text-primary-text-dark', title }) => {
+export const AnimatedChecklist: React.FC<AnimatedChecklistProps> = ({ steps, onComplete, textColorClass = 'text-vesta-text-light dark:text-vesta-text-dark', title }) => {
   const [visibleSteps, setVisibleSteps] = useState(0);
 
   useEffect(() => {
@@ -29,9 +28,9 @@ export const AnimatedChecklist: React.FC<AnimatedChecklistProps> = ({ steps, onC
   }, [visibleSteps, steps, onComplete]);
 
   return (
-    <div className="text-center p-8 bg-light-card/95 dark:bg-dark-card/95 backdrop-blur-sm rounded-2xl max-w-lg mx-auto border border-border-light dark:border-border-dark">
+    <div className="text-center p-8 bg-vesta-card-light/95 dark:bg-vesta-card-dark/95 backdrop-blur-sm rounded-2xl max-w-lg mx-auto border border-vesta-border-light dark:border-vesta-border-dark">
         {title && <h2 className={`text-2xl font-bold mb-6 ${textColorClass}`}>{title}</h2>}
-        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary-blue mx-auto mb-8"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-vesta-red mx-auto mb-8"></div>
         <div className="space-y-4 text-left">
             {steps.map((step, index) => (
                 <div key={index} className={`flex items-center justify-start text-lg transition-opacity duration-500 ${index < visibleSteps ? 'opacity-100' : 'opacity-0'}`}>

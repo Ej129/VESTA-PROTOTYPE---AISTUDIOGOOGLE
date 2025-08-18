@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { WorkspaceMember, UserRole } from '../types';
 import { TrashIcon, ChevronDownIcon, PlusIcon } from './Icons';
@@ -28,12 +27,12 @@ const MemberRow: React.FC<{
     return (
         <div className="flex items-center justify-between py-3">
             <div className="flex items-center">
-                <div className="w-9 h-9 bg-primary-blue rounded-full flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-9 h-9 bg-vesta-red rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {getInitials(member.email)}
                 </div>
                 <div className="ml-3">
-                    <p className="font-semibold text-primary-text-light dark:text-primary-text-dark text-sm">{member.email}</p>
-                    <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark">{isCurrentUser ? 'You' : ''}</p>
+                    <p className="font-semibold text-vesta-text-light dark:text-vesta-text-dark text-sm">{member.email}</p>
+                    <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">{isCurrentUser ? 'You' : ''}</p>
                 </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -41,7 +40,7 @@ const MemberRow: React.FC<{
                     value={member.role}
                     onChange={(e) => onRoleChange(e.target.value as UserRole)}
                     disabled={isLastAdmin}
-                    className="px-3 py-1 border border-border-light dark:border-border-dark rounded-md text-sm bg-light-card dark:bg-dark-card focus:outline-none focus:ring-2 focus:ring-primary-blue disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3 py-1 border border-vesta-border-light dark:border-vesta-border-dark rounded-md text-sm bg-vesta-card-light dark:bg-vesta-card-dark focus:outline-none focus:ring-2 focus:ring-vesta-red disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     <option value="Administrator">Administrator</option>
                     <option value="Risk Management Officer">Risk Management Officer</option>
@@ -51,7 +50,7 @@ const MemberRow: React.FC<{
                 <button
                     onClick={onRemove}
                     disabled={isLastAdmin}
-                    className="p-2 text-secondary-text-light dark:text-secondary-text-dark hover:text-accent-critical dark:hover:text-accent-critical disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-accent-critical dark:hover:text-accent-critical disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Remove member"
                 >
                     <TrashIcon className="w-5 h-5" />
@@ -77,33 +76,33 @@ const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, curren
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" onClick={onClose}>
-            <div className="bg-light-card dark:bg-dark-card rounded-xl shadow-2xl p-8 max-w-lg w-full transform transition-all animate-fade-in-up" onClick={e => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-primary-text-light dark:text-primary-text-dark mb-2">Manage Members</h2>
-                <p className="text-secondary-text-light dark:text-secondary-text-dark mb-6">Invite new members and manage roles for your workspace.</p>
+            <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-2xl p-8 max-w-lg w-full transform transition-all animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold text-vesta-text-light dark:text-vesta-text-dark mb-2">Manage Members</h2>
+                <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mb-6">Invite new members and manage roles for your workspace.</p>
 
                 {/* Invite Section */}
-                <form onSubmit={handleInvite} className="bg-light-main dark:bg-dark-main p-4 rounded-lg">
-                    <h3 className="font-semibold mb-2 text-primary-text-light dark:text-primary-text-dark">Invite a new member</h3>
+                <form onSubmit={handleInvite} className="bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 rounded-lg">
+                    <h3 className="font-semibold mb-2 text-vesta-text-light dark:text-vesta-text-dark">Invite a new member</h3>
                     <div className="flex items-center space-x-2">
                         <input
                             type="email"
                             value={inviteEmail}
                             onChange={(e) => setInviteEmail(e.target.value)}
                             placeholder="name@company.com"
-                            className="flex-grow px-3 py-2 border border-border-light dark:border-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue bg-light-card dark:bg-dark-card"
+                            className="flex-grow px-3 py-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-vesta-red bg-vesta-card-light dark:bg-vesta-card-dark"
                             required
                         />
                          <select
                             value={inviteRole}
                             onChange={(e) => setInviteRole(e.target.value as UserRole)}
-                            className="px-3 py-2 border border-border-light dark:border-border-dark rounded-lg bg-light-card dark:bg-dark-card focus:outline-none focus:ring-2 focus:ring-primary-blue"
+                            className="px-3 py-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg bg-vesta-card-light dark:bg-vesta-card-dark focus:outline-none focus:ring-2 focus:ring-vesta-red"
                         >
                             <option value="Administrator">Administrator</option>
                             <option value="Risk Management Officer">Risk Management Officer</option>
                             <option value="Strategy Officer">Strategy Officer</option>
                             <option value="Member">Member</option>
                         </select>
-                        <button type="submit" className="bg-primary-blue text-white font-semibold px-4 py-2 rounded-lg hover:bg-opacity-90 flex items-center">
+                        <button type="submit" className="bg-vesta-red text-white font-semibold px-4 py-2 rounded-lg hover:bg-vesta-red-dark flex items-center">
                             <PlusIcon className="w-5 h-5 mr-1" /> Invite
                         </button>
                     </div>
@@ -111,8 +110,8 @@ const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, curren
 
                 {/* Member List */}
                 <div className="mt-6">
-                    <h3 className="font-semibold text-primary-text-light dark:text-primary-text-dark">{currentMembers.length} Members</h3>
-                    <div className="mt-2 max-h-64 overflow-y-auto pr-2 divide-y divide-border-light dark:divide-border-dark">
+                    <h3 className="font-semibold text-vesta-text-light dark:text-vesta-text-dark">{currentMembers.length} Members</h3>
+                    <div className="mt-2 max-h-64 overflow-y-auto pr-2 divide-y divide-vesta-border-light dark:divide-vesta-border-dark">
                         {currentMembers.map(member => (
                             <MemberRow 
                                 key={member.email}
@@ -130,7 +129,7 @@ const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, curren
                     <button
                         type="button"
                         onClick={onClose}
-                        className="bg-primary-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-opacity-90 transition-all"
+                        className="bg-vesta-red text-white font-bold py-2 px-6 rounded-lg hover:bg-vesta-red-dark transition-all"
                     >
                         Done
                     </button>

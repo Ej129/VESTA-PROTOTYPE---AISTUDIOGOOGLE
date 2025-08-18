@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { GoogleIcon, MicrosoftIcon } from './Icons';
 
@@ -30,7 +29,7 @@ const SocialLoginModal: React.FC<SocialLoginModalProps> = ({ provider, onLogin, 
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email or phone"
           required
-          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-primary-text-light dark:text-primary-text-dark"
+          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-vesta-text-light dark:text-vesta-text-dark"
           autoFocus
         />
         <button type="button" className="text-sm font-semibold text-blue-600 dark:text-blue-400 mt-2 hover:underline">
@@ -63,7 +62,7 @@ const SocialLoginModal: React.FC<SocialLoginModalProps> = ({ provider, onLogin, 
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email, phone, or Skype"
           required
-          className="w-full px-3 py-2 border-b-2 border-gray-500 focus:outline-none focus:border-blue-600 bg-transparent text-primary-text-light dark:text-primary-text-dark"
+          className="w-full px-3 py-2 border-b-2 border-gray-500 focus:outline-none focus:border-blue-600 bg-transparent text-vesta-text-light dark:text-vesta-text-dark"
           autoFocus
         />
         <div className="text-sm mt-4">
@@ -95,7 +94,7 @@ const SocialLoginModal: React.FC<SocialLoginModalProps> = ({ provider, onLogin, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-light-card dark:bg-dark-card rounded-lg shadow-xl p-8 max-w-sm w-full transform transition-all animate-fade-in-up" onClick={e => e.stopPropagation()}>
+      <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-xl p-8 max-w-sm w-full transform transition-all animate-fade-in-up" onClick={e => e.stopPropagation()}>
         {provider === 'google' ? googleModal : microsoftModal}
       </div>
        <style>{`
