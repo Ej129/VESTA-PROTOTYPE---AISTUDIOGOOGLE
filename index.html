@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@700&display=swap" rel="stylesheet">
     <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     <script>
       // On page load or when changing themes, best to add inline in `head` to avoid FOUC
@@ -20,41 +20,47 @@
     </script>
     <style>
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Montserrat', sans-serif;
       }
       .login-bg {
-        background-color: #1a2639; /* dark-sidebar */
-        background-image: radial-gradient(#ffffff1a 1px, transparent 1px);
-        background-size: 20px 20px;
+        background-color: #000000;
+        background-image: linear-gradient(135deg, #B5121B 25%, #000000 50%, #D7A523 75%);
+        background-size: 200% 200%;
+        animation: gradient-animation 10s ease infinite;
+      }
+      @keyframes gradient-animation {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
       }
 
       mark.mark-critical, .highlight-critical {
-        background-color: rgba(239, 68, 68, 0.1); /* red-500/10 */
-        border-left: 3px solid #EF4444; /* red-500 */
+        background-color: rgba(181, 18, 27, 0.1); /* vesta-red/10 */
+        border-left: 3px solid #B5121B; /* vesta-red */
         padding-left: 8px;
         margin-left: -11px;
         border-radius: 3px;
       }
       mark.mark-warning, .highlight-warning {
-        background-color: rgba(234, 179, 8, 0.1); /* yellow-500/10 */
-        border-left: 3px solid #EAB308; /* yellow-500 */
+        background-color: rgba(215, 165, 35, 0.1); /* vesta-gold/10 */
+        border-left: 3px solid #D7A523; /* vesta-gold */
         padding-left: 8px;
         margin-left: -11px;
         border-radius: 3px;
       }
       mark.mark-flash {
         animation: glow 1.2s ease-out;
-        box-shadow: 0 0 8px 4px rgba(44, 82, 130, 0.4);
+        box-shadow: 0 0 8px 4px rgba(215, 165, 35, 0.4);
         transition: box-shadow 0.3s ease-in-out;
       }
       .highlight-added {
         background-color: rgba(34, 197, 94, 0.15); /* green-500/15 */
       }
       .highlight-removed {
-        background-color: rgba(239, 68, 68, 0.15); /* red-500/15 */
+        background-color: rgba(181, 18, 27, 0.15); /* vesta-red/15 */
       }
       .highlight-removed del {
-        text-decoration-color: rgba(239, 68, 68, 0.7);
+        text-decoration-color: rgba(181, 18, 27, 0.7);
         text-decoration-thickness: 1.5px;
       }
       @keyframes glow {
@@ -62,7 +68,7 @@
           background-color: inherit;
         }
         50% {
-          background-color: rgba(44, 82, 130, 0.4);
+          background-color: rgba(215, 165, 35, 0.4);
         }
       }
     </style>
@@ -72,29 +78,32 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Montserrat', 'sans-serif'], // Mont
+              display: ['Poppins', 'sans-serif'], // Garet
             },
             colors: {
-              // New Color Palette
-              'primary-blue': '#2C5282',
-              'light-sidebar': '#F9FAFB',
-              'light-main': '#F3F4F6',
-              'light-card': '#FFFFFF',
-              'dark-sidebar': '#1a2639',
-              'dark-main': '#233149',
-              'dark-card': '#1e2a3e',
-
-              'primary-text-light': '#1F2937',
-              'secondary-text-light': '#6B7280',
-              'primary-text-dark': '#E5E7EB',
-              'secondary-text-dark': '#9CA3AF',
+              'vesta-red': '#B5121B',
+              'vesta-red-dark': '#8A0E15',
+              'vesta-gold': '#D7A523',
               
-              'border-light': '#E5E7EB',
-              'border-dark': '#374151',
+              // Light Theme
+              'vesta-bg-light': '#F8F1E6',
+              'vesta-card-light': '#FFFFFF',
+              'vesta-text-light': '#000000',
+              'vesta-text-secondary-light': '#555555',
+              'vesta-border-light': '#EAE0D3',
 
+              // Dark Theme
+              'vesta-bg-dark': '#000000',
+              'vesta-card-dark': '#1A1A1A',
+              'vesta-text-dark': '#F8F1E6',
+              'vesta-text-secondary-dark': '#A0A0A0',
+              'vesta-border-dark': '#333333',
+              
+              // Semantic colors - remapped
               'accent-success': '#22C55E',
-              'accent-warning': '#EAB308',
-              'accent-critical': '#EF4444',
+              'accent-warning': '#D7A523',
+              'accent-critical': '#B5121B',
             },
           }
         }

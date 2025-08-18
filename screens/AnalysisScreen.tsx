@@ -13,8 +13,8 @@ import FeedbackModal from '../components/FeedbackModal';
 // --- SUB-COMPONENTS for AnalysisScreen ---
 
 const MetricCard: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
-    <div className="bg-light-card dark:bg-dark-card p-4 rounded-lg shadow-sm">
-        <p className="text-sm font-semibold text-secondary-text-light dark:text-secondary-text-dark">{title}</p>
+    <div className="bg-vesta-card-light dark:bg-vesta-card-dark p-4 rounded-lg shadow-sm">
+        <p className="text-sm font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">{title}</p>
         <div className="mt-2">
             {children}
         </div>
@@ -29,8 +29,8 @@ const ProgressBar: React.FC<{ value: number, colorClass: string }> = ({ value, c
 
 const FindingCard: React.FC<{ finding: Finding; onDismiss: (finding: Finding) => void; onResolve: (id: string) => void; onHover: (id: string | null) => void; }> = ({ finding, onDismiss, onResolve, onHover }) => {
     const severityInfo = {
-        critical: { border: 'border-accent-critical', bg: 'bg-red-500/10', tagBg: 'bg-accent-critical', tagText: 'CRITICAL' },
-        warning: { border: 'border-accent-warning', bg: 'bg-yellow-500/10', tagBg: 'bg-accent-warning', tagText: 'WARNING' }
+        critical: { border: 'border-vesta-red', bg: 'bg-vesta-red/10', tagBg: 'bg-vesta-red', tagText: 'CRITICAL' },
+        warning: { border: 'border-vesta-gold', bg: 'bg-vesta-gold/10', tagBg: 'bg-vesta-gold', tagText: 'WARNING' }
     };
     const classes = severityInfo[finding.severity];
 
@@ -40,11 +40,11 @@ const FindingCard: React.FC<{ finding: Finding; onDismiss: (finding: Finding) =>
             onMouseLeave={() => onHover(null)}
         >
             <div className={`text-xs font-bold inline-block px-2 py-1 rounded-full text-white ${classes.tagBg} mb-2`}>{classes.tagText}</div>
-            <h4 className="font-bold text-primary-text-light dark:text-primary-text-dark">{finding.title}</h4>
-            <p className="text-sm text-secondary-text-light dark:text-secondary-text-dark mt-2 leading-relaxed">{finding.recommendation}</p>
+            <h4 className="font-bold text-vesta-text-light dark:text-vesta-text-dark">{finding.title}</h4>
+            <p className="text-sm text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2 leading-relaxed">{finding.recommendation}</p>
             {finding.status === 'active' && (
                 <div className="flex items-center justify-end space-x-2 pt-3 mt-3 border-t border-black/10 dark:border-white/10">
-                    <button onClick={() => onDismiss(finding)} className="px-3 py-1 text-xs font-semibold text-secondary-text-light dark:text-secondary-text-dark bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md">
+                    <button onClick={() => onDismiss(finding)} className="px-3 py-1 text-xs font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md">
                         Dismiss
                     </button>
                     <button onClick={() => onResolve(finding.id)} className="px-3 py-1 text-xs font-semibold text-white bg-accent-success hover:bg-opacity-90 rounded-md">
@@ -54,7 +54,7 @@ const FindingCard: React.FC<{ finding: Finding; onDismiss: (finding: Finding) =>
             )}
             {finding.status !== 'active' && (
                  <div className="flex items-center justify-end space-x-2 pt-3 mt-3 border-t border-black/10 dark:border-white/10">
-                     <p className={`text-sm font-bold ${finding.status === 'resolved' ? 'text-accent-success' : 'text-secondary-text-dark'}`}>{finding.status.toUpperCase()}</p>
+                     <p className={`text-sm font-bold ${finding.status === 'resolved' ? 'text-accent-success' : 'text-vesta-text-secondary-dark'}`}>{finding.status.toUpperCase()}</p>
                  </div>
             )}
         </div>
@@ -343,21 +343,21 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
             {/* Header and Metrics */}
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-3xl font-bold text-primary-text-light dark:text-primary-text-dark">{currentReport.title}</h1>
-                    <p className="text-secondary-text-light dark:text-secondary-text-dark">Analysis Report</p>
+                    <h1 className="text-3xl font-bold text-vesta-red dark:text-vesta-gold">{currentReport.title}</h1>
+                    <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">Analysis Report</p>
                 </div>
                 <div className="flex items-center space-x-2">
                     <div className="relative" ref={downloadButtonRef}>
-                        <button onClick={() => setIsDownloadOpen(o => !o)} className="flex items-center px-4 py-2 bg-light-card dark:bg-dark-card border border-border-light dark:border-border-dark rounded-lg text-secondary-text-light dark:text-secondary-text-dark hover:bg-gray-200 dark:hover:bg-dark-sidebar transition text-sm font-semibold focus:ring-2 focus:ring-primary-blue">
+                        <button onClick={() => setIsDownloadOpen(o => !o)} className="flex items-center px-4 py-2 bg-vesta-card-light dark:bg-vesta-card-dark border-2 border-vesta-gold rounded-lg text-vesta-red hover:bg-vesta-gold hover:text-white transition-colors text-sm font-semibold focus:ring-2 focus:ring-vesta-red">
                             <DownloadIcon className="w-4 h-4 mr-2" />
                             Download
                             <ChevronDownIcon className="w-4 h-4 ml-1" />
                         </button>
                         {isDownloadOpen && (
-                            <div className="absolute right-0 mt-2 w-40 bg-light-card dark:bg-dark-card rounded-md shadow-lg z-10 border border-border-light dark:border-border-dark">
-                                <a onClick={() => handleDownload('PDF')} className="block px-4 py-2 text-sm text-primary-text-light dark:text-primary-text-dark hover:bg-light-main dark:hover:bg-dark-main cursor-pointer">PDF</a>
-                                <a onClick={() => handleDownload('DOCX')} className="block px-4 py-2 text-sm text-primary-text-light dark:text-primary-text-dark hover:bg-light-main dark:hover:bg-dark-main cursor-pointer">DOCX</a>
-                                <a onClick={() => handleDownload('TXT')} className="block px-4 py-2 text-sm text-primary-text-light dark:text-primary-text-dark hover:bg-light-main dark:hover:bg-dark-main cursor-pointer">TXT</a>
+                            <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-10 border border-vesta-border-light dark:border-vesta-border-dark">
+                                <a onClick={() => handleDownload('PDF')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">PDF</a>
+                                <a onClick={() => handleDownload('DOCX')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">DOCX</a>
+                                <a onClick={() => handleDownload('TXT')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">TXT</a>
                             </div>
                         )}
                     </div>
@@ -366,11 +366,11 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                             Save Changes
                         </button>
                     ) : (
-                        <button onClick={() => setIsEditing(true)} disabled={!canEdit} className="flex items-center px-4 py-2 bg-light-card dark:bg-dark-card border border-border-light dark:border-border-dark rounded-lg text-secondary-text-light dark:text-secondary-text-dark hover:bg-gray-200 dark:hover:bg-dark-sidebar transition text-sm font-semibold focus:ring-2 focus:ring-primary-blue disabled:opacity-50">
+                        <button onClick={() => setIsEditing(true)} disabled={!canEdit} className="flex items-center px-4 py-2 bg-vesta-card-light dark:bg-vesta-card-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-200 dark:hover:bg-vesta-card-dark/50 transition text-sm font-semibold focus:ring-2 focus:ring-vesta-red disabled:opacity-50">
                             Edit Manually
                         </button>
                     )}
-                    <button id="auto-fix-button" onClick={handleAutoFix} disabled={isImproving || isEditing || !canEdit} className="relative flex items-center px-4 py-2 bg-primary-blue text-white font-bold rounded-lg transition text-sm disabled:opacity-50">
+                    <button id="auto-fix-button" onClick={handleAutoFix} disabled={isImproving || isEditing || !canEdit} className="relative flex items-center px-4 py-2 bg-vesta-red text-white font-bold rounded-lg transition text-sm disabled:opacity-50 hover:bg-vesta-red-dark">
                         <SparklesIcon className="w-4 h-4 mr-2" />
                         Auto-Fix & Enhance
                     </button>
@@ -379,25 +379,25 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <MetricCard title="Resilience Score">
-                    <span className="text-4xl font-bold text-accent-success">{currentReport.resilienceScore}%</span>
-                    <ProgressBar value={currentReport.resilienceScore} colorClass="bg-accent-success" />
+                    <span className="text-4xl font-bold font-display text-vesta-gold">{currentReport.resilienceScore}%</span>
+                    <ProgressBar value={currentReport.resilienceScore} colorClass="bg-vesta-gold" />
                 </MetricCard>
                 <MetricCard title="Critical Issues">
-                    <p className="text-4xl font-bold text-accent-critical">{currentReport.findings.filter(f => f.severity === 'critical' && f.status === 'active').length}</p>
-                    <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark mt-2">Requires immediate attention.</p>
+                    <p className="text-4xl font-bold font-display text-vesta-red">{currentReport.findings.filter(f => f.severity === 'critical' && f.status === 'active').length}</p>
+                    <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2">Requires immediate attention.</p>
                 </MetricCard>
                 <MetricCard title="Warnings">
-                     <p className="text-4xl font-bold text-accent-warning">{currentReport.findings.filter(f => f.severity === 'warning' && f.status === 'active').length}</p>
-                     <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark mt-2">Potential issues found.</p>
+                     <p className="text-4xl font-bold font-display text-vesta-gold">{currentReport.findings.filter(f => f.severity === 'warning' && f.status === 'active').length}</p>
+                     <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2">Potential issues found.</p>
                 </MetricCard>
             </div>
 
             {/* Main Content */}
             <div className="grid grid-cols-5 gap-6">
                 {/* Left Panel: Document Editor */}
-                <div id="editor-panel" className="col-span-3 h-[60vh] flex flex-col relative bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-border-light dark:border-border-dark">
+                <div id="editor-panel" className="col-span-3 h-[60vh] flex flex-col relative bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-sm border border-vesta-border-light dark:border-vesta-border-dark">
                     {isImproving && (
-                        <div className="absolute inset-0 bg-dark-main/80 flex items-center justify-center z-20 rounded-lg">
+                        <div className="absolute inset-0 bg-vesta-bg-dark/80 flex items-center justify-center z-20 rounded-lg">
                             <AnimatedChecklist steps={improvingSteps} title="Enhancing Document..." textColorClass="text-gray-200"/>
                         </div>
                     )}
@@ -405,13 +405,13 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                         <textarea
                             value={plainTextContent}
                             onChange={(e) => setPlainTextContent(e.target.value)}
-                            className="flex-1 w-full p-6 bg-transparent text-primary-text-light dark:text-primary-text-dark leading-relaxed font-mono text-sm focus:outline-none resize-none border-0"
+                            className="flex-1 w-full p-6 bg-transparent text-vesta-text-light dark:text-vesta-text-dark leading-relaxed font-mono text-sm focus:outline-none resize-none border-0"
                             autoFocus
                         />
                     ) : (
                         <div
                             dangerouslySetInnerHTML={{ __html: editorHtml }}
-                            className="flex-1 w-full p-6 text-primary-text-light dark:text-primary-text-dark leading-relaxed font-mono text-sm overflow-y-auto"
+                            className="flex-1 w-full p-6 text-vesta-text-light dark:text-vesta-text-dark leading-relaxed font-mono text-sm overflow-y-auto"
                         />
                     )}
                 </div>
@@ -429,10 +429,10 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                             />
                         ))
                     ) : (
-                        <div className="bg-light-card dark:bg-dark-card p-8 rounded-lg shadow-sm text-center h-full flex flex-col justify-center items-center">
+                        <div className="bg-vesta-card-light dark:bg-vesta-card-dark p-8 rounded-lg shadow-sm text-center h-full flex flex-col justify-center items-center">
                             <CheckCircleIcon className="w-12 h-12 text-accent-success" />
                             <h3 className="text-lg font-semibold text-accent-success mt-4">No Issues Found</h3>
-                            <p className="text-secondary-text-light dark:text-secondary-text-dark mt-1">This document meets all checks.</p>
+                            <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-1">This document meets all checks.</p>
                         </div>
                     )}
                 </div>

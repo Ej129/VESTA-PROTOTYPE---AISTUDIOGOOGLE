@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -14,17 +15,17 @@ import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon } from './components/Icons';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-light-main dark:bg-dark-main p-4 text-center">
-        <div className="max-w-2xl bg-light-card dark:bg-dark-card p-8 rounded-lg shadow-lg border border-accent-critical">
-            <AlertTriangleIcon className="w-16 h-16 mx-auto text-accent-critical" />
-            <h1 className="text-2xl font-bold text-primary-text-light dark:text-primary-text-dark mt-4">Application Configuration Error</h1>
-            <p className="text-secondary-text-light dark:text-secondary-text-dark mt-2">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 text-center">
+        <div className="max-w-2xl bg-vesta-card-light dark:bg-vesta-card-dark p-8 rounded-lg shadow-lg border border-vesta-red">
+            <AlertTriangleIcon className="w-16 h-16 mx-auto text-vesta-red" />
+            <h1 className="text-2xl font-bold text-vesta-red dark:text-vesta-gold mt-4">Application Configuration Error</h1>
+            <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2">
                 The application cannot start because a required configuration is missing.
             </p>
-            <div className="mt-4 p-4 bg-red-500/10 rounded-md text-left">
-                <p className="font-mono text-sm text-accent-critical">{message}</p>
+            <div className="mt-4 p-4 bg-vesta-red/10 rounded-md text-left">
+                <p className="font-mono text-sm text-vesta-red">{message}</p>
             </div>
-            <p className="text-xs text-secondary-text-light dark:text-secondary-text-dark mt-6">
+            <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-6">
                 <strong>Action Required:</strong> Please add the `API_KEY` environment variable in your Netlify site settings under "Site configuration" &gt; "Build &amp; deploy" &gt; "Environment" and then trigger a new deploy.
             </p>
         </div>
@@ -33,9 +34,9 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
 
 
 const InitializingScreen: React.FC = () => (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-light-main dark:bg-dark-main">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-blue"></div>
-        <p className="mt-4 text-lg font-semibold text-secondary-text-light dark:text-secondary-text-dark">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-vesta-red"></div>
+        <p className="mt-4 text-lg font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
             Initializing Session...
         </p>
     </div>
@@ -328,7 +329,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="font-sans bg-light-main dark:bg-dark-main min-h-screen text-primary-text-light dark:text-primary-text-dark">
+    <div className="font-sans bg-vesta-bg-light dark:bg-vesta-bg-dark min-h-screen text-vesta-text-light dark:text-vesta-text-dark">
       {renderScreen()}
     </div>
   );
