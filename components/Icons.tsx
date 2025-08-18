@@ -1,11 +1,12 @@
-
 import React from 'react';
 
 export const VestaLogo = ({ className }: { className?: string }) => (
-  <svg className={className} width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="48" fill="#B5121B"/>
-    <path d="M25 75V55L50 35L75 55V75H55V60H45V75H25Z" fill="#F8F1E6"/>
-    <path d="M50 25L20 45L50 55L80 45L50 25Z" fill="#D7A523"/>
+  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20,10 L20,75 L50,95 L80,75 L80,10 L50,35 Z" fill="#B5121B"/>
+    <g fill="#D7A523">
+        <path d="M35,68 h30 v-4 h-30 z" />
+        <path d="M40,64 l-3,-12 l13,6 l13,-6 l-3,12 z" />
+    </g>
   </svg>
 );
 
