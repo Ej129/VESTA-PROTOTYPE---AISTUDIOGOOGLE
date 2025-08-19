@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
 import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, BriefcaseIcon } from './Icons';
@@ -24,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
   }
 
   return (
-    <aside className="w-64 bg-vesta-red text-white flex flex-col min-h-screen">
+    <aside className="w-64 sidebar-bg text-white flex flex-col min-h-screen">
       <div 
         className="flex items-center justify-center p-4 h-16 border-b border-white/20 cursor-pointer"
         onClick={() => navigateTo(Screen.Dashboard)}
@@ -37,7 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
       <div className="p-4">
         <button
             onClick={onBackToWorkspaces}
-            className="flex items-center w-full px-4 py-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/10"
+            className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/20"
         >
             <BriefcaseIcon className="w-6 h-6 mr-4"/>
             <span className="font-bold">All Workspaces</span>
@@ -50,10 +49,10 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
              <li
               key={item.text}
               onClick={() => navigateTo(item.screen)}
-              className={`flex items-center px-4 py-3 cursor-pointer rounded-lg transition-colors duration-200 ${
+              className={`flex items-center px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 ${
                 activeScreen === item.screen
                   ? 'bg-vesta-gold text-vesta-red font-bold'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  : 'text-white/80 hover:bg-white/20 hover:text-white'
               }`}
             >
               <div className="w-6 h-6 mr-4">{item.icon}</div>
@@ -63,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
         </ul>
       </nav>
       <div className="p-4 border-t border-white/20 space-y-2">
-          <div className="flex items-center p-2 rounded-lg">
+          <div className="flex items-center p-2 rounded-lg transition-colors duration-200 hover:bg-white/10">
               <div className="w-10 h-10 bg-vesta-gold rounded-full flex items-center justify-center text-vesta-red font-bold text-sm overflow-hidden">
                   {currentUser.avatar ? (
                     <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
@@ -78,7 +77,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
           </div>
           <button
               onClick={onLogout}
-              className="flex items-center w-full px-4 py-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/10"
+              className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/20"
           >
               <LogoutIcon className="w-6 h-6 mr-4"/>
               <span className="font-bold">Logout</span>
