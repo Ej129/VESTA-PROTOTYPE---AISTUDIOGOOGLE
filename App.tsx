@@ -162,9 +162,15 @@ const App: React.FC = () => {
 
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
-    await workspaceApi.createWorkspace(name, currentUser);
-    await refreshWorkspaces();
-    setCreateWorkspaceModalOpen(false);
+    try {
+        await workspaceApi.createWorkspace(name, currentUser);
+        await refreshWorkspaces();
+        setCreateWorkspaceModalOpen(false);
+    } catch (error) {
+        console.error("Failed to create workspace:", error);
+        // Re-throw the error for the modal to catch and display
+        throw error;
+    }
   };
 
   const handleSelectWorkspace = async (workspace: Workspace) => {

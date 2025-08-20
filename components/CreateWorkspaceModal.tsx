@@ -3,21 +3,25 @@ import { PlusIcon } from './Icons';
 
 interface CreateWorkspaceModalProps {
   onClose: () => void;
-  onCreate: (name: string) => void;
+  onCreate: (name: string) => Promise<void>;
 }
 
 const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({ onClose, onCreate }) => {
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || isCreating) return;
     setIsCreating(true);
-    // Simulate network delay
-    setTimeout(() => {
-        onCreate(name);
-    }, 500);
+    try {
+      await onCreate(name);
+      // On success, the parent component is responsible for closing the modal.
+    } catch (error) {
+      // If the parent throws an error, we catch it here.
+      alert(`Error: ${error instanceof Error ? error.message : "Could not create workspace."}`);
+      setIsCreating(false); // Reset button for another attempt
+    }
   };
 
   return (
