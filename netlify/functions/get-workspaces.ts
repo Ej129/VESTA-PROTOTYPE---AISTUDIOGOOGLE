@@ -9,63 +9,48 @@ interface Workspace {
 }
 
 export const handler: Handler = async (event, context) => {
-  if (event.httpMethod !== "POST") {
+  // 1. Method Check
+  if (event.httpMethod !== "GET") {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: "Method not allowed" }),
+      body: JSON.stringify({ error: "Method Not Allowed" }),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+
+  // 2. Authentication Check
+  const user = context.clientContext?.user;
+  if (!user || !user.email) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Authentication required." }),
       headers: { "Content-Type": "application/json" },
     };
   }
 
   try {
-    const user = context.clientContext?.user;
-    if (!user || !user.email) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: "Authentication required." }),
-        headers: { "Content-Type": "application/json" },
-      };
-    }
-
-    const { name } = JSON.parse(event.body || "{}");
-    if (!name || typeof name !== "string" || name.trim() === "") {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Workspace name is required." }),
-        headers: { "Content-Type": "application/json" },
-      };
-    }
-
-    // Open the Blobs store
+    // 3. Business Logic
     const store = getStore("vesta-data");
+    const allWorkspaces = (await store.get("workspaces", { type: "json" })) as Workspace[] || [];
+    const allMemberships = (await store.get("workspace-members", { type: "json" })) as Record<string, { email: string; role: string }[]> || {};
 
-    // Try to load existing workspaces
-    const existing = (await store.get("workspaces", { type: "json" })) as Workspace[] | null;
+    // Filter to return only workspaces where the current user is a member
+    const userWorkspaces = allWorkspaces.filter((ws) =>
+      allMemberships[ws.id]?.some((member) => member.email === user.email)
+    );
 
-    const allWorkspaces = Array.isArray(existing) ? existing : [];
-
-    // Create new workspace
-    const newWorkspace: Workspace = {
-      id: `ws-${Date.now()}`,
-      name: name.trim(),
-      creatorId: user.email,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Save back
-    allWorkspaces.push(newWorkspace);
-    await store.setJSON("workspaces", allWorkspaces);
-
+    // 4. Success Response
     return {
-      statusCode: 201,
-      body: JSON.stringify(newWorkspace),
+      statusCode: 200,
+      body: JSON.stringify(userWorkspaces),
       headers: { "Content-Type": "application/json" },
     };
   } catch (error) {
-    console.error("Error creating workspace:", error);
+    // 5. Error Handling
+    console.error("Error fetching workspaces:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Failed to create workspace." }),
+      body: JSON.stringify({ error: "An internal server error occurred while fetching workspaces." }),
       headers: { "Content-Type": "application/json" },
     };
   }

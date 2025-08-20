@@ -7,14 +7,16 @@ interface WorkspaceMember {
 }
 
 export const handler: Handler = async (event, context) => {
+  // 1. Method Check
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: "Method not allowed" }),
+      body: JSON.stringify({ error: "Method Not Allowed" }),
       headers: { "Content-Type": "application/json" },
     };
   }
 
+  // 2. Authentication Check
   const user = context.clientContext?.user;
   if (!user || !user.email) {
     return {
@@ -25,31 +27,40 @@ export const handler: Handler = async (event, context) => {
   }
 
   try {
-    const { workspaceId, email } = JSON.parse(event.body || "{}");
+    // 3. Safe JSON Parsing and Validation
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Request body is missing." }),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
+    const { workspaceId, email } = JSON.parse(event.body);
 
     if (!workspaceId || !email) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "workspaceId and email are required." }),
+        body: JSON.stringify({ error: "Fields 'workspaceId' and 'email' are required." }),
         headers: { "Content-Type": "application/json" },
       };
     }
 
+    // 4. Business Logic
     const store = getStore("vesta-data");
     const allMemberships = (await store.get("workspace-members", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
     const members = allMemberships[workspaceId] || [];
 
-    // Check if current user is Admin
+    // Authorization: Check if the current user is an Administrator
     const currentUser = members.find(m => m.email === user.email);
     if (!currentUser || currentUser.role !== "Administrator") {
       return {
         statusCode: 403,
-        body: JSON.stringify({ error: "Only administrators can remove members." }),
+        body: JSON.stringify({ error: "Forbidden: Only administrators can remove members." }),
         headers: { "Content-Type": "application/json" },
       };
     }
-
-    // Prevent removing the last admin
+    
+    // Check if user to remove exists
     const memberToRemove = members.find(m => m.email === email);
     if (!memberToRemove) {
       return {
@@ -59,34 +70,42 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
+    // Safety: Prevent removing the last administrator
     if (memberToRemove.role === "Administrator") {
-      const otherAdmins = members.filter(m => m.role === "Administrator" && m.email !== email);
-      if (otherAdmins.length === 0) {
+      const adminCount = members.filter(m => m.role === "Administrator").length;
+      if (adminCount <= 1) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "Cannot remove the last administrator." }),
+          body: JSON.stringify({ error: "Cannot remove the last administrator from a workspace." }),
           headers: { "Content-Type": "application/json" },
         };
       }
     }
 
-    // Remove member
-    const updatedMembers = members.filter(m => m.email !== email);
-    allMemberships[workspaceId] = updatedMembers;
-
+    // Remove member and persist
+    allMemberships[workspaceId] = members.filter(m => m.email !== email);
     await store.setJSON("workspace-members", allMemberships);
 
+    // 5. Success Response
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, removed: email }),
+      body: JSON.stringify({ success: true, message: `User ${email} has been removed.` }),
       headers: { "Content-Type": "application/json" },
     };
 
   } catch (error) {
+    // 6. Error Handling
+    if (error instanceof SyntaxError) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid JSON format in request body." }),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
     console.error("Error removing user:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Failed to remove user." }),
+      body: JSON.stringify({ error: "An internal server error occurred while removing the user." }),
       headers: { "Content-Type": "application/json" },
     };
   }
