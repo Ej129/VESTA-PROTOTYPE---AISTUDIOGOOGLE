@@ -8,8 +8,20 @@ interface Workspace {
   createdAt: string;
 }
 
+function getBlobStore() {
+  // Netlify provides these automatically in production
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_API_TOKEN;
+
+  if (siteID && token) {
+    return getStore("vesta-data", { siteID, token });
+  }
+
+  // Fallback for Netlify Functions runtime (no manual config needed there)
+  return getStore("vesta-data");
+}
+
 export const handler: Handler = async (event, context) => {
-  // Only allow POST requests
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -19,9 +31,8 @@ export const handler: Handler = async (event, context) => {
   }
 
   try {
-    // Get user from Netlify Identity
     const user = context.clientContext?.user;
-    if (!user || !user.email) {
+    if (!user?.email) {
       return {
         statusCode: 401,
         body: JSON.stringify({ error: "Authentication required." }),
@@ -29,7 +40,6 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // Parse request body safely
     let body: { name?: string } = {};
     try {
       body = JSON.parse(event.body || "{}");
@@ -42,7 +52,7 @@ export const handler: Handler = async (event, context) => {
     }
 
     const { name } = body;
-    if (!name || typeof name !== "string" || name.trim() === "") {
+    if (!name || name.trim() === "") {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: "Workspace name is required." }),
@@ -50,10 +60,8 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // Open the Blobs store
-    const store = getStore("vesta-data");
+    const store = getBlobStore();
 
-    // Try to load existing workspaces
     let existing: Workspace[] = [];
     try {
       const stored = await store.get("workspaces", { type: "json" });
@@ -64,7 +72,6 @@ export const handler: Handler = async (event, context) => {
       existing = [];
     }
 
-    // Create new workspace
     const newWorkspace: Workspace = {
       id: `ws-${Date.now()}`,
       name: name.trim(),
@@ -72,11 +79,9 @@ export const handler: Handler = async (event, context) => {
       createdAt: new Date().toISOString(),
     };
 
-    // Save updated list
     existing.push(newWorkspace);
     await store.setJSON("workspaces", existing);
 
-    // Return new workspace
     return {
       statusCode: 201,
       body: JSON.stringify(newWorkspace),
