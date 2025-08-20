@@ -4,27 +4,20 @@
   functions = "netlify/functions"
 
 [functions]
-  # Explicitly enable blobs and modern runtime
-  node_bundler = "esbuild"
-  external_node_modules = ["@netlify/blobs"]
+  # Ensure all functions can use blobs & other Netlify features
   included_files = ["netlify/functions/**"]
-  deno_import_map = "import_map.json"
 
-[[plugins]]
-  package = "@netlify/plugin-functions-core"
+[capabilities]
+  blobs = true
 
-# Redirect API requests to Netlify Functions
+# API routes redirect to functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
-# SPA fallback (React)
+# SPA fallback (React / client-side routing)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[capabilities]
-  # Explicitly tell Netlify we are using Blobs
-  blobs = true
