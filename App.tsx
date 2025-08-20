@@ -143,6 +143,7 @@ const App: React.FC = () => {
 
           if (newWorkspaces.length > 0) {
               const newWorkspace = newWorkspaces[0];
+              await refreshWorkspaces(); // Refresh the list automatically
               setNotification({
                   message: `You've been added to a new workspace!`,
                   workspaceName: newWorkspace.name,
@@ -151,7 +152,7 @@ const App: React.FC = () => {
       }, 30000); // Check every 30 seconds
 
       return () => clearInterval(intervalId);
-  }, [currentUser]);
+  }, [currentUser, refreshWorkspaces]);
   
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
     if(!currentUser || !selectedWorkspace) return;
@@ -363,7 +364,6 @@ const App: React.FC = () => {
                 message={notification.message}
                 workspaceName={notification.workspaceName}
                 onClose={() => setNotification(null)}
-                onRefresh={refreshWorkspaces}
             />
         )}
       {renderScreen()}

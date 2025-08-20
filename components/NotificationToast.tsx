@@ -1,14 +1,13 @@
 import React, { useEffect } from 'react';
-import { BriefcaseIcon, RefreshIcon, XCircleIcon } from './Icons';
+import { BriefcaseIcon, XCircleIcon } from './Icons';
 
 interface NotificationToastProps {
     message: string;
     workspaceName: string;
     onClose: () => void;
-    onRefresh: () => void;
 }
 
-const NotificationToast: React.FC<NotificationToastProps> = ({ message, workspaceName, onClose, onRefresh }) => {
+const NotificationToast: React.FC<NotificationToastProps> = ({ message, workspaceName, onClose }) => {
     useEffect(() => {
         const timer = setTimeout(() => {
             onClose();
@@ -16,11 +15,6 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ message, workspac
 
         return () => clearTimeout(timer);
     }, [onClose]);
-
-    const handleRefreshClick = () => {
-        onRefresh();
-        onClose();
-    };
 
     return (
         <div 
@@ -38,13 +32,6 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ message, workspac
                         Workspace: "{workspaceName}"
                     </p>
                     <div className="mt-3 flex space-x-3">
-                        <button
-                            onClick={handleRefreshClick}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-vesta-red hover:bg-vesta-red-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vesta-red"
-                        >
-                            <RefreshIcon className="w-4 h-4 mr-1.5" />
-                            Refresh
-                        </button>
                         <button
                             onClick={onClose}
                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded-md text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vesta-red"
