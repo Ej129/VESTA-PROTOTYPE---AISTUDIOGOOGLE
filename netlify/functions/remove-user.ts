@@ -22,21 +22,22 @@ export const handler: Handler = async (event, context) => {
     if (!event.body) {
       return { statusCode: 400, body: JSON.stringify({ error: "Request body is missing." }) };
     }
-    const { workspaceId, email } = JSON.parse(event.body);
-    if (!workspaceId || !email) {
+    const { workspaceId, email: userToRemoveEmail } = JSON.parse(event.body);
+    if (!workspaceId || !userToRemoveEmail) {
       return { statusCode: 400, body: JSON.stringify({ error: "Fields 'workspaceId' and 'email' are required." }) };
     }
 
     const membersStore = getStore("workspace-members");
-    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
-    const members = allMemberships[workspaceId] || [];
+    const userWorkspacesStore = getStore("user-workspaces");
+    
+    const members = (await membersStore.get(workspaceId, { type: "json" })) as WorkspaceMember[] || [];
 
     const currentUser = members.find(m => m.email === user.email);
     if (!currentUser || currentUser.role !== "Administrator") {
       return { statusCode: 403, body: JSON.stringify({ error: "Forbidden: Only administrators can remove members." }) };
     }
     
-    const memberToRemove = members.find(m => m.email === email);
+    const memberToRemove = members.find(m => m.email === userToRemoveEmail);
     if (!memberToRemove) {
       return { statusCode: 404, body: JSON.stringify({ error: "User not found in this workspace." }) };
     }
@@ -48,17 +49,25 @@ export const handler: Handler = async (event, context) => {
       }
     }
 
-    allMemberships[workspaceId] = members.filter(m => m.email !== email);
-    await membersStore.setJSON("all", allMemberships);
+    // Update workspace's member list
+    const updatedMembers = members.filter(m => m.email !== userToRemoveEmail);
+    await membersStore.setJSON(workspaceId, updatedMembers);
+
+    // Update removed user's workspace list
+    const userWorkspaces = (await userWorkspacesStore.get(userToRemoveEmail, { type: "json" })) as string[] || [];
+    const updatedUserWorkspaces = userWorkspaces.filter(id => id !== workspaceId);
+    await userWorkspacesStore.setJSON(userToRemoveEmail, updatedUserWorkspaces);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, message: `User ${email} has been removed.` }),
+      body: JSON.stringify({ success: true, message: `User ${userToRemoveEmail} has been removed.` }),
       headers: { "Content-Type": "application/json" },
     };
 
   } catch (error) {
-    console.error("Error in remove-user:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`Error in remove-user: ${errorMessage}`, error);
+
     if (error instanceof SyntaxError) {
       return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }) };
     }
@@ -67,7 +76,7 @@ export const handler: Handler = async (event, context) => {
     }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred." }),
+      body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
       headers: { "Content-Type": "application/json" },
     };
   }

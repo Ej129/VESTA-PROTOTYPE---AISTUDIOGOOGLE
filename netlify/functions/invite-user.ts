@@ -22,9 +22,9 @@ export const handler: Handler = async (event, context) => {
     if (!event.body) {
       return { statusCode: 400, body: JSON.stringify({ error: "Request body is missing." }) };
     }
-    const { workspaceId, email, role } = JSON.parse(event.body);
+    const { workspaceId, email: invitedUserEmail, role } = JSON.parse(event.body);
 
-    if (!workspaceId || !email || !role) {
+    if (!workspaceId || !invitedUserEmail || !role) {
       return { statusCode: 400, body: JSON.stringify({ error: "Fields 'workspaceId', 'email', and 'role' are required." })};
     }
     const validRoles: WorkspaceMember["role"][] = ["Administrator", "Risk Management Officer", "Strategy Officer", "Member"];
@@ -33,30 +33,40 @@ export const handler: Handler = async (event, context) => {
     }
 
     const membersStore = getStore("workspace-members");
-    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
-    const members = allMemberships[workspaceId] || [];
+    const userWorkspacesStore = getStore("user-workspaces");
+
+    const members = (await membersStore.get(workspaceId, { type: "json" })) as WorkspaceMember[] || [];
 
     const currentUser = members.find(m => m.email === user.email);
     if (!currentUser || currentUser.role !== "Administrator") {
       return { statusCode: 403, body: JSON.stringify({ error: "Forbidden: Only administrators can invite new users." }) };
     }
 
-    if (members.some(m => m.email === email)) {
+    if (members.some(m => m.email === invitedUserEmail)) {
       return { statusCode: 409, body: JSON.stringify({ error: "This user is already a member of the workspace." }) };
     }
 
-    members.push({ email, role });
-    allMemberships[workspaceId] = members;
-    await membersStore.setJSON("all", allMemberships);
+    // Add user to the workspace's member list
+    members.push({ email: invitedUserEmail, role });
+    await membersStore.setJSON(workspaceId, members);
+
+    // Add workspace to the invited user's list of workspaces
+    const invitedUserWorkspaces = (await userWorkspacesStore.get(invitedUserEmail, { type: "json" })) as string[] || [];
+    if (!invitedUserWorkspaces.includes(workspaceId)) {
+        invitedUserWorkspaces.push(workspaceId);
+        await userWorkspacesStore.setJSON(invitedUserEmail, invitedUserWorkspaces);
+    }
 
     return {
       statusCode: 201,
-      body: JSON.stringify({ success: true, message: `User ${email} invited as ${role}.` }),
+      body: JSON.stringify({ success: true, message: `User ${invitedUserEmail} invited as ${role}.` }),
       headers: { "Content-Type": "application/json" },
     };
 
   } catch (error) {
-    console.error("Error in invite-user:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`Error in invite-user: ${errorMessage}`, error);
+
     if (error instanceof SyntaxError) {
       return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }) };
     }
@@ -65,7 +75,7 @@ export const handler: Handler = async (event, context) => {
     }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred." }),
+      body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
       headers: { "Content-Type": "application/json" },
     };
   }

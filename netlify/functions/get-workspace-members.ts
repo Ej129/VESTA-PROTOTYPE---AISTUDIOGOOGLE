@@ -30,8 +30,7 @@ export const handler: Handler = async (event, context) => {
 
     // 4. Business Logic
     const membersStore = getStore("workspace-members");
-    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
-    const members = allMemberships[workspaceId] || [];
+    const members = (await membersStore.get(workspaceId, { type: "json" })) as WorkspaceMember[] || [];
 
     // Authorization: Ensure the requesting user is a member of the workspace
     if (!members.some(m => m.email === user.email)) {
@@ -46,13 +45,15 @@ export const handler: Handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error("Error in get-workspace-members:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`Error in get-workspace-members: ${errorMessage}`, error);
+
      if (error instanceof Error && error.message === "Authentication required.") {
       return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
     }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred." }),
+      body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
       headers: { "Content-Type": "application/json" },
     };
   }

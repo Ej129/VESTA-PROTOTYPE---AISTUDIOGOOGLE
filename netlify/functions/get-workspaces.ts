@@ -28,13 +28,10 @@ export const handler: Handler = async (event, context) => {
     
     // 3. Business Logic
     const workspacesStore = getStore("workspaces");
-    const membersStore = getStore("workspace-members");
+    const userWorkspacesStore = getStore("user-workspaces");
     
-    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, { email: string; role: string }[]> || {};
-
-    const userWorkspaceIds = Object.keys(allMemberships).filter(workspaceId => 
-        allMemberships[workspaceId]?.some(member => member.email === user.email)
-    );
+    // Get the list of workspace IDs associated with the user
+    const userWorkspaceIds = (await userWorkspacesStore.get(user.email, { type: "json" })) as string[] || [];
 
     if (userWorkspaceIds.length === 0) {
         return {
@@ -44,6 +41,7 @@ export const handler: Handler = async (event, context) => {
         };
     }
     
+    // Fetch all workspace documents in parallel
     const workspacePromises = userWorkspaceIds.map(id => workspacesStore.get(id, { type: "json" }));
     const userWorkspacesData = (await Promise.all(workspacePromises)).filter(Boolean) as Workspace[];
 
@@ -54,13 +52,15 @@ export const handler: Handler = async (event, context) => {
       headers: { "Content-Type": "application/json" },
     };
   } catch (error) {
-    console.error("Error in get-workspaces:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`Error in get-workspaces: ${errorMessage}`, error);
+
     if (error instanceof Error && error.message === "Authentication required.") {
       return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
     }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred." }),
+      body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
       headers: { "Content-Type": "application/json" },
     };
   }

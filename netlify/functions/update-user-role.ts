@@ -33,8 +33,7 @@ export const handler: Handler = async (event, context) => {
     }
 
     const membersStore = getStore("workspace-members");
-    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
-    const members = allMemberships[workspaceId] || [];
+    const members = (await membersStore.get(workspaceId, { type: "json" })) as WorkspaceMember[] || [];
 
     const currentUser = members.find(m => m.email === user.email);
     if (!currentUser || currentUser.role !== "Administrator") {
@@ -55,8 +54,7 @@ export const handler: Handler = async (event, context) => {
     }
 
     members[memberToUpdateIndex].role = role;
-    allMemberships[workspaceId] = members;
-    await membersStore.setJSON("all", allMemberships);
+    await membersStore.setJSON(workspaceId, members);
 
     return {
       statusCode: 200,
@@ -65,7 +63,9 @@ export const handler: Handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error("Error in update-user-role:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`Error in update-user-role: ${errorMessage}`, error);
+    
     if (error instanceof SyntaxError) {
       return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }) };
     }
@@ -74,7 +74,7 @@ export const handler: Handler = async (event, context) => {
     }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred." }),
+      body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
       headers: { "Content-Type": "application/json" },
     };
   }

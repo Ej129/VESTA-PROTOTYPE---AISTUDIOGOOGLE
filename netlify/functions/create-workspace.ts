@@ -39,6 +39,7 @@ export const handler: Handler = async (event, context) => {
     const workspacesStore = getStore("workspaces");
     const membersStore = getStore("workspace-members");
     const knowledgeStore = getStore("knowledge-sources");
+    const userWorkspacesStore = getStore("user-workspaces");
 
     const newWorkspace: Workspace = {
       id: `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -47,13 +48,17 @@ export const handler: Handler = async (event, context) => {
       createdAt: new Date().toISOString(),
     };
 
-    // Create the workspace document
+    // Save the main workspace document
     await workspacesStore.setJSON(newWorkspace.id, newWorkspace);
 
-    // Update the central membership list
-    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
-    allMemberships[newWorkspace.id] = [{ email: user.email, role: "Administrator" }];
-    await membersStore.setJSON("all", allMemberships);
+    // Create a dedicated member list for the new workspace
+    const initialMembers: WorkspaceMember[] = [{ email: user.email, role: "Administrator" }];
+    await membersStore.setJSON(newWorkspace.id, initialMembers);
+
+    // Add this workspace to the creator's list of workspaces
+    const userWorkspaceIds = (await userWorkspacesStore.get(user.email, { type: "json" })) as string[] || [];
+    userWorkspaceIds.push(newWorkspace.id);
+    await userWorkspacesStore.setJSON(user.email, userWorkspaceIds);
     
     // Add default knowledge sources for the new workspace
     const initialSources: Omit<KnowledgeSource, "id" | "workspaceId">[] = [
@@ -91,18 +96,18 @@ export const handler: Handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error("Error in create-workspace:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`Error in create-workspace: ${errorMessage}`, error);
+
     if (error instanceof SyntaxError) {
       return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }) };
     }
-    if (error instanceof Error) {
-        if (error.message === "Authentication required.") {
-            return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
-        }
+    if (error instanceof Error && error.message === "Authentication required.") {
+        return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
     }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred." }),
+      body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
       headers: { "Content-Type": "application/json" },
     };
   }
