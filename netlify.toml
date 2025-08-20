@@ -1,33 +1,23 @@
-<changes>
-  <change>
-    <file>netlify.toml</file>
-    <description>Creating or updating netlify.toml with the essential redirect rule for /api/* requests. This ensures correct routing to serverless functions, resolving network errors.</description>
-    <content><![CDATA[# This file configures the build and deployment settings for Netlify.
+# This file configures the build and deployment settings for Netlify.
 
 [build]
   # Command to build the site
   command = "npm run build"
   
   # Directory containing the serverless functions
-  functions = "netlify/functions/"
+  functions = "netlify/functions"
   
   # Directory to publish after the build is complete
-  publish = "dist/"
+  publish = "dist"
 
-# This rule rewrites API requests to our serverless functions.
-# It's crucial that this rule comes BEFORE the SPA redirect rule.
+# Rewrite API requests to serverless functions.
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
-# This rule is essential for Single Page Applications (SPAs) like React.
-# It ensures that any direct navigation or page refresh is handled by 
-# your index.html file, allowing the client-side router to take over. 
+# SPA fallback: redirect all other routes to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-]]></content>
-  </change>
-</changes>
