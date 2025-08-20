@@ -24,19 +24,24 @@ export const handler: Handler = async (event, context) => {
       return { statusCode: 400, body: JSON.stringify({ error: "Query parameter 'workspaceId' is required." }), headers: { "Content-Type": "application/json" } };
     }
     
+    const storeOptions = {
+        siteID: process.env.NETLIFY_SITE_ID,
+        token: process.env.NETLIFY_API_TOKEN,
+    };
+
     // Authorization check: ensure user is a member of this workspace
-    const membersStore = getStore("workspace-members");
+    const membersStore = getStore({ name: "workspace-members", ...storeOptions });
     const members = (await membersStore.get(workspaceId, { type: "json" })) as { email: string }[] || [];
     if (!members.some(m => m.email === user.email)) {
         return { statusCode: 403, body: JSON.stringify({ error: "Forbidden" }), headers: { "Content-Type": "application/json" } };
     }
 
     // Fetch all data for the workspace in parallel
-    const reportsStore = getStore("reports");
-    const auditLogsStore = getStore("audit-logs");
-    const knowledgeStore = getStore("knowledge-sources");
-    const dismissalRulesStore = getStore("dismissal-rules");
-    const customRegulationsStore = getStore("custom-regulations");
+    const reportsStore = getStore({ name: "reports", ...storeOptions });
+    const auditLogsStore = getStore({ name: "audit-logs", ...storeOptions });
+    const knowledgeStore = getStore({ name: "knowledge-sources", ...storeOptions });
+    const dismissalRulesStore = getStore({ name: "dismissal-rules", ...storeOptions });
+    const customRegulationsStore = getStore({ name: "custom-regulations", ...storeOptions });
 
     const [
         reports,
@@ -74,7 +79,7 @@ export const handler: Handler = async (event, context) => {
         return {
             statusCode: 500,
             body: JSON.stringify({ 
-                error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                error: "Netlify Blobs is not configured. Ensure NETLIFY_SITE_ID and NETLIFY_API_TOKEN environment variables are set correctly in your site configuration.",
                 details: errorMessage 
             }),
             headers: { "Content-Type": "application/json" },

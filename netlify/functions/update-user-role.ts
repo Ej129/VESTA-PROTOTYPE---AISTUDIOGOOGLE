@@ -32,7 +32,11 @@ export const handler: Handler = async (event, context) => {
       return { statusCode: 400, body: JSON.stringify({ error: "Invalid role specified." }), headers: { "Content-Type": "application/json" } };
     }
 
-    const membersStore = getStore("workspace-members");
+    const membersStore = getStore({
+        name: "workspace-members",
+        siteID: process.env.NETLIFY_SITE_ID,
+        token: process.env.NETLIFY_API_TOKEN,
+    });
     const members = (await membersStore.get(workspaceId, { type: "json" })) as WorkspaceMember[] || [];
 
     const currentUser = members.find(m => m.email === user.email);
@@ -70,7 +74,7 @@ export const handler: Handler = async (event, context) => {
         return {
             statusCode: 500,
             body: JSON.stringify({ 
-                error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                error: "Netlify Blobs is not configured. Ensure NETLIFY_SITE_ID and NETLIFY_API_TOKEN environment variables are set correctly in your site configuration.",
                 details: errorMessage 
             }),
             headers: { "Content-Type": "application/json" },

@@ -36,10 +36,14 @@ export const handler: Handler = async (event, context) => {
     }
 
     // 4. Business Logic
-    const workspacesStore = getStore("workspaces");
-    const membersStore = getStore("workspace-members");
-    const knowledgeStore = getStore("knowledge-sources");
-    const userWorkspacesStore = getStore("user-workspaces");
+    const storeOptions = {
+        siteID: process.env.NETLIFY_SITE_ID,
+        token: process.env.NETLIFY_API_TOKEN,
+    };
+    const workspacesStore = getStore({ name: "workspaces", ...storeOptions });
+    const membersStore = getStore({ name: "workspace-members", ...storeOptions });
+    const knowledgeStore = getStore({ name: "knowledge-sources", ...storeOptions });
+    const userWorkspacesStore = getStore({ name: "user-workspaces", ...storeOptions });
 
     const newWorkspace: Workspace = {
       id: `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -103,7 +107,7 @@ export const handler: Handler = async (event, context) => {
         return {
             statusCode: 500,
             body: JSON.stringify({ 
-                error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                error: "Netlify Blobs is not configured. Ensure NETLIFY_SITE_ID and NETLIFY_API_TOKEN environment variables are set correctly in your site configuration.",
                 details: errorMessage 
             }),
             headers: { "Content-Type": "application/json" },

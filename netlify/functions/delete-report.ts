@@ -28,7 +28,11 @@ export const handler: Handler = async (event, context) => {
         }
 
         // We need to find which workspace this report belongs to
-        const store = getStore("reports");
+        const store = getStore({
+            name: "reports",
+            siteID: process.env.NETLIFY_SITE_ID,
+            token: process.env.NETLIFY_API_TOKEN,
+        });
         const { blobs } = await store.list();
         let targetWorkspaceId: string | null = null;
         let reports: AnalysisReport[] = [];
@@ -59,7 +63,7 @@ export const handler: Handler = async (event, context) => {
             return {
                 statusCode: 500,
                 body: JSON.stringify({ 
-                    error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                    error: "Netlify Blobs is not configured. Ensure NETLIFY_SITE_ID and NETLIFY_API_TOKEN environment variables are set correctly in your site configuration.",
                     details: errorMessage 
                 }),
                 headers: { "Content-Type": "application/json" },

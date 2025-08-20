@@ -27,7 +27,11 @@ export const handler: Handler = async (event, context) => {
             return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields." }), headers: { "Content-Type": "application/json" } };
         }
         
-        const store = getStore("knowledge-sources");
+        const store = getStore({
+            name: "knowledge-sources",
+            siteID: process.env.NETLIFY_SITE_ID,
+            token: process.env.NETLIFY_API_TOKEN,
+        });
         const sources = (await store.get(workspaceId, { type: "json" })) as KnowledgeSource[] || [];
 
         const newSource: KnowledgeSource = {
@@ -52,7 +56,7 @@ export const handler: Handler = async (event, context) => {
             return {
                 statusCode: 500,
                 body: JSON.stringify({ 
-                    error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                    error: "Netlify Blobs is not configured. Ensure NETLIFY_SITE_ID and NETLIFY_API_TOKEN environment variables are set correctly in your site configuration.",
                     details: errorMessage 
                 }),
                 headers: { "Content-Type": "application/json" },
