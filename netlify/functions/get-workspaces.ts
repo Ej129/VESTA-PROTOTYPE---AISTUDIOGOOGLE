@@ -55,8 +55,18 @@ export const handler: Handler = async (event, context) => {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     console.error(`Error in get-workspaces: ${errorMessage}`, error);
 
+    if (error instanceof Error && error.name === 'MissingBlobsEnvironmentError') {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ 
+                error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                details: errorMessage 
+            }),
+            headers: { "Content-Type": "application/json" },
+        };
+    }
     if (error instanceof Error && error.message === "Authentication required.") {
-      return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
+      return { statusCode: 401, body: JSON.stringify({ error: error.message }), headers: { "Content-Type": "application/json" } };
     }
     return {
       statusCode: 500,

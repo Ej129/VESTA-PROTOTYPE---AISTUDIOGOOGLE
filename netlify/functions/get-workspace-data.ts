@@ -14,21 +14,21 @@ const requireAuth = (context: HandlerContext) => {
 export const handler: Handler = async (event, context) => {
   try {
     if (event.httpMethod !== "GET") {
-      return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+      return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }), headers: { "Content-Type": "application/json" } };
     }
 
     const user = requireAuth(context);
 
     const { workspaceId } = event.queryStringParameters || {};
     if (!workspaceId) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Query parameter 'workspaceId' is required." }) };
+      return { statusCode: 400, body: JSON.stringify({ error: "Query parameter 'workspaceId' is required." }), headers: { "Content-Type": "application/json" } };
     }
     
     // Authorization check: ensure user is a member of this workspace
     const membersStore = getStore("workspace-members");
     const members = (await membersStore.get(workspaceId, { type: "json" })) as { email: string }[] || [];
     if (!members.some(m => m.email === user.email)) {
-        return { statusCode: 403, body: JSON.stringify({ error: "Forbidden" }) };
+        return { statusCode: 403, body: JSON.stringify({ error: "Forbidden" }), headers: { "Content-Type": "application/json" } };
     }
 
     // Fetch all data for the workspace in parallel
@@ -70,8 +70,18 @@ export const handler: Handler = async (event, context) => {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     console.error(`Error in get-workspace-data: ${errorMessage}`, error);
 
+    if (error instanceof Error && error.name === 'MissingBlobsEnvironmentError') {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ 
+                error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                details: errorMessage 
+            }),
+            headers: { "Content-Type": "application/json" },
+        };
+    }
     if (error instanceof Error && error.message === "Authentication required.") {
-      return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
+      return { statusCode: 401, body: JSON.stringify({ error: error.message }), headers: { "Content-Type": "application/json" } };
     }
     return {
       statusCode: 500,

@@ -14,17 +14,17 @@ const requireAuth = (context: HandlerContext) => {
 export const handler: Handler = async (event, context) => {
     try {
         if (event.httpMethod !== "POST") {
-            return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+            return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }), headers: { "Content-Type": "application/json" } };
         }
         
         requireAuth(context);
         if (!event.body) {
-            return { statusCode: 400, body: JSON.stringify({ error: "Request body is missing." }) };
+            return { statusCode: 400, body: JSON.stringify({ error: "Request body is missing." }), headers: { "Content-Type": "application/json" } };
         }
 
         const { workspaceId, title, content, category, isEditable } = JSON.parse(event.body);
         if (!workspaceId || !title || !content || !category) {
-            return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields." }) };
+            return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields." }), headers: { "Content-Type": "application/json" } };
         }
         
         const store = getStore("knowledge-sources");
@@ -42,13 +42,32 @@ export const handler: Handler = async (event, context) => {
         sources.push(newSource);
         await store.setJSON(workspaceId, sources);
 
-        return { statusCode: 201, body: JSON.stringify(newSource) };
+        return { statusCode: 201, body: JSON.stringify(newSource), headers: { "Content-Type": "application/json" } };
 
     } catch (error) {
-        console.error("Error in add-knowledge-source:", error);
-        if (error instanceof Error && error.message === "Authentication required.") {
-            return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        console.error(`Error in add-knowledge-source: ${errorMessage}`, error);
+
+        if (error instanceof Error && error.name === 'MissingBlobsEnvironmentError') {
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ 
+                    error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                    details: errorMessage 
+                }),
+                headers: { "Content-Type": "application/json" },
+            };
         }
-        return { statusCode: 500, body: JSON.stringify({ error: "An internal server error occurred." }) };
+        if (error instanceof SyntaxError) {
+          return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }), headers: { "Content-Type": "application/json" } };
+        }
+        if (error instanceof Error && error.message === "Authentication required.") {
+            return { statusCode: 401, body: JSON.stringify({ error: error.message }), headers: { "Content-Type": "application/json" } };
+        }
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
+          headers: { "Content-Type": "application/json" },
+        };
     }
 };

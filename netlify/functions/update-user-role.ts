@@ -14,22 +14,22 @@ const requireAuth = (context: HandlerContext) => {
 export const handler: Handler = async (event, context) => {
   try {
     if (event.httpMethod !== "POST") {
-      return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+      return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }), headers: { "Content-Type": "application/json" } };
     }
 
     const user = requireAuth(context);
 
     if (!event.body) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Request body is missing." }) };
+      return { statusCode: 400, body: JSON.stringify({ error: "Request body is missing." }), headers: { "Content-Type": "application/json" } };
     }
     const { workspaceId, email, role } = JSON.parse(event.body);
 
     if (!workspaceId || !email || !role) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Fields 'workspaceId', 'email', and 'role' are required." }) };
+      return { statusCode: 400, body: JSON.stringify({ error: "Fields 'workspaceId', 'email', and 'role' are required." }), headers: { "Content-Type": "application/json" } };
     }
     const validRoles: WorkspaceMember["role"][] = ["Administrator", "Risk Management Officer", "Strategy Officer", "Member"];
     if (!validRoles.includes(role)) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Invalid role specified." }) };
+      return { statusCode: 400, body: JSON.stringify({ error: "Invalid role specified." }), headers: { "Content-Type": "application/json" } };
     }
 
     const membersStore = getStore("workspace-members");
@@ -37,19 +37,19 @@ export const handler: Handler = async (event, context) => {
 
     const currentUser = members.find(m => m.email === user.email);
     if (!currentUser || currentUser.role !== "Administrator") {
-      return { statusCode: 403, body: JSON.stringify({ error: "Forbidden: Only administrators can update roles." }) };
+      return { statusCode: 403, body: JSON.stringify({ error: "Forbidden: Only administrators can update roles." }), headers: { "Content-Type": "application/json" } };
     }
 
     const memberToUpdateIndex = members.findIndex(m => m.email === email);
     if (memberToUpdateIndex === -1) {
-      return { statusCode: 404, body: JSON.stringify({ error: "User not found in this workspace." }) };
+      return { statusCode: 404, body: JSON.stringify({ error: "User not found in this workspace." }), headers: { "Content-Type": "application/json" } };
     }
     
     const memberToUpdate = members[memberToUpdateIndex];
     if (memberToUpdate.role === "Administrator" && role !== "Administrator") {
       const adminCount = members.filter(m => m.role === "Administrator").length;
       if (adminCount <= 1) {
-        return { statusCode: 400, body: JSON.stringify({ error: "Cannot change the role of the last administrator." }) };
+        return { statusCode: 400, body: JSON.stringify({ error: "Cannot change the role of the last administrator." }), headers: { "Content-Type": "application/json" } };
       }
     }
 
@@ -66,11 +66,21 @@ export const handler: Handler = async (event, context) => {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     console.error(`Error in update-user-role: ${errorMessage}`, error);
     
+    if (error instanceof Error && error.name === 'MissingBlobsEnvironmentError') {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ 
+                error: "Netlify Blobs is not enabled for this site. Please enable it in your Netlify dashboard under the 'Blobs' tab and then redeploy your site.",
+                details: errorMessage 
+            }),
+            headers: { "Content-Type": "application/json" },
+        };
+    }
     if (error instanceof SyntaxError) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }) };
+      return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }), headers: { "Content-Type": "application/json" } };
     }
     if (error instanceof Error && error.message === "Authentication required.") {
-      return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
+      return { statusCode: 401, body: JSON.stringify({ error: error.message }), headers: { "Content-Type": "application/json" } };
     }
     return {
       statusCode: 500,
