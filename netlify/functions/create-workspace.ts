@@ -1,73 +1,44 @@
+
 import { getStore } from "@netlify/blobs";
-import type { Handler } from "@netlify/functions";
+import type { Handler, HandlerContext } from "@netlify/functions";
+import { KnowledgeCategory, KnowledgeSource, Workspace, WorkspaceMember } from '../../types';
 
-interface Workspace {
-  id: string;
-  name: string;
-  creatorId: string;
-  createdAt: string;
-}
-interface WorkspaceMember {
-  email: string;
-  role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
-}
-enum KnowledgeCategory {
-  Government = "Government Regulations & Compliance",
-  Risk = "In-House Risk Management Plan",
-  Strategy = "Long-Term Strategic Direction"
-}
-interface KnowledgeSource {
-  id: string;
-  workspaceId: string;
-  title: string;
-  content: string;
-  category: KnowledgeCategory;
-  isEditable: boolean;
-}
-
-export const handler: Handler = async (event, context) => {
-  // 1. Method Check
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Method Not Allowed" }),
-      headers: { "Content-Type": "application/json" },
-    };
-  }
-
-  // 2. Authentication Check
+// Helper to check for user authentication
+const requireAuth = (context: HandlerContext) => {
   const user = context.clientContext?.user;
   if (!user || !user.email) {
-    return {
-      statusCode: 401,
-      body: JSON.stringify({ error: "Authentication required." }),
-      headers: { "Content-Type": "application/json" },
-    };
+    throw new Error("Authentication required.");
   }
+  return user;
+};
 
+export const handler: Handler = async (event, context) => {
   try {
-    // 3. Safe JSON Parsing and Validation
-    if (!event.body) {
+    // 1. Method Check
+    if (event.httpMethod !== "POST") {
       return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Request body is missing." }),
+        statusCode: 405,
+        body: JSON.stringify({ error: "Method Not Allowed" }),
         headers: { "Content-Type": "application/json" },
       };
+    }
+
+    // 2. Authentication Check
+    const user = requireAuth(context);
+
+    // 3. Safe JSON Parsing and Validation
+    if (!event.body) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Request body is missing." }) };
     }
     const { name } = JSON.parse(event.body);
     if (!name || typeof name !== "string" || name.trim() === "") {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Workspace name is required and must be a non-empty string." }),
-        headers: { "Content-Type": "application/json" },
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: "Workspace name is required." }) };
     }
 
     // 4. Business Logic
-    const store = getStore("vesta-data");
-    const allWorkspaces = (await store.get("workspaces", { type: "json" })) as Workspace[] || [];
-    const allMemberships = (await store.get("workspace-members", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
-    const allKnowledgeSources = (await store.get("knowledge-sources", { type: "json" })) as KnowledgeSource[] || [];
+    const workspacesStore = getStore("workspaces");
+    const membersStore = getStore("workspace-members");
+    const knowledgeStore = getStore("knowledge-sources");
 
     const newWorkspace: Workspace = {
       id: `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -76,8 +47,13 @@ export const handler: Handler = async (event, context) => {
       createdAt: new Date().toISOString(),
     };
 
-    allWorkspaces.push(newWorkspace);
+    // Create the workspace document
+    await workspacesStore.setJSON(newWorkspace.id, newWorkspace);
+
+    // Update the central membership list
+    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
     allMemberships[newWorkspace.id] = [{ email: user.email, role: "Administrator" }];
+    await membersStore.setJSON("all", allMemberships);
     
     // Add default knowledge sources for the new workspace
     const initialSources: Omit<KnowledgeSource, "id" | "workspaceId">[] = [
@@ -100,18 +76,12 @@ export const handler: Handler = async (event, context) => {
         isEditable: true,
       },
     ];
-    initialSources.forEach((source) => {
-      allKnowledgeSources.push({
+    const workspaceKnowledge: KnowledgeSource[] = initialSources.map(source => ({
         ...source,
         id: `ks-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         workspaceId: newWorkspace.id,
-      });
-    });
-
-
-    await store.setJSON("workspaces", allWorkspaces);
-    await store.setJSON("workspace-members", allMemberships);
-    await store.setJSON("knowledge-sources", allKnowledgeSources);
+    }));
+    await knowledgeStore.setJSON(newWorkspace.id, workspaceKnowledge);
 
     // 5. Success Response
     return {
@@ -121,18 +91,18 @@ export const handler: Handler = async (event, context) => {
     };
 
   } catch (error) {
-    // 6. Error Handling
+    console.error("Error in create-workspace:", error);
     if (error instanceof SyntaxError) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Invalid JSON format in request body." }),
-        headers: { "Content-Type": "application/json" },
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }) };
     }
-    console.error("Error creating workspace:", error);
+    if (error instanceof Error) {
+        if (error.message === "Authentication required.") {
+            return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
+        }
+    }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred while creating the workspace." }),
+      body: JSON.stringify({ error: "An internal server error occurred." }),
       headers: { "Content-Type": "application/json" },
     };
   }

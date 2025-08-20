@@ -1,55 +1,41 @@
+
 import { getStore } from "@netlify/blobs";
-import type { Handler } from "@netlify/functions";
+import type { Handler, HandlerContext } from "@netlify/functions";
+import { WorkspaceMember } from '../../types';
 
-interface WorkspaceMember {
-  email: string;
-  role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
-}
-
-export const handler: Handler = async (event, context) => {
-  // 1. Method Check
-  if (event.httpMethod !== "GET") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Method Not Allowed" }),
-      headers: { "Content-Type": "application/json" },
-    };
-  }
-
-  // 2. Authentication Check
+// Helper to check for user authentication
+const requireAuth = (context: HandlerContext) => {
   const user = context.clientContext?.user;
   if (!user || !user.email) {
-    return {
-      statusCode: 401,
-      body: JSON.stringify({ error: "Authentication required." }),
-      headers: { "Content-Type": "application/json" },
-    };
+    throw new Error("Authentication required.");
   }
+  return user;
+};
 
+export const handler: Handler = async (event, context) => {
   try {
+    // 1. Method Check
+    if (event.httpMethod !== "GET") {
+      return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+    }
+
+    // 2. Authentication Check
+    const user = requireAuth(context);
+
     // 3. Input Validation
     const { workspaceId } = event.queryStringParameters || {};
     if (!workspaceId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Query parameter 'workspaceId' is required." }),
-        headers: { "Content-Type": "application/json" },
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: "Query parameter 'workspaceId' is required." }) };
     }
 
     // 4. Business Logic
-    const store = getStore("vesta-data");
-    const allMemberships = (await store.get("workspace-members", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
+    const membersStore = getStore("workspace-members");
+    const allMemberships = (await membersStore.get("all", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
     const members = allMemberships[workspaceId] || [];
 
-    // Ensure the requesting user is a member of the workspace they're querying
-    const isMember = members.some(m => m.email === user.email);
-    if (!isMember) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: "You are not a member of this workspace." }),
-        headers: { "Content-Type": "application/json" },
-      };
+    // Authorization: Ensure the requesting user is a member of the workspace
+    if (!members.some(m => m.email === user.email)) {
+      return { statusCode: 403, body: JSON.stringify({ error: "Forbidden: You are not a member of this workspace." }) };
     }
 
     // 5. Success Response
@@ -58,12 +44,15 @@ export const handler: Handler = async (event, context) => {
       body: JSON.stringify(members),
       headers: { "Content-Type": "application/json" },
     };
+
   } catch (error) {
-    // 6. Error Handling
-    console.error("Error fetching workspace members:", error);
+    console.error("Error in get-workspace-members:", error);
+     if (error instanceof Error && error.message === "Authentication required.") {
+      return { statusCode: 401, body: JSON.stringify({ error: error.message }) };
+    }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An internal server error occurred while fetching members." }),
+      body: JSON.stringify({ error: "An internal server error occurred." }),
       headers: { "Content-Type": "application/json" },
     };
   }

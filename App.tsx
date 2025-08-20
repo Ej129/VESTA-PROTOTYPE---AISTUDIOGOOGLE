@@ -86,7 +86,7 @@ const App: React.FC = () => {
   
   const loadWorkspaceData = useCallback(async (workspaceId: string) => {
     if (!currentUser) return;
-    const data = await workspaceApi.getWorkspaceData(workspaceId, currentUser.email);
+    const data = await workspaceApi.getWorkspaceData(workspaceId);
     setReports(data.reports);
     setAuditLogs(data.auditLogs);
     setKnowledgeBaseSources(data.knowledgeBaseSources);
@@ -101,7 +101,7 @@ const App: React.FC = () => {
 
   const refreshWorkspaces = useCallback(async () => {
     if (!currentUser) return;
-    const userWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.email);
+    const userWorkspaces = await workspaceApi.getWorkspacesForUser();
     setWorkspaces(userWorkspaces);
     knownWorkspaceIds.current = new Set(userWorkspaces.map(ws => ws.id));
   }, [currentUser]);
@@ -138,7 +138,7 @@ const App: React.FC = () => {
       if (!currentUser) return;
 
       const intervalId = setInterval(async () => {
-          const currentWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.email);
+          const currentWorkspaces = await workspaceApi.getWorkspacesForUser();
           const newWorkspaces = currentWorkspaces.filter(ws => !knownWorkspaceIds.current.has(ws.id));
 
           if (newWorkspaces.length > 0) {
@@ -163,7 +163,7 @@ const App: React.FC = () => {
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
     try {
-        await workspaceApi.createWorkspace(name, currentUser);
+        await workspaceApi.createWorkspace(name);
         await refreshWorkspaces();
         setCreateWorkspaceModalOpen(false);
     } catch (error) {
@@ -192,11 +192,10 @@ const App: React.FC = () => {
   const handleAnalysisComplete = async (report: AnalysisReport) => {
     if (!selectedWorkspace) return;
     const newReport = { ...report, workspaceId: selectedWorkspace.id };
-    await workspaceApi.addReport(newReport);
+    const addedReport = await workspaceApi.addReport(newReport);
     await addAuditLog('Analysis Run', `Analysis completed for: ${report.title}`);
     await loadWorkspaceData(selectedWorkspace.id);
-    const fullReport = (await workspaceApi.getWorkspaceData(selectedWorkspace.id, currentUser!.email)).reports[0];
-    setActiveReport(fullReport);
+    setActiveReport(addedReport);
   };
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {

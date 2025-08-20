@@ -1,21 +1,25 @@
-import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, KnowledgeCategory, WorkspaceData, CustomRegulation } from '../types';
+
+import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, WorkspaceData, CustomRegulation } from '../types';
 
 // --- API Helper ---
 // This helper makes authenticated requests to our serverless functions.
 const authenticatedFetch = async (path: string, options: RequestInit = {}) => {
     const user = window.netlifyIdentity?.currentUser();
     if (!user) {
-        throw new Error("User not authenticated");
+        // This will be caught by the serverless function which returns a 401.
+        // Allowing the request to proceed simplifies calling code, as the backend is the source of truth for auth.
     }
-    const token = await user.jwt();
-    const headers = {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-    };
+    const token = user ? await user.jwt() : null;
+    
+    const headers = new Headers(options.headers);
+    headers.set('Content-Type', 'application/json');
+
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
 
     // For GET requests, append params to URL
-    let fullPath = `/api/${path}`;
+    let fullPath = `/.netlify/functions/${path}`;
     if (options.method === 'GET' && options.body) {
         const params = new URLSearchParams(options.body as unknown as Record<string, string>);
         fullPath += `?${params.toString()}`;
@@ -25,26 +29,21 @@ const authenticatedFetch = async (path: string, options: RequestInit = {}) => {
     const response = await fetch(fullPath, { ...options, headers });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "An unknown network error occurred" }));
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
+        throw new Error(errorData.error || `An unknown network error occurred.`);
     }
     
-    // Handle responses that might not have a body
-    if (response.status === 204) { // No Content
-        return { success: true };
-    }
-    
-    try {
+    // Handle responses that might not have a body (e.g., 204 No Content)
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
         return await response.json();
-    } catch {
-        return { success: true };
     }
+    return { success: true };
 };
 
 
-// --- LocalStorage Simulation (for non-collaborative data) ---
-// This file uses localStorage to simulate a backend for rapid prototyping.
-// All data is stored in the user's browser.
+// --- User Management (from Netlify Identity) ---
+const USERS_KEY = 'vesta-users'; // User profile data can still live in local storage as it's not collaborative
 
 const get = <T>(key: string, defaultValue: T): T => {
     try {
@@ -63,27 +62,6 @@ const set = <T>(key: string, value: T) => {
         console.error(`Error writing to localStorage key "${key}":`, e);
     }
 };
-
-// Main in-memory data object, initialized from localStorage
-const DB = {
-    reports: get<AnalysisReport[]>('vesta-reports', []),
-    auditLogs: get<Record<string, AuditLog[]>>('vesta-audit-logs', {}),
-    knowledgeSources: get<KnowledgeSource[]>('vesta-knowledge-sources', []),
-    dismissalRules: get<DismissalRule[]>('vesta-dismissal-rules', []),
-    customRegulations: get<Record<string, CustomRegulation[]>>('vesta-custom-regulations', {}),
-};
-
-// Function to persist the entire DB object to localStorage
-const persist = () => {
-    set('vesta-reports', DB.reports);
-    set('vesta-audit-logs', DB.auditLogs);
-    set('vesta-knowledge-sources', DB.knowledgeSources);
-    set('vesta-dismissal-rules', DB.dismissalRules);
-    set('vesta-custom-regulations', DB.customRegulations);
-};
-
-// --- User Management (from Netlify Identity) ---
-const USERS_KEY = 'vesta-users';
 
 interface NetlifyUser {
   email: string;
@@ -104,7 +82,6 @@ export const getOrCreateUser = (netlifyUser: NetlifyUser): Promise<User> => {
       appUser = { name, email: netlifyUser.email, avatar };
       users.push(appUser);
     } else {
-      // Update user details on every login, in case they've changed in Netlify Identity
       appUser.name = name;
       appUser.avatar = avatar;
     }
@@ -126,16 +103,16 @@ export const updateUser = (userToUpdate: User): Promise<User> => {
     });
 };
 
-// --- Workspace Management (Serverless) ---
+// --- Workspace Management ---
 
-export const createWorkspace = (name: string, creator: User): Promise<Workspace> => {
+export const createWorkspace = (name: string): Promise<Workspace> => {
     return authenticatedFetch('create-workspace', {
         method: 'POST',
         body: JSON.stringify({ name }),
     });
 };
 
-export const getWorkspacesForUser = (userEmail: string): Promise<Workspace[]> => {
+export const getWorkspacesForUser = (): Promise<Workspace[]> => {
     return authenticatedFetch('get-workspaces', { method: 'GET' });
 };
 
@@ -165,139 +142,79 @@ export const updateUserRole = (workspaceId: string, email: string, role: UserRol
     });
 };
 
-// --- Workspace Data Management (Local Storage) ---
+// --- Workspace Data Management ---
 
-export const getWorkspaceData = async (workspaceId: string, userEmail: string): Promise<WorkspaceData> => {
-    return new Promise(resolve => {
-        const data: WorkspaceData = {
-            reports: DB.reports.filter(r => r.workspaceId === workspaceId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-            auditLogs: DB.auditLogs[workspaceId] || [],
-            knowledgeBaseSources: DB.knowledgeSources.filter(ks => ks.workspaceId === workspaceId),
-            dismissalRules: DB.dismissalRules.filter(dr => dr.workspaceId === workspaceId),
-            customRegulations: DB.customRegulations[workspaceId] || [],
-        };
-        resolve(data);
+export const getWorkspaceData = (workspaceId: string): Promise<WorkspaceData> => {
+    const params = new URLSearchParams({ workspaceId });
+    return authenticatedFetch(`get-workspace-data?${params.toString()}`, { method: 'GET' });
+};
+
+export const addReport = (reportData: Omit<AnalysisReport, 'id' | 'createdAt'>): Promise<AnalysisReport> => {
+    return authenticatedFetch('add-report', {
+        method: 'POST',
+        body: JSON.stringify(reportData),
     });
 };
 
-export const addReport = async (reportData: Omit<AnalysisReport, 'id' | 'createdAt'>): Promise<AnalysisReport> => {
-    return new Promise(resolve => {
-        const newReport: AnalysisReport = {
-            ...reportData,
-            id: `rep-${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            status: 'active',
-        };
-        DB.reports.unshift(newReport);
-        persist();
-        resolve(newReport);
+export const updateReportStatus = (reportId: string, status: 'active' | 'archived'): Promise<void> => {
+     return authenticatedFetch('update-report-status', {
+        method: 'POST',
+        body: JSON.stringify({ reportId, status }),
     });
 };
 
-export const updateReportStatus = async (reportId: string, status: 'active' | 'archived'): Promise<void> => {
-    return new Promise(resolve => {
-        const reportIndex = DB.reports.findIndex(r => r.id === reportId);
-        if (reportIndex !== -1) {
-            DB.reports[reportIndex].status = status;
-            persist();
-        }
-        resolve();
+export const deleteReport = (reportId: string): Promise<void> => {
+    return authenticatedFetch('delete-report', {
+        method: 'POST',
+        body: JSON.stringify({ reportId }),
     });
 };
 
-export const deleteReport = async (reportId: string): Promise<void> => {
-    return new Promise(resolve => {
-        DB.reports = DB.reports.filter(r => r.id !== reportId);
-        persist();
-        resolve();
+export const addAuditLog = (workspaceId: string, userEmail: string, action: AuditLogAction, details: string): Promise<void> => {
+     return authenticatedFetch('add-audit-log', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, userEmail, action, details }),
     });
 };
 
-export const addAuditLog = async (workspaceId: string, userEmail: string, action: AuditLogAction, details: string): Promise<void> => {
-    return new Promise(resolve => {
-        const newLog: AuditLog = {
-            id: `log-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            userEmail,
-            action,
-            details,
-        };
-        if (!DB.auditLogs[workspaceId]) {
-            DB.auditLogs[workspaceId] = [];
-        }
-        DB.auditLogs[workspaceId].unshift(newLog);
-        persist();
-        resolve();
+export const addKnowledgeSource = (workspaceId: string, sourceData: Omit<KnowledgeSource, 'id' | 'workspaceId'>): Promise<void> => {
+    return authenticatedFetch('add-knowledge-source', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, ...sourceData }),
     });
 };
 
-export const addKnowledgeSource = async (workspaceId: string, sourceData: Omit<KnowledgeSource, 'id' | 'workspaceId'>): Promise<void> => {
-    return new Promise(resolve => {
-        const newSource: KnowledgeSource = {
-            ...sourceData,
-            id: `ks-${Date.now()}`,
-            workspaceId,
-        };
-        DB.knowledgeSources.push(newSource);
-        persist();
-        resolve();
+export const deleteKnowledgeSource = (workspaceId: string, sourceId: string): Promise<void> => {
+    return authenticatedFetch('delete-knowledge-source', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, sourceId }),
     });
 };
 
-export const deleteKnowledgeSource = async (workspaceId: string, sourceId: string): Promise<void> => {
-    return new Promise(resolve => {
-        DB.knowledgeSources = DB.knowledgeSources.filter(ks => !(ks.id === sourceId && ks.workspaceId === workspaceId));
-        persist();
-        resolve();
+export const addDismissalRule = (workspaceId: string, ruleData: Omit<DismissalRule, 'id' | 'workspaceId' | 'timestamp'>): Promise<void> => {
+    return authenticatedFetch('add-dismissal-rule', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, ...ruleData }),
     });
 };
 
-export const addDismissalRule = async (workspaceId: string, ruleData: Omit<DismissalRule, 'id' | 'workspaceId' | 'timestamp'>): Promise<void> => {
-    return new Promise(resolve => {
-        const newRule: DismissalRule = {
-            ...ruleData,
-            id: `dr-${Date.now()}`,
-            workspaceId,
-            timestamp: new Date().toISOString(),
-        };
-        DB.dismissalRules.push(newRule);
-        persist();
-        resolve();
+export const deleteDismissalRule = (workspaceId: string, ruleId: string): Promise<void> => {
+    return authenticatedFetch('delete-dismissal-rule', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, ruleId }),
     });
 };
 
-export const deleteDismissalRule = async (workspaceId: string, ruleId: string): Promise<void> => {
-    return new Promise(resolve => {
-        DB.dismissalRules = DB.dismissalRules.filter(dr => !(dr.id === ruleId && dr.workspaceId === workspaceId));
-        persist();
-        resolve();
+export const addCustomRegulation = (workspaceId: string, ruleText: string, createdBy: string): Promise<CustomRegulation> => {
+    return authenticatedFetch('add-custom-regulation', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, ruleText, createdBy }),
     });
 };
 
-export const addCustomRegulation = async (workspaceId: string, ruleText: string, createdBy: string): Promise<CustomRegulation> => {
-    return new Promise(resolve => {
-        const newRegulation: CustomRegulation = {
-            id: `cr-${Date.now()}`,
-            workspaceId,
-            ruleText,
-            createdBy,
-            createdAt: new Date().toISOString(),
-        };
-        if (!DB.customRegulations[workspaceId]) {
-            DB.customRegulations[workspaceId] = [];
-        }
-        DB.customRegulations[workspaceId].push(newRegulation);
-        persist();
-        resolve(newRegulation);
-    });
-};
-
-export const deleteCustomRegulation = async (workspaceId: string, regulationId: string): Promise<void> => {
-    return new Promise(resolve => {
-        if (DB.customRegulations[workspaceId]) {
-            DB.customRegulations[workspaceId] = DB.customRegulations[workspaceId].filter(r => r.id !== regulationId);
-            persist();
-        }
-        resolve();
+export const deleteCustomRegulation = (workspaceId: string, regulationId: string): Promise<void> => {
+     return authenticatedFetch('delete-custom-regulation', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, regulationId }),
     });
 };
