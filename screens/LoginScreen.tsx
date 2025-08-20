@@ -18,7 +18,7 @@ const LoginScreen: React.FC = () => {
             Vesta:
           </h1>
           <p className="text-4xl mt-2 text-vesta-gold">
-            Fortifying Your Project's Compliance.
+            Project Compliance Fortification.
           </p>
           <p className="mt-6 text-lg text-white/80 max-w-md">
             Analyze documents, identify risks, and ensure your projects meet the highest standards of digital resilience.
