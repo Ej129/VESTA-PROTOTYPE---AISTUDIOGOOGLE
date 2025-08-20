@@ -2,7 +2,7 @@ import React from 'react';
 
 export const VestaLogo = ({ className }: { className?: string }) => (
     <svg
-      className={className}
+      className={`${className || ''} [filter:drop-shadow(0_4px_6px_rgba(0,0,0,0.4))]`}
       viewBox="0 0 345 500"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

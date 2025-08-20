@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
@@ -13,6 +14,7 @@ import CreateWorkspaceModal from './components/CreateWorkspaceModal';
 import ManageMembersModal from './components/ManageMembersModal';
 import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon } from './components/Icons';
+import NotificationToast from './components/NotificationToast';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 text-center">
@@ -73,6 +75,10 @@ const App: React.FC = () => {
   // Modal State
   const [isCreateWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [isManageMembersModalOpen, setManageMembersModalOpen] = useState(false);
+  
+  // Notification State
+  const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
+  const knownWorkspaceIds = useRef(new Set<string>());
 
   const navigateTo: NavigateTo = (newScreen: Screen) => {
     setScreen(newScreen);
@@ -97,6 +103,7 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const userWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.email);
     setWorkspaces(userWorkspaces);
+    knownWorkspaceIds.current = new Set(userWorkspaces.map(ws => ws.id));
   }, [currentUser]);
 
   const handleBackToWorkspaces = () => {
@@ -122,8 +129,29 @@ const App: React.FC = () => {
       setCustomRegulations([]);
       setActiveReport(null);
       setScreen(Screen.WorkspaceDashboard);
+      knownWorkspaceIds.current.clear();
     }
   }, [currentUser, refreshWorkspaces]);
+
+  // Poll for new workspaces
+  useEffect(() => {
+      if (!currentUser) return;
+
+      const intervalId = setInterval(async () => {
+          const currentWorkspaces = await workspaceApi.getWorkspacesForUser(currentUser.email);
+          const newWorkspaces = currentWorkspaces.filter(ws => !knownWorkspaceIds.current.has(ws.id));
+
+          if (newWorkspaces.length > 0) {
+              const newWorkspace = newWorkspaces[0];
+              setNotification({
+                  message: `You've been added to a new workspace!`,
+                  workspaceName: newWorkspace.name,
+              });
+          }
+      }, 30000); // Check every 30 seconds
+
+      return () => clearInterval(intervalId);
+  }, [currentUser]);
   
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
     if(!currentUser || !selectedWorkspace) return;
@@ -330,6 +358,14 @@ const App: React.FC = () => {
 
   return (
     <div className="font-sans bg-vesta-bg-light dark:bg-vesta-bg-dark min-h-screen text-vesta-text-light dark:text-vesta-text-dark">
+        {notification && (
+            <NotificationToast 
+                message={notification.message}
+                workspaceName={notification.workspaceName}
+                onClose={() => setNotification(null)}
+                onRefresh={refreshWorkspaces}
+            />
+        )}
       {renderScreen()}
     </div>
   );
