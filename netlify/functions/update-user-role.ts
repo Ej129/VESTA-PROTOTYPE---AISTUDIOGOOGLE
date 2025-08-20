@@ -1,57 +1,101 @@
 import { getStore } from "@netlify/blobs";
-import type { Context } from "@netlify/functions";
+import type { Handler } from "@netlify/functions";
 
 interface WorkspaceMember {
-    email: string;
-    role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
+  email: string;
+  role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
 }
 
-export default async (req: Request, context: Context) => {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
+export const handler: Handler = async (event, context) => {
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: "Method not allowed" }),
+      headers: { "Content-Type": "application/json" },
+    };
   }
-  
-  const user = context.netlify.identity;
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Authentication required." }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+  const user = context.clientContext?.user;
+  if (!user || !user.email) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Authentication required." }),
+      headers: { "Content-Type": "application/json" },
+    };
   }
 
   try {
-    const { workspaceId, email, role } = await req.json();
+    const { workspaceId, email, role } = JSON.parse(event.body || "{}");
+
     if (!workspaceId || !email || !role) {
-      return new Response(JSON.stringify({ error: "Missing required fields." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "workspaceId, email, and role are required." }),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
+
+    // Validate role
+    const validRoles: WorkspaceMember["role"][] = ["Administrator", "Risk Management Officer", "Strategy Officer", "Member"];
+    if (!validRoles.includes(role)) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid role." }),
+        headers: { "Content-Type": "application/json" },
+      };
     }
 
     const store = getStore("vesta-data");
-    const allMemberships = await store.get("workspace-members", { type: "json" }) as Record<string, WorkspaceMember[]> || {};
+    const allMemberships = (await store.get("workspace-members", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
     const members = allMemberships[workspaceId] || [];
 
-    // Security Check: Only admins can update roles
-    const updater = members.find(m => m.email === user.email);
-    if (!updater || updater.role !== 'Administrator') {
-      return new Response(JSON.stringify({ error: "Forbidden: Only administrators can update roles." }), { status: 403, headers: { "Content-Type": "application/json" } });
+    // Check if current user is Admin
+    const currentUser = members.find(m => m.email === user.email);
+    if (!currentUser || currentUser.role !== "Administrator") {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: "Only administrators can update roles." }),
+        headers: { "Content-Type": "application/json" },
+      };
     }
 
-    // Prevent demoting the last administrator
-    const admins = members.filter(m => m.role === 'Administrator');
+    // Prevent updating your own role
+    if (email === user.email) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "You cannot change your own role." }),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
+
+    // Find member to update
     const memberToUpdate = members.find(m => m.email === email);
-    if (memberToUpdate && memberToUpdate.role === 'Administrator' && admins.length <= 1 && role !== 'Administrator') {
-        return new Response(JSON.stringify({ error: "Cannot demote the last administrator." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    if (!memberToUpdate) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: "User not found in this workspace." }),
+        headers: { "Content-Type": "application/json" },
+      };
     }
 
-    // Update role and save
-    const memberIndex = members.findIndex(m => m.email === email);
-    if (memberIndex !== -1) {
-        members[memberIndex].role = role;
-        allMemberships[workspaceId] = members;
-        await store.setJSON("workspace-members", allMemberships);
-    } else {
-        return new Response(JSON.stringify({ error: "User not found in workspace." }), { status: 404, headers: { "Content-Type": "application/json" } });
-    }
+    // Update role
+    memberToUpdate.role = role;
 
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    allMemberships[workspaceId] = members;
+    await store.setJSON("workspace-members", allMemberships);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, email, newRole: role }),
+      headers: { "Content-Type": "application/json" },
+    };
+
   } catch (error) {
     console.error("Error updating role:", error);
-    return new Response(JSON.stringify({ error: "Failed to update role." }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Failed to update role." }),
+      headers: { "Content-Type": "application/json" },
+    };
   }
 };

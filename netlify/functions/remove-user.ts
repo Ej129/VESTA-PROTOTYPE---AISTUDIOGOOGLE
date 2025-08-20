@@ -1,51 +1,93 @@
 import { getStore } from "@netlify/blobs";
-import type { Context } from "@netlify/functions";
+import type { Handler } from "@netlify/functions";
 
 interface WorkspaceMember {
-    email: string;
-    role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
+  email: string;
+  role: "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";
 }
 
-export default async (req: Request, context: Context) => {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
+export const handler: Handler = async (event, context) => {
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: "Method not allowed" }),
+      headers: { "Content-Type": "application/json" },
+    };
   }
-  
-  const user = context.netlify.identity;
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Authentication required." }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+  const user = context.clientContext?.user;
+  if (!user || !user.email) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Authentication required." }),
+      headers: { "Content-Type": "application/json" },
+    };
   }
 
   try {
-    const { workspaceId, email } = await req.json();
+    const { workspaceId, email } = JSON.parse(event.body || "{}");
+
     if (!workspaceId || !email) {
-      return new Response(JSON.stringify({ error: "Missing required fields." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "workspaceId and email are required." }),
+        headers: { "Content-Type": "application/json" },
+      };
     }
 
     const store = getStore("vesta-data");
-    const allMemberships = await store.get("workspace-members", { type: "json" }) as Record<string, WorkspaceMember[]> || {};
+    const allMemberships = (await store.get("workspace-members", { type: "json" })) as Record<string, WorkspaceMember[]> || {};
     const members = allMemberships[workspaceId] || [];
 
-    // Security Check: Only admins can remove users
-    const remover = members.find(m => m.email === user.email);
-    if (!remover || remover.role !== 'Administrator') {
-      return new Response(JSON.stringify({ error: "Forbidden: Only administrators can remove users." }), { status: 403, headers: { "Content-Type": "application/json" } });
+    // Check if current user is Admin
+    const currentUser = members.find(m => m.email === user.email);
+    if (!currentUser || currentUser.role !== "Administrator") {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: "Only administrators can remove members." }),
+        headers: { "Content-Type": "application/json" },
+      };
     }
 
-    // Prevent removing the last administrator
-    const admins = members.filter(m => m.role === 'Administrator');
+    // Prevent removing the last admin
     const memberToRemove = members.find(m => m.email === email);
-    if (memberToRemove && memberToRemove.role === 'Administrator' && admins.length <= 1) {
-        return new Response(JSON.stringify({ error: "Cannot remove the last administrator." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    if (!memberToRemove) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: "User not found in this workspace." }),
+        headers: { "Content-Type": "application/json" },
+      };
     }
 
-    // Remove user and save
-    allMemberships[workspaceId] = members.filter(m => m.email !== email);
+    if (memberToRemove.role === "Administrator") {
+      const otherAdmins = members.filter(m => m.role === "Administrator" && m.email !== email);
+      if (otherAdmins.length === 0) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: "Cannot remove the last administrator." }),
+          headers: { "Content-Type": "application/json" },
+        };
+      }
+    }
+
+    // Remove member
+    const updatedMembers = members.filter(m => m.email !== email);
+    allMemberships[workspaceId] = updatedMembers;
+
     await store.setJSON("workspace-members", allMemberships);
 
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, removed: email }),
+      headers: { "Content-Type": "application/json" },
+    };
+
   } catch (error) {
     console.error("Error removing user:", error);
-    return new Response(JSON.stringify({ error: "Failed to remove user." }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Failed to remove user." }),
+      headers: { "Content-Type": "application/json" },
+    };
   }
 };
