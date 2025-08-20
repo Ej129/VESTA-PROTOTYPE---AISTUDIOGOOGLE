@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
+[template.environment]
+  # Declare the environment variables your app needs
+  NETLIFY_SITE_ID = 98b37587-6540-4302-b7cf-555e32c1be78
+  NETLIFY_API_TOKEN = nfp_pTcj8xGScWsGXSZugrPASgur1vJPuWJL4384
+
+# Redirect API calls from frontend to serverless functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
