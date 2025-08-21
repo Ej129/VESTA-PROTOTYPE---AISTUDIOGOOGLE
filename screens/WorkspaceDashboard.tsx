@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Workspace, User } from '../types';
 import { PlusIcon, BriefcaseIcon, MoreVerticalIcon } from '../components/Icons';

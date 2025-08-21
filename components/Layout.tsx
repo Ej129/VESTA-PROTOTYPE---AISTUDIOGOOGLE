@@ -1,7 +1,25 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
 import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, BriefcaseIcon, ChevronsLeftIcon, ChevronsRightIcon } from './Icons';
+
+// --- Header Context for Customization ---
+interface HeaderContextType {
+  setTitleContent: (node: ReactNode | null) => void;
+  setActions: (node: ReactNode | null) => void;
+}
+
+const HeaderContext = createContext<HeaderContextType | null>(null);
+
+export const useHeader = () => {
+    const context = useContext(HeaderContext);
+    if (!context) {
+        throw new Error("useHeader must be used within a SidebarMainLayout component");
+    }
+    return context;
+};
+// --- End Header Context ---
+
 
 interface SidebarProps {
   navigateTo: NavigateTo;
@@ -131,13 +149,15 @@ interface HeaderProps {
     workspace: Workspace | null;
     userRole: UserRole;
     onManageMembers: () => void;
+    titleContent: ReactNode | null;
+    actions: ReactNode | null;
 }
 
-const Header: React.FC<HeaderProps> = ({ workspace, userRole, onManageMembers }) => {
-  return (
-    <header className="bg-vesta-card-light dark:bg-vesta-card-dark h-16 px-6 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center flex-shrink-0">
-      <h1 className="text-2xl font-bold text-vesta-gold">{workspace ? workspace.name : 'Your Workspaces'}</h1>
-      <div className="flex items-center space-x-4">
+const Header: React.FC<HeaderProps> = ({ workspace, userRole, onManageMembers, titleContent, actions }) => {
+    const defaultTitle = <h1 className="text-2xl font-bold text-vesta-gold truncate">{workspace ? workspace.name : 'Your Workspaces'}</h1>;
+  
+    const defaultActions = (
+      <>
         {workspace && userRole === 'Administrator' && (
           <div className="relative group">
             <button 
@@ -158,9 +178,15 @@ const Header: React.FC<HeaderProps> = ({ workspace, userRole, onManageMembers })
             </div>
           </div>
         )}
-      </div>
-    </header>
-  );
+      </>
+    );
+
+    return (
+        <header className="bg-vesta-card-light dark:bg-vesta-card-dark h-16 px-6 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center flex-shrink-0 gap-4">
+            <div className="flex-1 min-w-0">{titleContent || defaultTitle}</div>
+            <div className="flex items-center space-x-4 flex-shrink-0">{actions || defaultActions}</div>
+        </header>
+    );
 };
 
 
@@ -186,6 +212,9 @@ export const SidebarMainLayout: React.FC<SidebarMainLayoutProps> = (props) => {
             return false;
         }
     });
+    
+    const [headerTitleContent, setHeaderTitleContent] = useState<ReactNode | null>(null);
+    const [headerActions, setHeaderActions] = useState<ReactNode | null>(null);
 
     useEffect(() => {
         try {
@@ -196,27 +225,40 @@ export const SidebarMainLayout: React.FC<SidebarMainLayoutProps> = (props) => {
     }, [isSidebarCollapsed]);
 
     const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
+    
+    const contextValue = {
+        setTitleContent: (node: ReactNode | null) => setHeaderTitleContent(() => node),
+        setActions: (node: ReactNode | null) => setHeaderActions(() => node),
+    };
 
     return (
-        <div className="flex h-screen bg-vesta-red">
-          <Sidebar 
-            navigateTo={navigateTo} 
-            activeScreen={activeScreen} 
-            currentUser={currentUser} 
-            onLogout={onLogout} 
-            onBackToWorkspaces={onBackToWorkspaces}
-            isSidebarCollapsed={isSidebarCollapsed}
-            toggleSidebar={toggleSidebar}
-            currentWorkspace={currentWorkspace}
-          />
-          <div className="flex-1 flex flex-col h-screen overflow-y-hidden">
-            <Header workspace={currentWorkspace} userRole={userRole} onManageMembers={onManageMembers} />
-            <main className="flex-1 overflow-y-auto bg-vesta-bg-light dark:bg-vesta-bg-dark">
-              {children}
-            </main>
-          </div>
-        </div>
-      );
+        <HeaderContext.Provider value={contextValue}>
+            <div className="flex h-screen bg-vesta-red">
+            <Sidebar 
+                navigateTo={navigateTo} 
+                activeScreen={activeScreen} 
+                currentUser={currentUser} 
+                onLogout={onLogout} 
+                onBackToWorkspaces={onBackToWorkspaces}
+                isSidebarCollapsed={isSidebarCollapsed}
+                toggleSidebar={toggleSidebar}
+                currentWorkspace={currentWorkspace}
+            />
+            <div className="flex-1 flex flex-col h-screen overflow-y-hidden">
+                <Header 
+                    workspace={currentWorkspace} 
+                    userRole={userRole} 
+                    onManageMembers={onManageMembers} 
+                    titleContent={headerTitleContent}
+                    actions={headerActions}
+                />
+                <main className="flex-1 overflow-y-auto bg-vesta-bg-light dark:bg-vesta-bg-dark">
+                {children}
+                </main>
+            </div>
+            </div>
+        </HeaderContext.Provider>
+    );
 };
 
 interface CenteredLayoutProps {

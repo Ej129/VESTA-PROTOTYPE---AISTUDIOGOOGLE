@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole, CustomRegulation } from '../types';
 import { SparklesIcon, DownloadIcon, CheckCircleIcon, ChevronDownIcon, RefreshIcon } from '../components/Icons';
@@ -8,6 +7,7 @@ import { analyzePlan, improvePlan } from '../api/vesta';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 import jsPDF from 'jspdf';
 import FeedbackModal from '../components/FeedbackModal';
+import { useHeader } from '../components/Layout';
 
 // --- SUB-COMPONENTS for AnalysisScreen ---
 
@@ -126,18 +126,18 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   customRegulations: CustomRegulation[];
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, onUpdateReport, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, customRegulations, navigateTo }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, onUpdateReport, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, customRegulations, navigateTo, currentWorkspace }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [editorHtml, setEditorHtml] = useState('');
   const [plainTextContent, setPlainTextContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(!activeReport);
-  const [openAccordionId, setOpenAccordionId] = useState<string | null>(null);
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
   
+  const { setTitleContent, setActions } = useHeader();
   const downloadButtonRef = useRef<HTMLDivElement>(null);
 
   const highlightContent = (content: string, findings: Finding[]): string => {
@@ -182,70 +182,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
-  const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
-    setCurrentReport(prev => {
-        if (!prev) return null;
-        const updatedReport = {
-            ...prev,
-            findings: prev.findings.map(f => f.id === findingId ? { ...f, status } : f)
-        };
-        onUpdateReport(updatedReport);
-        addAuditLog(status === 'resolved' ? 'Finding Resolved' : 'Finding Dismissed', JSON.stringify({message: `Status of finding "${updatedReport.findings.find(f=>f.id === findingId)?.title}" changed to ${status}.`, reportId: updatedReport.id}));
-        return updatedReport;
-    });
-  };
-
-  const handleHoverFinding = (findingId: string | null) => {
-      // Future feature: This can be used to scroll document to highlighted paragraph.
-  };
-
-  const handleFileUpload = async (content: string, fileName: string) => {
-      addAuditLog('Document Upload', `File uploaded: ${fileName}`);
-      setShowUploadModal(false);
-      setIsLoading(true);
-      const reportData = await analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
-      const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
-      onAnalysisComplete(report);
-      setIsLoading(false);
-  };
-
-  const handleAutoFix = async () => {
-      if (!currentReport) return;
-      addAuditLog('Auto-Fix', JSON.stringify({message: `Auto-fix initiated for: ${currentReport.title}`, reportId: currentReport.id}));
-      setIsImproving(true);
-      
-      const originalPlainText = plainTextContent;
-      const improvedText = await improvePlan(originalPlainText, currentReport);
-      
-      const updatedReport = {
-          ...currentReport,
-          documentContent: improvedText,
-          findings: currentReport.findings.map(f => ({ ...f, status: 'resolved' as FindingStatus }))
-      };
-
-      setPlainTextContent(improvedText);
-      setEditorHtml(createDiffHtml(originalPlainText, improvedText));
-      setCurrentReport(updatedReport);
-      onUpdateReport(updatedReport);
-
-      setIsImproving(false);
-  };
-  
-  const handleReanalyze = async () => {
-    if (!currentReport) return;
-    setIsLoading(true);
-    const reportData = await analyzePlan(plainTextContent, knowledgeBaseSources, dismissalRules, customRegulations);
-    const updatedReport = {
-      ...currentReport,
-      ...reportData,
-      documentContent: plainTextContent, // Keep the edited content
-      title: `${currentReport.title} (Re-analyzed)`
-    };
-    onUpdateReport(updatedReport);
-    addAuditLog('Analysis Run', JSON.stringify({ message: `Re-analysis completed for: ${updatedReport.title}`, reportId: updatedReport.id }));
-    setIsLoading(false);
-  }
 
   const handleDownload = (format: 'PDF' | 'TXT') => {
       setIsDownloadOpen(false);
@@ -284,6 +220,21 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       }
   };
 
+  const handleReanalyze = async () => {
+    if (!currentReport) return;
+    setIsLoading(true);
+    const reportData = await analyzePlan(plainTextContent, knowledgeBaseSources, dismissalRules, customRegulations);
+    const updatedReport = {
+      ...currentReport,
+      ...reportData,
+      documentContent: plainTextContent, // Keep the edited content
+      title: `${currentReport.title} (Re-analyzed)`
+    };
+    onUpdateReport(updatedReport);
+    addAuditLog('Analysis Run', JSON.stringify({ message: `Re-analysis completed for: ${updatedReport.title}`, reportId: updatedReport.id }));
+    setIsLoading(false);
+  }
+
   const handleSaveChanges = () => {
     setIsEditing(false);
     if (!currentReport || currentReport.documentContent === plainTextContent) return;
@@ -297,7 +248,113 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
     setCurrentReport(updatedReport);
     onUpdateReport(updatedReport);
   };
+  
+  const handleAutoFix = async () => {
+      if (!currentReport) return;
+      addAuditLog('Auto-Fix', JSON.stringify({message: `Auto-fix initiated for: ${currentReport.title}`, reportId: currentReport.id}));
+      setIsImproving(true);
+      
+      const originalPlainText = plainTextContent;
+      const improvedText = await improvePlan(originalPlainText, currentReport);
+      
+      const updatedReport = {
+          ...currentReport,
+          documentContent: improvedText,
+          findings: currentReport.findings.map(f => ({ ...f, status: 'resolved' as FindingStatus }))
+      };
 
+      setPlainTextContent(improvedText);
+      setEditorHtml(createDiffHtml(originalPlainText, improvedText));
+      setCurrentReport(updatedReport);
+      onUpdateReport(updatedReport);
+
+      setIsImproving(false);
+  };
+  
+  const canEdit = userRole === 'Administrator' || userRole === 'Member' || userRole === 'Risk Management Officer' || userRole === 'Strategy Officer';
+
+  // Effect to manage the header content
+  useEffect(() => {
+    if (currentReport) {
+      setTitleContent(
+        <div className="flex items-baseline min-w-0">
+          <h2 className="text-xl font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark truncate">{currentWorkspace?.name}</h2>
+          <span className="text-xl font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mx-2">/</span>
+          <h1 className="text-xl font-bold text-vesta-gold truncate">{currentReport.title}</h1>
+        </div>
+      );
+      setActions(
+        <div className="flex items-center space-x-2">
+            <div className="relative" ref={downloadButtonRef}>
+                <button onClick={() => setIsDownloadOpen(o => !o)} className="flex items-center px-4 py-2 bg-vesta-card-light dark:bg-vesta-card-dark border-2 border-vesta-gold rounded-lg text-sm font-bold text-vesta-red hover:bg-vesta-gold hover:text-white transition-colors focus:ring-2 focus:ring-vesta-red">
+                    <DownloadIcon className="w-4 h-4 mr-2" />
+                    Download
+                    <ChevronDownIcon className="w-4 h-4 ml-1" />
+                </button>
+                {isDownloadOpen && (
+                    <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-50 border border-vesta-border-light dark:border-vesta-border-dark">
+                        <a onClick={() => handleDownload('PDF')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">PDF</a>
+                        <a onClick={() => handleDownload('TXT')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">TXT</a>
+                    </div>
+                )}
+            </div>
+             {isEditing ? (
+                <>
+                  <button onClick={handleReanalyze} className="flex items-center px-4 py-2 bg-vesta-gold text-white font-bold rounded-lg transition text-sm">
+                      <RefreshIcon className="w-4 h-4 mr-2" /> Re-Analyze
+                  </button>
+                  <button onClick={handleSaveChanges} className="flex items-center px-4 py-2 bg-accent-success text-white font-bold rounded-lg transition text-sm">
+                      Save Changes
+                  </button>
+                </>
+            ) : (
+                <button onClick={() => setIsEditing(true)} disabled={!canEdit} className="flex items-center px-4 py-2 bg-vesta-card-light dark:bg-vesta-card-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-sm font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-200 dark:hover:bg-vesta-card-dark/50 transition focus:ring-2 focus:ring-vesta-red disabled:opacity-50">
+                    Edit Manually
+                </button>
+            )}
+            <button id="auto-fix-button" onClick={handleAutoFix} disabled={isImproving || isEditing || !canEdit} className="relative flex items-center px-4 py-2 bg-vesta-red text-white font-bold rounded-lg transition text-sm disabled:opacity-50 hover:bg-vesta-red-dark">
+                <SparklesIcon className="w-4 h-4 mr-2" />
+                Auto-Fix & Enhance
+            </button>
+        </div>
+      );
+    }
+    
+    // Cleanup function
+    return () => {
+        setTitleContent(null);
+        setActions(null);
+    };
+  }, [currentReport, isEditing, isDownloadOpen, isImproving, plainTextContent, currentWorkspace]);
+
+  
+  const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
+    setCurrentReport(prev => {
+        if (!prev) return null;
+        const updatedReport = {
+            ...prev,
+            findings: prev.findings.map(f => f.id === findingId ? { ...f, status } : f)
+        };
+        onUpdateReport(updatedReport);
+        addAuditLog(status === 'resolved' ? 'Finding Resolved' : 'Finding Dismissed', JSON.stringify({message: `Status of finding "${updatedReport.findings.find(f=>f.id === findingId)?.title}" changed to ${status}.`, reportId: updatedReport.id}));
+        return updatedReport;
+    });
+  };
+
+  const handleHoverFinding = (findingId: string | null) => {
+      // Future feature: This can be used to scroll document to highlighted paragraph.
+  };
+
+  const handleFileUpload = async (content: string, fileName: string) => {
+      addAuditLog('Document Upload', `File uploaded: ${fileName}`);
+      setShowUploadModal(false);
+      setIsLoading(true);
+      const reportData = await analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
+      const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
+      onAnalysisComplete(report);
+      setIsLoading(false);
+  };
+  
   const handleDismissClick = (finding: Finding) => {
     setFeedbackFinding(finding);
   };
@@ -312,8 +369,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
     handleFindingStatusChange(feedbackFinding.id, 'dismissed');
     setFeedbackFinding(null);
   };
-
-  const canEdit = userRole === 'Administrator' || userRole === 'Member' || userRole === 'Risk Management Officer' || userRole === 'Strategy Officer';
 
   if (showUploadModal) {
       return (
@@ -336,47 +391,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   return (
     <>
         <div className="p-6 space-y-6">
-            {/* Header and Metrics */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-3xl font-bold text-vesta-red dark:text-vesta-gold">{currentReport.title}</h1>
-                    <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">Analysis Report</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <div className="relative" ref={downloadButtonRef}>
-                        <button onClick={() => setIsDownloadOpen(o => !o)} className="flex items-center px-4 py-2 bg-vesta-card-light dark:bg-vesta-card-dark border-2 border-vesta-gold rounded-lg text-vesta-red hover:bg-vesta-gold hover:text-white transition-colors text-sm font-semibold focus:ring-2 focus:ring-vesta-red">
-                            <DownloadIcon className="w-4 h-4 mr-2" />
-                            Download
-                            <ChevronDownIcon className="w-4 h-4 ml-1" />
-                        </button>
-                        {isDownloadOpen && (
-                            <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-50 border border-vesta-border-light dark:border-vesta-border-dark">
-                                <a onClick={() => handleDownload('PDF')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">PDF</a>
-                                <a onClick={() => handleDownload('TXT')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">TXT</a>
-                            </div>
-                        )}
-                    </div>
-                     {isEditing ? (
-                        <>
-                          <button onClick={handleReanalyze} className="flex items-center px-4 py-2 bg-vesta-gold text-white font-bold rounded-lg transition text-sm">
-                              <RefreshIcon className="w-4 h-4 mr-2" /> Re-Analyze
-                          </button>
-                          <button onClick={handleSaveChanges} className="flex items-center px-4 py-2 bg-accent-success text-white font-bold rounded-lg transition text-sm">
-                              Save Changes
-                          </button>
-                        </>
-                    ) : (
-                        <button onClick={() => setIsEditing(true)} disabled={!canEdit} className="flex items-center px-4 py-2 bg-vesta-card-light dark:bg-vesta-card-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-200 dark:hover:bg-vesta-card-dark/50 transition text-sm font-semibold focus:ring-2 focus:ring-vesta-red disabled:opacity-50">
-                            Edit Manually
-                        </button>
-                    )}
-                    <button id="auto-fix-button" onClick={handleAutoFix} disabled={isImproving || isEditing || !canEdit} className="relative flex items-center px-4 py-2 bg-vesta-red text-white font-bold rounded-lg transition text-sm disabled:opacity-50 hover:bg-vesta-red-dark">
-                        <SparklesIcon className="w-4 h-4 mr-2" />
-                        Auto-Fix & Enhance
-                    </button>
-                </div>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <MetricCard title="Resilience Score">
                     <span className="text-4xl font-bold font-display text-vesta-gold">{currentReport.resilienceScore}%</span>
@@ -395,7 +409,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
             {/* Main Content */}
             <div className="grid grid-cols-5 gap-6">
                 {/* Left Panel: Document Editor */}
-                <div id="editor-panel" className="col-span-3 h-[60vh] flex flex-col relative bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-sm border border-vesta-border-light dark:border-vesta-border-dark">
+                <div id="editor-panel" className="col-span-3 h-[calc(100vh-250px)] flex flex-col relative bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-sm border border-vesta-border-light dark:border-vesta-border-dark">
                     {isImproving && (
                         <div className="absolute inset-0 bg-vesta-bg-dark/80 flex items-center justify-center z-20 rounded-lg">
                             <AnimatedChecklist steps={improvingSteps} title="Enhancing Document..." textColorClass="text-gray-200"/>
@@ -417,7 +431,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                 </div>
 
                 {/* Right Panel: Findings */}
-                <div id="findings-panel" className="col-span-2 h-[60vh] overflow-y-auto pr-2 space-y-4">
+                <div id="findings-panel" className="col-span-2 h-[calc(100vh-250px)] overflow-y-auto pr-2 space-y-4">
                      {currentReport.findings.length > 0 ? (
                         currentReport.findings.map(finding => (
                             <FindingCard

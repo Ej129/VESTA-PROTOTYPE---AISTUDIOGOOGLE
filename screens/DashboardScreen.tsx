@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Screen, AnalysisReport, ScreenLayoutProps, UserRole } from '../types';
 import { PlusIcon, BriefcaseIcon, ShieldIcon, AlertTriangleIcon, MoreVerticalIcon } from '../components/Icons';
