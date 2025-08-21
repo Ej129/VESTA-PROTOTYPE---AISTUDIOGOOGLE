@@ -46,7 +46,7 @@ const FindingCard: React.FC<{ finding: Finding; onDismiss: (finding: Finding) =>
                     <button onClick={() => onDismiss(finding)} className="px-3 py-1 text-xs font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md">
                         Dismiss
                     </button>
-                    <button onClick={() => onResolve(finding.id)} className="px-3 py-1 text-xs font-semibold text-white bg-accent-success hover:bg-opacity-90 rounded-md">
+                    <button onClick={() => onResolve(finding.id)} className="px-3 py-1 text-xs font-semibold text-white bg-vesta-red hover:bg-vesta-red-dark rounded-md" style={{backgroundColor: '#b11116', color: '#f6f7ec'}}>
                         Mark as Resolved
                     </button>
                 </div>
