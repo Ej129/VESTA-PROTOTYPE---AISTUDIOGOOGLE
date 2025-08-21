@@ -68,37 +68,37 @@ export const handler: Handler = async (event, context) => {
     const initialSources: Omit<KnowledgeSource, "id" | "workspaceId">[] = [
       {
         title: "Bangko Sentral ng Pilipinas (BSP) Regulations",
-        content: "A collection of circulars, memoranda, and guidelines issued by the BSP, governing banks, financial institutions, and payment systems in the Philippines. Key areas include anti-money laundering (AML), consumer protection, and operational risk management.",
+        content: "A collection of circulars, memoranda, and guidelines from the BSP, governing banks, financial institutions, and payment systems in the Philippines. Official source: https://www.bsp.gov.ph/",
         category: KnowledgeCategory.Government,
         isEditable: true,
       },
       {
         title: "Bureau of Internal Revenue (BIR) Issuances",
-        content: "Regulations concerning taxation of financial transactions, digital services, and corporate income. Includes revenue regulations, circulars, and memoranda relevant to financial compliance.",
+        content: "Regulations concerning taxation of financial transactions, digital services, and corporate income. Official source: https://www.bir.gov.ph/",
         category: KnowledgeCategory.Government,
         isEditable: true,
       },
       {
         title: "Philippine Deposit Insurance Corporation (PDIC) Rules",
-        content: "Rules and regulations governing deposit insurance, bank resolutions, and financial stability. Ensures compliance with PDIC charters and related laws for member banks.",
+        content: "Rules and regulations governing deposit insurance, bank resolutions, and financial stability. Official source: https://www.pdic.gov.ph/",
         category: KnowledgeCategory.Government,
         isEditable: true,
       },
       {
         title: "National Privacy Commission (NPC) Advisories",
-        content: "Guidelines and advisories related to the Data Privacy Act of 2012 (RA 10173). Covers data protection, breach notification, and the rights of data subjects, which are critical for financial services handling personal data.",
+        content: "Guidelines and advisories related to the Data Privacy Act of 2012 (RA 10173). Official source: https://www.privacy.gov.ph/",
         category: KnowledgeCategory.Government,
         isEditable: true,
       },
       {
         title: "Philippine Insurance Regulations (PIR)",
-        content: "Regulations from the Insurance Commission governing insurance products, operations, and market conduct. Relevant for projects involving insurance technology (Insurtech) or related financial products.",
+        content: "Regulations from the Insurance Commission governing insurance products, operations, and market conduct. Official source: https://www.insurance.gov.ph/",
         category: KnowledgeCategory.Government,
         isEditable: true,
       },
       {
         title: "Securities and Exchange Commission (SEC) Memoranda",
-        content: "Memorandum Circulars from the SEC covering corporate governance, securities registration, and investment products. Essential for projects related to capital markets, crowdfunding, and digital assets.",
+        content: "Memorandum Circulars from the SEC covering corporate governance, securities registration, and investment products. Official source: https://www.sec.gov.ph/",
         category: KnowledgeCategory.Government,
         isEditable: true,
       },
