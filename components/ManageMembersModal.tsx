@@ -83,7 +83,7 @@ const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, curren
                 {/* Invite Section */}
                 <form onSubmit={handleInvite} className="bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 rounded-lg">
                     <h3 className="font-semibold mb-2 text-vesta-text-light dark:text-vesta-text-dark">Invite a new member</h3>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <input
                             type="email"
                             value={inviteEmail}
