@@ -14,7 +14,7 @@ const LoginScreen: React.FC = () => {
           <div className="mb-8">
             <VestaLogo className="w-20 h-20" />
           </div>
-          <h1 className="text-4xl font-bold leading-tight text-white">
+          <h1 className="text-4xl font-bold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
             Vesta:
           </h1>
           <p className="text-4xl mt-2 text-vesta-gold">

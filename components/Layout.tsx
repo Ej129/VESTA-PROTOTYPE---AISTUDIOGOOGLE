@@ -30,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
         aria-label="Go to Dashboard"
       >
         <VestaLogo className="w-10 h-10" />
-        <h1 className="text-2xl font-bold ml-3 text-white">Vesta</h1>
+        <h1 className="text-2xl font-bold ml-3 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">Vesta</h1>
       </div>
 
       <div className="p-4">

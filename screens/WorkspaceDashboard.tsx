@@ -40,7 +40,7 @@ const WorkspaceDashboard: React.FC<WorkspaceDashboardProps> = ({ workspaces, onS
             <header className="bg-vesta-card-light dark:bg-vesta-card-dark h-16 px-6 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center">
                 <div className="flex items-center">
                     <VestaLogo className="w-10 h-10" />
-                    <h1 className="text-2xl font-bold ml-3 text-gray-800 dark:text-white">Vesta</h1>
+                    <h1 className="text-2xl font-bold ml-3 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">Vesta</h1>
                 </div>
                 <div className="flex items-center space-x-4">
                      <div className="flex items-center p-2 rounded-lg">
