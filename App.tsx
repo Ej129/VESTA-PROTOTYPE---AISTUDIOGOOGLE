@@ -44,6 +44,45 @@ const InitializingScreen: React.FC = () => (
     </div>
 );
 
+const defaultGovSources = [
+    {
+      title: "Bangko Sentral ng Pilipinas (BSP) Regulations",
+      content: "A collection of circulars, memoranda, and guidelines from the BSP, governing banks, financial institutions, and payment systems in the Philippines. Official source: https://www.bsp.gov.ph/",
+      category: KnowledgeCategory.Government,
+      isEditable: true,
+    },
+    {
+      title: "Bureau of Internal Revenue (BIR) Issuances",
+      content: "Regulations concerning taxation of financial transactions, digital services, and corporate income. Official source: https://www.bir.gov.ph/",
+      category: KnowledgeCategory.Government,
+      isEditable: true,
+    },
+    {
+      title: "Philippine Deposit Insurance Corporation (PDIC) Rules",
+      content: "Rules and regulations governing deposit insurance, bank resolutions, and financial stability. Official source: https://www.pdic.gov.ph/",
+      category: KnowledgeCategory.Government,
+      isEditable: true,
+    },
+    {
+      title: "National Privacy Commission (NPC) Advisories",
+      content: "Guidelines and advisories related to the Data Privacy Act of 2012 (RA 10173). Official source: https://www.privacy.gov.ph/",
+      category: KnowledgeCategory.Government,
+      isEditable: true,
+    },
+    {
+      title: "Philippine Insurance Regulations (PIR)",
+      content: "Regulations from the Insurance Commission governing insurance products, operations, and market conduct. Official source: https://www.insurance.gov.ph/",
+      category: KnowledgeCategory.Government,
+      isEditable: true,
+    },
+    {
+      title: "Securities and Exchange Commission (SEC) Memoranda",
+      content: "Memorandum Circulars from the SEC covering corporate governance, securities registration, and investment products. Official source: https://www.sec.gov.ph/",
+      category: KnowledgeCategory.Government,
+      isEditable: true,
+    },
+];
+
 const App: React.FC = () => {
   // --- FAIL-FAST CHECK ---
   // This is the most critical part of the fix. We check for the environment
@@ -79,6 +118,9 @@ const App: React.FC = () => {
   // Notification State
   const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
   const knownWorkspaceIds = useRef(new Set<string>());
+
+  // Loading State
+  const [isSyncingSources, setIsSyncingSources] = useState(false);
 
   // Global Theme Persistence Fix
   useEffect(() => {
@@ -231,8 +273,34 @@ const App: React.FC = () => {
     await loadWorkspaceData(selectedWorkspace.id);
   };
 
-  const handleAddAutomatedSource = () => {
-    alert("This feature is coming soon!\nIt will automatically scan and add relevant government regulations to your knowledge base.");
+  const handleAddAutomatedSource = async () => {
+    if (!selectedWorkspace || isSyncingSources) return;
+
+    setIsSyncingSources(true);
+    try {
+        const existingTitles = new Set(knowledgeBaseSources.map(s => s.title));
+        const missingSources = defaultGovSources.filter(ds => !existingTitles.has(ds.title));
+
+        if (missingSources.length === 0) {
+            alert("All default government sources are already in your knowledge base.");
+            return;
+        }
+
+        const addPromises = missingSources.map(source => 
+            workspaceApi.addKnowledgeSource(selectedWorkspace.id, source)
+        );
+
+        await Promise.all(addPromises);
+        
+        await loadWorkspaceData(selectedWorkspace.id);
+        alert(`Successfully added ${missingSources.length} missing government source(s).`);
+
+    } catch (error) {
+        console.error("Failed to add automated sources:", error);
+        alert(`Error: ${error instanceof Error ? error.message : 'Could not sync sources.'}`);
+    } finally {
+        setIsSyncingSources(false);
+    }
   };
 
   const deleteKnowledgeSource = async (id: string) => {
@@ -363,7 +431,7 @@ const App: React.FC = () => {
         screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
         break;
       case Screen.KnowledgeBase:
-        screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} />;
+        screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} isSyncing={isSyncingSources} />;
         break;
       case Screen.Settings:
         screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;

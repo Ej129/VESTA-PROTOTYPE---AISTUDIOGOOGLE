@@ -12,6 +12,7 @@ interface KnowledgeBaseScreenProps extends ScreenLayoutProps {
   onAddSource: (title: string, content: string, category: KnowledgeCategory) => void;
   onDeleteSource: (id: string) => void;
   onAddAutomatedSource: () => void;
+  isSyncing: boolean;
 }
 
 const KnowledgeSourceCard = ({ source, onDelete, canDelete }: { source: KnowledgeSource, onDelete: (id: string) => void, canDelete: boolean }) => {
@@ -154,7 +155,7 @@ const KnowledgeCategorySection = ({ title, icon, children, actionButton }: { tit
     </div>
 );
 
-const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAddSource, onDeleteSource, onAddAutomatedSource, userRole, ...layoutProps }) => {
+const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAddSource, onDeleteSource, onAddAutomatedSource, isSyncing, userRole, ...layoutProps }) => {
     const getCanDelete = (source: KnowledgeSource) => {
         return source.isEditable && userRole === 'Administrator';
     };
@@ -174,9 +175,13 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
             title={KnowledgeCategory.Government}
             icon={<GlobeIcon className="w-6 h-6 mr-3 text-vesta-red" />}
             actionButton={
-                <button onClick={onAddAutomatedSource} className="flex items-center px-4 py-2 bg-vesta-red text-white text-sm font-semibold rounded-lg hover:bg-vesta-red-dark">
-                    <RefreshIcon className="w-5 h-5 mr-2" />
-                    Add Automated Source
+                <button 
+                    onClick={onAddAutomatedSource} 
+                    className="flex items-center px-4 py-2 bg-vesta-red text-white text-sm font-semibold rounded-lg hover:bg-vesta-red-dark disabled:opacity-50 disabled:cursor-wait"
+                    disabled={isSyncing}
+                >
+                    <RefreshIcon className={`w-5 h-5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing...' : 'Sync Sources'}
                 </button>
             }
         >
