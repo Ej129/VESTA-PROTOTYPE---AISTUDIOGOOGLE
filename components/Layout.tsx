@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
 import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, BriefcaseIcon } from './Icons';
 
@@ -21,6 +21,24 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
+  
+  const navRef = useRef<HTMLUListElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0, opacity: 0 });
+
+  useEffect(() => {
+    if (navRef.current) {
+        const activeNode = navRef.current.querySelector(`[data-screen="${activeScreen}"]`) as HTMLLIElement;
+
+        if (activeNode) {
+            setIndicatorStyle({
+                top: activeNode.offsetTop,
+                height: activeNode.offsetHeight,
+                opacity: 1,
+            });
+        }
+    }
+  }, [activeScreen]);
+
 
   return (
     <aside className="w-64 sidebar-bg text-white flex flex-col min-h-screen">
@@ -44,14 +62,19 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
       </div>
       
       <nav className="flex-1 px-4">
-        <ul className="space-y-2">
+        <ul ref={navRef} className="space-y-2 relative">
+          <div 
+            className="absolute left-0 w-full bg-vesta-gold rounded-lg transition-all duration-300 ease-in-out"
+            style={indicatorStyle}
+          />
           {navItems.map((item) => (
              <li
               key={item.text}
+              data-screen={item.screen}
               onClick={() => navigateTo(item.screen)}
-              className={`flex items-center px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 ${
+              className={`relative z-10 flex items-center px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 ${
                 activeScreen === item.screen
-                  ? 'bg-vesta-gold text-vesta-red font-bold'
+                  ? 'text-vesta-red font-bold'
                   : 'text-white/80 hover:bg-white/20 hover:text-white'
               }`}
             >
@@ -137,7 +160,7 @@ export const SidebarMainLayout: React.FC<SidebarMainLayoutProps> = (props) => {
           />
           <div className="flex-1 flex flex-col h-screen overflow-y-hidden">
             <Header workspace={currentWorkspace} userRole={userRole} onManageMembers={onManageMembers} />
-            <main className="flex-1 overflow-y-auto bg-vesta-bg-light dark:bg-vesta-bg-dark">
+            <main key={activeScreen} className="flex-1 overflow-y-auto bg-vesta-bg-light dark:bg-vesta-bg-dark animate-content-fade-in">
               {children}
             </main>
           </div>
