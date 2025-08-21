@@ -244,7 +244,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                         <p className="mt-2 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
                             {view === 'active' 
                                 ? 'Click the "New Analysis" button to get started.' 
-                                : 'You haven\\'t archived any analyses yet.'
+                                : 'You haven\'t archived any analyses yet.'
                             }
                         </p>
                     </div>

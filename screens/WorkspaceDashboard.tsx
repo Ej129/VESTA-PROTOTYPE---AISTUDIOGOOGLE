@@ -161,7 +161,7 @@ const WorkspaceDashboard: React.FC<WorkspaceDashboardProps> = ({ workspaces, onS
                         <p className="mt-2 mb-6 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark max-w-md mx-auto">
                             {view === 'active' 
                                 ? 'Create a new workspace to get started.' 
-                                : 'You haven\\'t archived any workspaces yet.'
+                                : 'You haven\'t archived any workspaces yet.'
                             }
                         </p>
                     </div>
