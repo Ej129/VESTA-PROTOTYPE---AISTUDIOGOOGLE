@@ -11,6 +11,24 @@ interface UploadModalProps {
   onClose: () => void;
 }
 
+const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = (error) => reject(error);
+        reader.readAsArrayBuffer(file);
+    });
+};
+
+const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+        reader.readAsText(file);
+    });
+};
+
 const UploadModal: React.FC<UploadModalProps> = ({ onUpload, onClose }) => {
   const [text, setText] = useState('');
   const [fileName, setFileName] = useState('');
@@ -18,80 +36,50 @@ const UploadModal: React.FC<UploadModalProps> = ({ onUpload, onClose }) => {
   const [status, setStatus] = useState<'idle' | 'parsing' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const readFile = async (file: File) => {
+  const processFile = async (file: File) => {
     setFileName(file.name);
     setStatus('parsing');
     setErrorMessage('');
-    setText(''); // Clear previous text content
+    setText('');
 
     const extension = file.name.split('.').pop()?.toLowerCase();
-    const reader = new FileReader();
-
+    
     try {
         if (extension === 'pdf') {
-            reader.onload = async (event) => {
-                try {
-                    if (!event.target?.result) throw new Error("File could not be read.");
-                    const arrayBuffer = event.target.result as ArrayBuffer;
-                    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-                    let fullText = '';
-                    for (let i = 1; i <= pdf.numPages; i++) {
-                        const page = await pdf.getPage(i);
-                        const textContent = await page.getTextContent();
-                        const pageText = textContent.items.map(item => ('str' in item ? item.str : '')).join(' ');
-                        fullText += pageText + '\n\n';
-                    }
-                    setText(fullText);
-                    setStatus('idle');
-                } catch (e) {
-                    console.error('Error parsing PDF:', e);
-                    setErrorMessage('Could not read PDF. It might be corrupted or protected.');
-                    setStatus('error');
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => ('str' in item ? item.str : '')).join(' ');
+                fullText += pageText + '\n\n';
+            }
+            setText(fullText);
+            setStatus('idle');
         } else if (extension === 'docx') {
-            reader.onload = async (event) => {
-                try {
-                    if (!event.target?.result) throw new Error("File could not be read.");
-                    const arrayBuffer = event.target.result as ArrayBuffer;
-                    const result = await mammoth.extractRawText({ arrayBuffer });
-                    setText(result.value);
-                    setStatus('idle');
-                } catch (e) {
-                    console.error('Error parsing DOCX:', e);
-                    setErrorMessage('Could not read DOCX file. It might be corrupted.');
-                    setStatus('error');
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            setText(result.value);
+            setStatus('idle');
         } else if (extension === 'txt') {
-            reader.onload = (event) => {
-                setText(event.target?.result as string);
-                setStatus('idle');
-            };
-            reader.readAsText(file);
+            const textContent = await readFileAsText(file);
+            setText(textContent);
+            setStatus('idle');
         } else {
             setErrorMessage(`Unsupported file type: .${extension}. Please use PDF, DOCX, or TXT.`);
             setStatus('error');
         }
     } catch (e) {
-        console.error('File reading error:', e);
-        setErrorMessage('An unexpected error occurred while reading the file.');
+        console.error('File processing error:', e);
+        setErrorMessage('Could not read file. It might be corrupted or in an unsupported format.');
         setStatus('error');
     }
   };
 
   const handleFileAction = useCallback((file: File | undefined) => {
     if (file) {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      if (extension && ['pdf', 'docx', 'txt'].includes(extension)) {
-         readFile(file);
-      } else {
-          setErrorMessage(`Unsupported file type. Please upload a PDF, DOCX, or TXT file, or paste its content below.`);
-          setStatus('error');
-          setFileName(file.name);
-      }
+      processFile(file);
     }
   }, []);
 
@@ -104,7 +92,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ onUpload, onClose }) => {
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     handleFileAction(e.target.files?.[0]);
-    // Reset file input to allow uploading the same file again
     e.target.value = '';
   }, [handleFileAction]);
 

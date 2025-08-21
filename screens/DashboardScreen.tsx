@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Screen, AnalysisReport, ScreenLayoutProps, UserRole } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
@@ -67,7 +68,7 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({ report, action, userRole, o
                         <MoreVerticalIcon className="w-5 h-5" />
                     </button>
                     {menuOpen && (
-                        <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-20 border border-vesta-border-light dark:border-vesta-border-dark py-1">
+                        <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-50 border border-vesta-border-light dark:border-vesta-border-dark py-1">
                             {isArchived ? (
                                 <button onClick={(e) => { e.stopPropagation(); onUnarchive(); setMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-gray-100 dark:hover:bg-black">Unarchive</button>
                             ) : (

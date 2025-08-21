@@ -36,6 +36,28 @@ const SettingsInput = ({ label, type, id, value, onChange, placeholder, disabled
     </div>
 );
 
+const useLocalStorageState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
+  const [state, setState] = useState<T>(() => {
+    try {
+      const storedValue = localStorage.getItem(key);
+      return storedValue ? JSON.parse(storedValue) : defaultValue;
+    } catch (error) {
+      console.error("Error reading from localStorage", error);
+      return defaultValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(state));
+    } catch (error) {
+      console.error("Error writing to localStorage", error);
+    }
+  }, [key, state]);
+
+  return [state, setState];
+};
+
 const SettingsToggle = ({ label, enabled, setEnabled }: { label: string, enabled: boolean, setEnabled: (enabled: boolean) => void }) => (
     <div className="flex items-center justify-between">
         <span className="text-vesta-text-light dark:text-vesta-text-dark">{label}</span>
@@ -52,10 +74,12 @@ const ProfileSettings = ({ user, onUserUpdate }: { user: User, onUserUpdate: (us
     const [theme, setTheme] = useState(localStorage.getItem('vesta-theme') || 'light');
     const [name, setName] = useState(user.name);
     const [profilePic, setProfilePic] = useState<string | null>(user.avatar || null);
+    const [currentPassword, setCurrentPassword] = useState('');
     const profilePicInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setName(user.name);
+        setProfilePic(user.avatar || null);
     }, [user]);
 
     useEffect(() => {
@@ -88,6 +112,14 @@ const ProfileSettings = ({ user, onUserUpdate }: { user: User, onUserUpdate: (us
         setName(user.name);
         setProfilePic(user.avatar || null);
     }
+    
+    const handleUpdatePassword = () => {
+        if (!currentPassword) {
+            alert("Please enter your current password to make changes.");
+            return;
+        }
+        alert("In a real application, password update logic would be handled here.");
+    }
 
     return (
         <div className="space-y-8">
@@ -110,11 +142,11 @@ const ProfileSettings = ({ user, onUserUpdate }: { user: User, onUserUpdate: (us
 
              <SettingsCard title="Password Management" subtitle="Manage your password for added security.">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <SettingsInput label="New Password" id="newPassword" type="password" value="" onChange={() => {}} />
-                    <SettingsInput label="Confirm New Password" id="confirmPassword" type="password" value="" onChange={() => {}} />
+                    <SettingsInput label="Current Password" id="currentPassword" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+                    <SettingsInput label="New Password" id="newPassword" type="password" value="" onChange={() => {}} placeholder="Leave blank to keep unchanged" />
                 </div>
                  <div className="flex justify-end">
-                    <button className="px-6 py-2 font-semibold text-white bg-vesta-red rounded-lg hover:bg-vesta-red-dark">Update Password</button>
+                    <button onClick={handleUpdatePassword} className="px-6 py-2 font-semibold text-white bg-vesta-red rounded-lg hover:bg-vesta-red-dark">Update Password</button>
                 </div>
             </SettingsCard>
             
@@ -142,12 +174,12 @@ const ProfileSettings = ({ user, onUserUpdate }: { user: User, onUserUpdate: (us
 
 
 const NotificationsSettings = () => {
-    const [email, setEmail] = useState(true);
-    const [inApp, setInApp] = useState(true);
-    const [analysisComplete, setAnalysisComplete] = useState(true);
-    const [assignedFinding, setAssignedFinding] = useState(true);
-    const [reportComment, setReportComment] = useState(false);
-    const [weeklySummary, setWeeklySummary] = useState(true);
+    const [email, setEmail] = useLocalStorageState('vesta-notif-email', true);
+    const [inApp, setInApp] = useLocalStorageState('vesta-notif-inApp', true);
+    const [analysisComplete, setAnalysisComplete] = useLocalStorageState('vesta-notif-analysisComplete', true);
+    const [assignedFinding, setAssignedFinding] = useLocalStorageState('vesta-notif-assignedFinding', true);
+    const [reportComment, setReportComment] = useLocalStorageState('vesta-notif-reportComment', false);
+    const [weeklySummary, setWeeklySummary] = useLocalStorageState('vesta-notif-weeklySummary', true);
 
     return (
         <div className="space-y-8">

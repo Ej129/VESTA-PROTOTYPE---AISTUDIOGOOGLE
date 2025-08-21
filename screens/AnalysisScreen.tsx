@@ -1,8 +1,9 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole, CustomRegulation } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { SparklesIcon, DownloadIcon, CheckCircleIcon, ChevronDownIcon } from '../components/Icons';
+import { SparklesIcon, DownloadIcon, CheckCircleIcon, ChevronDownIcon, RefreshIcon } from '../components/Icons';
 import UploadModal from '../components/UploadModal';
 import { analyzePlan, improvePlan } from '../api/vesta';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
@@ -118,6 +119,7 @@ const improvingSteps = [
 interface AnalysisScreenProps extends ScreenLayoutProps {
   activeReport: AnalysisReport | null;
   onAnalysisComplete: (report: Omit<AnalysisReport, 'id'|'workspaceId'|'createdAt'>) => void;
+  onUpdateReport: (report: AnalysisReport) => void;
   addAuditLog: (action: AuditLogAction, details: string) => void;
   knowledgeBaseSources: KnowledgeSource[];
   dismissalRules: DismissalRule[];
@@ -125,7 +127,7 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   customRegulations: CustomRegulation[];
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, customRegulations, ...layoutProps }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, onUpdateReport, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, customRegulations, ...layoutProps }) => {
   const { navigateTo } = layoutProps;
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [editorHtml, setEditorHtml] = useState('');
@@ -155,18 +157,16 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 };
 
 
-  const updateReportData = (report: AnalysisReport) => {
+  const updateLocalReportData = (report: AnalysisReport) => {
     setCurrentReport(report);
     const highlightedHtml = highlightContent(report.documentContent, report.findings);
     setEditorHtml(highlightedHtml);
     setPlainTextContent(report.documentContent);
-    const firstActiveFinding = report.findings.find(f => f.status === 'active');
-    setOpenAccordionId(firstActiveFinding?.id || report.findings[0]?.id || null);
   }
 
   useEffect(() => {
     if (activeReport) {
-        updateReportData(activeReport);
+        updateLocalReportData(activeReport);
         setShowUploadModal(false);
     } else {
       setShowUploadModal(true);
@@ -186,13 +186,15 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   }, []);
   
   const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
-    addAuditLog(status === 'resolved' ? 'Finding Resolved' : 'Finding Dismissed', `Status of finding ${findingId} changed to ${status}.`);
     setCurrentReport(prev => {
         if (!prev) return null;
-        return {
+        const updatedReport = {
             ...prev,
             findings: prev.findings.map(f => f.id === findingId ? { ...f, status } : f)
         };
+        onUpdateReport(updatedReport);
+        addAuditLog(status === 'resolved' ? 'Finding Resolved' : 'Finding Dismissed', JSON.stringify({message: `Status of finding "${updatedReport.findings.find(f=>f.id === findingId)?.title}" changed to ${status}.`, reportId: updatedReport.id}));
+        return updatedReport;
     });
   };
 
@@ -212,26 +214,40 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
   const handleAutoFix = async () => {
       if (!currentReport) return;
-      addAuditLog('Auto-Fix', `Auto-fix initiated for: ${currentReport.title}`);
+      addAuditLog('Auto-Fix', JSON.stringify({message: `Auto-fix initiated for: ${currentReport.title}`, reportId: currentReport.id}));
       setIsImproving(true);
       
-      const originalPlainText = plainTextContent; // Save original content for diff
+      const originalPlainText = plainTextContent;
       const improvedText = await improvePlan(originalPlainText, currentReport);
       
-      const newFindings = currentReport.findings.map(f => ({ ...f, status: 'resolved' as FindingStatus }));
-      
-      const diffHtml = createDiffHtml(originalPlainText, improvedText);
-
-      setEditorHtml(diffHtml);
-      setPlainTextContent(improvedText);
-      setCurrentReport(prev => prev ? {
-          ...prev,
+      const updatedReport = {
+          ...currentReport,
           documentContent: improvedText,
-          findings: newFindings
-      } : null);
+          findings: currentReport.findings.map(f => ({ ...f, status: 'resolved' as FindingStatus }))
+      };
+
+      setPlainTextContent(improvedText);
+      setEditorHtml(createDiffHtml(originalPlainText, improvedText));
+      setCurrentReport(updatedReport);
+      onUpdateReport(updatedReport);
 
       setIsImproving(false);
   };
+  
+  const handleReanalyze = async () => {
+    if (!currentReport) return;
+    setIsLoading(true);
+    const reportData = await analyzePlan(plainTextContent, knowledgeBaseSources, dismissalRules, customRegulations);
+    const updatedReport = {
+      ...currentReport,
+      ...reportData,
+      documentContent: plainTextContent, // Keep the edited content
+      title: `${currentReport.title} (Re-analyzed)`
+    };
+    onUpdateReport(updatedReport);
+    addAuditLog('Analysis Run', JSON.stringify({ message: `Re-analysis completed for: ${updatedReport.title}`, reportId: updatedReport.id }));
+    setIsLoading(false);
+  }
 
   const handleDownload = (format: 'PDF' | 'TXT') => {
       setIsDownloadOpen(false);
@@ -272,13 +288,16 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
   const handleSaveChanges = () => {
     setIsEditing(false);
-    if (!currentReport) return;
+    if (!currentReport || currentReport.documentContent === plainTextContent) return;
+    
+    const updatedReport = {
+      ...currentReport,
+      documentContent: plainTextContent,
+    };
     const newHighlightedHtml = highlightContent(plainTextContent, currentReport.findings);
     setEditorHtml(newHighlightedHtml);
-    setCurrentReport(prev => prev ? {
-      ...prev,
-      documentContent: plainTextContent,
-    } : null);
+    setCurrentReport(updatedReport);
+    onUpdateReport(updatedReport);
   };
 
   const handleDismissClick = (finding: Finding) => {
@@ -339,16 +358,21 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                             <ChevronDownIcon className="w-4 h-4 ml-1" />
                         </button>
                         {isDownloadOpen && (
-                            <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-10 border border-vesta-border-light dark:border-vesta-border-dark">
+                            <div className="absolute right-0 mt-2 w-40 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-50 border border-vesta-border-light dark:border-vesta-border-dark">
                                 <a onClick={() => handleDownload('PDF')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">PDF</a>
                                 <a onClick={() => handleDownload('TXT')} className="block px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-vesta-bg-light dark:hover:bg-vesta-bg-dark cursor-pointer">TXT</a>
                             </div>
                         )}
                     </div>
                      {isEditing ? (
-                        <button onClick={handleSaveChanges} className="flex items-center px-4 py-2 bg-accent-success text-white font-bold rounded-lg transition text-sm">
-                            Save Changes
-                        </button>
+                        <>
+                          <button onClick={handleReanalyze} className="flex items-center px-4 py-2 bg-vesta-gold text-white font-bold rounded-lg transition text-sm">
+                              <RefreshIcon className="w-4 h-4 mr-2" /> Re-Analyze
+                          </button>
+                          <button onClick={handleSaveChanges} className="flex items-center px-4 py-2 bg-accent-success text-white font-bold rounded-lg transition text-sm">
+                              Save Changes
+                          </button>
+                        </>
                     ) : (
                         <button onClick={() => setIsEditing(true)} disabled={!canEdit} className="flex items-center px-4 py-2 bg-vesta-card-light dark:bg-vesta-card-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-200 dark:hover:bg-vesta-card-dark/50 transition text-sm font-semibold focus:ring-2 focus:ring-vesta-red disabled:opacity-50">
                             Edit Manually

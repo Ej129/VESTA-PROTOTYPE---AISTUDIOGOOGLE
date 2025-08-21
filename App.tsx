@@ -80,6 +80,26 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
   const knownWorkspaceIds = useRef(new Set<string>());
 
+  // Global Theme Persistence Fix
+  useEffect(() => {
+    const handleThemeChange = () => {
+      if (localStorage.getItem('vesta-theme') === 'dark' || (!('vesta-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    
+    // Listen for changes from other tabs/windows
+    window.addEventListener('storage', handleThemeChange);
+    // Apply theme on initial load
+    handleThemeChange();
+
+    return () => {
+      window.removeEventListener('storage', handleThemeChange);
+    };
+  }, []);
+
   const navigateTo: NavigateTo = (newScreen: Screen) => {
     setScreen(newScreen);
   };
@@ -131,6 +151,7 @@ const App: React.FC = () => {
       setScreen(Screen.WorkspaceDashboard);
       knownWorkspaceIds.current.clear();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, refreshWorkspaces]);
 
   // Poll for new workspaces
@@ -193,9 +214,15 @@ const App: React.FC = () => {
     if (!selectedWorkspace) return;
     const newReport = { ...report, workspaceId: selectedWorkspace.id };
     const addedReport = await workspaceApi.addReport(newReport);
-    await addAuditLog('Analysis Run', `Analysis completed for: ${report.title}`);
+    await addAuditLog('Analysis Run', JSON.stringify({ message: `Analysis completed for: ${report.title}`, reportId: addedReport.id }));
     await loadWorkspaceData(selectedWorkspace.id);
     setActiveReport(addedReport);
+  };
+
+  // Persists report changes (edits, auto-fix, status changes)
+  const handleUpdateReport = (updatedReport: AnalysisReport) => {
+      setReports(prevReports => prevReports.map(r => r.id === updatedReport.id ? updatedReport : r));
+      setActiveReport(updatedReport); // Keep the active report in sync
   };
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
@@ -277,7 +304,7 @@ const App: React.FC = () => {
     await workspaceApi.updateReportStatus(reportId, status);
     const report = reports.find(r => r.id === reportId);
     const action: AuditLogAction = status === 'archived' ? 'Analysis Archived' : 'Analysis Unarchived';
-    await addAuditLog(action, `Report "${report?.title}" status changed to ${status}.`);
+    await addAuditLog(action, JSON.stringify({ message: `Report "${report?.title}" status changed to ${status}.`, reportId: reportId }));
     await loadWorkspaceData(selectedWorkspace.id);
   };
 
@@ -285,7 +312,7 @@ const App: React.FC = () => {
     if (!selectedWorkspace) return;
     const report = reports.find(r => r.id === reportId);
     await workspaceApi.deleteReport(reportId);
-    await addAuditLog('Analysis Deleted', `Report "${report?.title}" was permanently deleted.`);
+    await addAuditLog('Analysis Deleted', JSON.stringify({ message: `Report "${report?.title}" was permanently deleted.`, reportId: reportId }));
     await loadWorkspaceData(selectedWorkspace.id);
   };
 
@@ -330,10 +357,10 @@ const App: React.FC = () => {
         screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
         break;
       case Screen.Analysis:
-        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} dismissalRules={dismissalRules} onAddDismissalRule={addDismissalRule} customRegulations={customRegulations} />;
+        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} dismissalRules={dismissalRules} onAddDismissalRule={addDismissalRule} customRegulations={customRegulations} />;
         break;
       case Screen.AuditTrail:
-        screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} />;
+        screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
         break;
       case Screen.KnowledgeBase:
         screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} />;

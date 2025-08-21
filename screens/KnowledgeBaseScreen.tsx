@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Screen, KnowledgeSource, KnowledgeCategory, ScreenLayoutProps, UserRole } from '../types';
 import { SidebarMainLayout } from '../components/Layout';
-import { PlusIcon, TrashIcon, ChevronDownIcon, GlobeIcon, RefreshIcon, ShieldIcon, KeyIcon } from '../components/Icons';
+import { PlusIcon, TrashIcon, ChevronDownIcon, GlobeIcon, RefreshIcon, ShieldIcon, KeyIcon, UploadCloudIcon } from '../components/Icons';
+import * as pdfjs from 'pdfjs-dist';
+
+// Set worker source for pdf.js. This is required for it to work in a browser environment from a CDN.
+pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs`;
 
 interface KnowledgeBaseScreenProps extends ScreenLayoutProps {
   sources: KnowledgeSource[];
@@ -45,6 +49,7 @@ const AddSourceForm = ({ category, onAddSource }: { category: KnowledgeCategory,
     const [newTitle, setNewTitle] = useState('');
     const [newContent, setNewContent] = useState('');
     const [isAdding, setIsAdding] = useState(false);
+    const pdfInputRef = useRef<HTMLInputElement>(null);
 
     const handleAddSource = () => {
         if (!newTitle.trim() || !newContent.trim()) {
@@ -58,6 +63,35 @@ const AddSourceForm = ({ category, onAddSource }: { category: KnowledgeCategory,
           setNewContent('');
           setIsAdding(false);
         }, 300);
+    };
+    
+    const handlePdfUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsAdding(true);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                if (!e.target?.result) throw new Error("File could not be read.");
+                const arrayBuffer = e.target.result as ArrayBuffer;
+                const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => ('str' in item ? item.str : '')).join(' ');
+                    fullText += pageText + '\n\n';
+                }
+                onAddSource(file.name, fullText, category);
+                setIsAdding(false);
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (error) {
+            alert("Failed to parse PDF file.");
+            console.error("PDF Parsing Error:", error);
+            setIsAdding(false);
+        }
     };
 
     return (
@@ -79,7 +113,18 @@ const AddSourceForm = ({ category, onAddSource }: { category: KnowledgeCategory,
                     className="w-full h-40 px-4 py-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-vesta-red bg-vesta-bg-light dark:bg-vesta-bg-dark text-vesta-text-light dark:text-vesta-text-dark resize-y"
                     disabled={isAdding}
                 />
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <input type="file" accept=".pdf" ref={pdfInputRef} onChange={handlePdfUpload} className="hidden" />
+                        <button 
+                            onClick={() => pdfInputRef.current?.click()}
+                            disabled={isAdding}
+                            className="flex items-center justify-center px-4 py-2 bg-transparent border-2 border-vesta-gold rounded-lg text-sm font-bold text-vesta-red hover:bg-vesta-gold hover:text-white transition-colors disabled:opacity-50"
+                        >
+                            <UploadCloudIcon className="w-5 h-5 mr-2" />
+                            Upload PDF
+                        </button>
+                    </div>
                     <button 
                         onClick={handleAddSource}
                         disabled={isAdding || !newTitle.trim() || !newContent.trim()}
