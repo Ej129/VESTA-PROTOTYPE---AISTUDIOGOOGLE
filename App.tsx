@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -15,6 +14,7 @@ import ManageMembersModal from './components/ManageMembersModal';
 import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon } from './components/Icons';
 import NotificationToast from './components/NotificationToast';
+import { SidebarMainLayout } from './components/Layout';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 text-center">
@@ -94,7 +94,7 @@ const App: React.FC = () => {
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
 
-  const [screen, setScreen] = useState<Screen>(Screen.WorkspaceDashboard);
+  const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -404,9 +404,16 @@ const App: React.FC = () => {
     }
   };
 
-  const renderScreen = () => {
-    if (loading) return <InitializingScreen />;
-    if (!currentUser) return <LoginScreen />;
+  const renderContent = () => {
+    const layoutProps = {
+        navigateTo,
+        currentUser: currentUser!,
+        onLogout: handleLogout,
+        currentWorkspace: selectedWorkspace,
+        onBackToWorkspaces: handleBackToWorkspaces,
+        onManageMembers: () => setManageMembersModalOpen(true),
+        userRole,
+    };
 
     if (!selectedWorkspace) {
         return (
@@ -415,8 +422,7 @@ const App: React.FC = () => {
                     workspaces={workspaces}
                     onSelectWorkspace={handleSelectWorkspace}
                     onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
-                    currentUser={currentUser}
-                    onLogout={handleLogout}
+                    currentUser={currentUser!}
                     onUpdateWorkspaceStatus={handleUpdateWorkspaceStatus}
                     onDeleteWorkspace={handleDeleteWorkspace}
                 />
@@ -429,16 +435,6 @@ const App: React.FC = () => {
             </>
         );
     }
-
-    const layoutProps = {
-        navigateTo,
-        currentUser,
-        onLogout: handleLogout,
-        currentWorkspace: selectedWorkspace,
-        onBackToWorkspaces: handleBackToWorkspaces,
-        onManageMembers: () => setManageMembersModalOpen(true),
-        userRole,
-    };
 
     let screenComponent: React.ReactNode;
 
@@ -479,6 +475,9 @@ const App: React.FC = () => {
     );
   };
 
+  if (loading) return <InitializingScreen />;
+  if (!currentUser) return <LoginScreen />;
+
   return (
     <div className="font-sans bg-vesta-bg-light dark:bg-vesta-bg-dark min-h-screen text-vesta-text-light dark:text-vesta-text-dark">
         {notification && (
@@ -488,7 +487,18 @@ const App: React.FC = () => {
                 onClose={() => setNotification(null)}
             />
         )}
-      {renderScreen()}
+        <SidebarMainLayout
+            navigateTo={navigateTo}
+            activeScreen={selectedWorkspace ? screen : Screen.WorkspaceDashboard}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            currentWorkspace={selectedWorkspace}
+            onBackToWorkspaces={handleBackToWorkspaces}
+            userRole={userRole}
+            onManageMembers={() => setManageMembersModalOpen(true)}
+        >
+            {renderContent()}
+        </SidebarMainLayout>
     </div>
   );
 }

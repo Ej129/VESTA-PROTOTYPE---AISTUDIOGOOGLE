@@ -1,6 +1,7 @@
+
+
 import React, { useState } from 'react';
 import { Screen, AuditLog, ScreenLayoutProps, AnalysisReport } from '../types';
-import { SidebarMainLayout } from '../components/Layout';
 import { ExportIcon, HistoryIcon, LinkIcon } from '../components/Icons';
 
 
@@ -10,7 +11,7 @@ interface AuditTrailScreenProps extends ScreenLayoutProps {
   onSelectReport: (report: AnalysisReport) => void;
 }
 
-const AuditTrailScreen: React.FC<AuditTrailScreenProps> = ({ logs, reports, onSelectReport, ...layoutProps }) => {
+const AuditTrailScreen: React.FC<AuditTrailScreenProps> = ({ logs, reports, onSelectReport }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const handleExport = () => {
@@ -37,7 +38,7 @@ const AuditTrailScreen: React.FC<AuditTrailScreenProps> = ({ logs, reports, onSe
     });
 
   return (
-    <SidebarMainLayout {...layoutProps} activeScreen={Screen.AuditTrail}>
+    <>
       <div className="p-8 space-y-6">
         <div className="bg-vesta-card-light dark:bg-vesta-card-dark p-4 rounded-lg shadow-md border border-vesta-border-light dark:border-vesta-border-dark flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex flex-col md:flex-row items-center gap-4 w-full">
@@ -118,7 +119,7 @@ const AuditTrailScreen: React.FC<AuditTrailScreenProps> = ({ logs, reports, onSe
           )}
         </div>
       </div>
-    </SidebarMainLayout>
+    </>
   );
 };
 

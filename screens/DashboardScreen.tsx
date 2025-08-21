@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Screen, AnalysisReport, ScreenLayoutProps, UserRole } from '../types';
-import { SidebarMainLayout } from '../components/Layout';
 import { PlusIcon, BriefcaseIcon, ShieldIcon, AlertTriangleIcon, MoreVerticalIcon } from '../components/Icons';
 
 
@@ -167,8 +166,7 @@ const AtAGlance: React.FC<{reports: AnalysisReport[]}> = ({ reports }) => {
     );
 }
 
-const DashboardScreen: React.FC<DashboardScreenProps> = (props) => {
-  const { 
+const DashboardScreen: React.FC<DashboardScreenProps> = ({ 
     reports, 
     onSelectReport, 
     onStartNewAnalysis, 
@@ -176,7 +174,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = (props) => {
     userRole,
     onUpdateReportStatus,
     onDeleteReport,
-  } = props;
+  }) => {
   
   const [view, setView] = useState<'active' | 'archived'>('active');
   const [reportToDelete, setReportToDelete] = useState<AnalysisReport | null>(null);
@@ -197,7 +195,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = (props) => {
   };
   
   return (
-    <SidebarMainLayout {...props} activeScreen={Screen.Dashboard}>
+    <>
       <div className="p-8">
           <div className="space-y-8">
               <div className="flex justify-between items-center">
@@ -246,7 +244,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = (props) => {
                         <p className="mt-2 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
                             {view === 'active' 
                                 ? 'Click the "New Analysis" button to get started.' 
-                                : 'You haven\'t archived any analyses yet.'
+                                : 'You haven\\'t archived any analyses yet.'
                             }
                         </p>
                     </div>
@@ -262,7 +260,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = (props) => {
           onCancel={() => setReportToDelete(null)}
         />
       )}
-    </SidebarMainLayout>
+    </>
   );
 };
 

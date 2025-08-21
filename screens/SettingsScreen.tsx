@@ -1,6 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, DismissalRule, ScreenLayoutProps, CustomRegulation } from '../types';
-import { SidebarMainLayout } from '../components/Layout';
 import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon, MoonIcon, SunIcon, TrashIcon, BrainCircuitIcon, PlusIcon } from '../components/Icons';
 
 interface SettingsScreenProps extends ScreenLayoutProps {
@@ -314,9 +314,8 @@ const RegulationsSettings = ({ regulations, onAdd, onDelete }: { regulations: Cu
 }
 
 
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, customRegulations, onAddRegulation, onDeleteRegulation, ...layoutProps }) => {
+const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, customRegulations, onAddRegulation, onDeleteRegulation, currentUser, userRole }) => {
     const [activeTab, setActiveTab] = useState('profile');
-    const { currentUser, userRole } = layoutProps;
     
     const baseTabs = [
         { id: 'profile', label: 'Profile', icon: <UserProfileIcon className="w-5 h-5 mr-3" /> },
@@ -342,33 +341,31 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDelet
     };
 
     return (
-        <SidebarMainLayout {...layoutProps} activeScreen={Screen.Settings}>
-            <div className="p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    <aside className="lg:col-span-1">
-                        <nav className="space-y-1">
-                            {TABS.map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                        activeTab === tab.id
-                                            ? 'bg-vesta-red text-white'
-                                            : 'text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-200 dark:hover:bg-vesta-card-dark'
-                                    }`}
-                                >
-                                    {tab.icon}
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </nav>
-                    </aside>
-                    <div className="lg:col-span-3">
-                        {renderContent()}
-                    </div>
+        <div className="p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <aside className="lg:col-span-1">
+                    <nav className="space-y-1">
+                        {TABS.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                    activeTab === tab.id
+                                        ? 'bg-vesta-red text-white'
+                                        : 'text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-200 dark:hover:bg-vesta-card-dark'
+                                }`}
+                            >
+                                {tab.icon}
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
+                </aside>
+                <div className="lg:col-span-3">
+                    {renderContent()}
                 </div>
             </div>
-        </SidebarMainLayout>
+        </div>
     );
 };
 

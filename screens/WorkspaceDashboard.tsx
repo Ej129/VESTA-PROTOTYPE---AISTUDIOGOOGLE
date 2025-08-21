@@ -1,14 +1,14 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Workspace, User } from '../types';
-import { VestaLogo, LogoutIcon, PlusIcon, BriefcaseIcon, MoreVerticalIcon } from '../components/Icons';
+import { PlusIcon, BriefcaseIcon, MoreVerticalIcon } from '../components/Icons';
 
 interface WorkspaceDashboardProps {
     workspaces: Workspace[];
     onSelectWorkspace: (workspace: Workspace) => void;
     onCreateWorkspace: () => void;
     currentUser: User;
-    onLogout: () => void;
     onUpdateWorkspaceStatus: (workspaceId: string, status: 'active' | 'archived') => void;
     onDeleteWorkspace: (workspaceId: string) => void;
 }
@@ -97,7 +97,7 @@ const ConfirmationModal: React.FC<{ title: string; message: string; onConfirm: (
     );
 };
 
-const WorkspaceDashboard: React.FC<WorkspaceDashboardProps> = ({ workspaces, onSelectWorkspace, onCreateWorkspace, currentUser, onLogout, onUpdateWorkspaceStatus, onDeleteWorkspace }) => {
+const WorkspaceDashboard: React.FC<WorkspaceDashboardProps> = ({ workspaces, onSelectWorkspace, onCreateWorkspace, currentUser, onUpdateWorkspaceStatus, onDeleteWorkspace }) => {
     
     const [view, setView] = useState<'active' | 'archived'>('active');
     const [workspaceToDelete, setWorkspaceToDelete] = useState<Workspace | null>(null);
@@ -117,40 +117,11 @@ const WorkspaceDashboard: React.FC<WorkspaceDashboardProps> = ({ workspaces, onS
         }
     };
     
-    const getInitials = (name: string) => {
-        return name.split(' ').map(n => n[0]).join('').toUpperCase();
-    };
-    
     return (
-        <div className="min-h-screen bg-vesta-bg-light dark:bg-vesta-bg-dark">
-            <header className="bg-vesta-card-light dark:bg-vesta-card-dark h-16 px-6 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center">
-                <div className="flex items-center">
-                    <VestaLogo className="w-10 h-10" />
-                    <h1 className="text-2xl font-bold ml-3 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">Vesta</h1>
-                </div>
-                <div className="flex items-center space-x-4">
-                     <div className="flex items-center p-2 rounded-lg">
-                        <div className="w-10 h-10 bg-vesta-red rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                             {currentUser.avatar ? (
-                                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-                              ) : (
-                                getInitials(currentUser.name)
-                              )}
-                        </div>
-                        <div className="ml-3 text-right">
-                            <p className="font-semibold text-vesta-text-light dark:text-vesta-text-dark text-sm">{currentUser.name}</p>
-                            <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark text-xs">{currentUser.email}</p>
-                        </div>
-                    </div>
-                    <button onClick={onLogout} className="p-2 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-vesta-red dark:hover:text-white" aria-label="Logout">
-                        <LogoutIcon className="w-6 h-6" />
-                    </button>
-                </div>
-            </header>
-            <main className="p-8 max-w-7xl mx-auto">
+        <>
+            <div className="p-8">
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-vesta-text-light dark:text-vesta-text-dark">Your Workspaces</h1>
                         <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-1">Select a workspace to continue or create a new one.</p>
                     </div>
                     <button 
@@ -190,12 +161,12 @@ const WorkspaceDashboard: React.FC<WorkspaceDashboardProps> = ({ workspaces, onS
                         <p className="mt-2 mb-6 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark max-w-md mx-auto">
                             {view === 'active' 
                                 ? 'Create a new workspace to get started.' 
-                                : 'You haven\'t archived any workspaces yet.'
+                                : 'You haven\\'t archived any workspaces yet.'
                             }
                         </p>
                     </div>
                 )}
-            </main>
+            </div>
             {workspaceToDelete && (
                 <ConfirmationModal 
                     title="Confirm Deletion"
@@ -204,7 +175,7 @@ const WorkspaceDashboard: React.FC<WorkspaceDashboardProps> = ({ workspaces, onS
                     onCancel={() => setWorkspaceToDelete(null)}
                 />
             )}
-        </div>
+        </>
     );
 };
 

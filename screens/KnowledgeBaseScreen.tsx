@@ -1,6 +1,6 @@
+
 import React, { useState, useRef } from 'react';
 import { Screen, KnowledgeSource, KnowledgeCategory, ScreenLayoutProps, UserRole } from '../types';
-import { SidebarMainLayout } from '../components/Layout';
 import { PlusIcon, TrashIcon, ChevronDownIcon, GlobeIcon, RefreshIcon, ShieldIcon, KeyIcon, UploadCloudIcon } from '../components/Icons';
 import * as pdfjs from 'pdfjs-dist';
 
@@ -155,7 +155,7 @@ const KnowledgeCategorySection = ({ title, icon, children, actionButton }: { tit
     </div>
 );
 
-const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAddSource, onDeleteSource, onAddAutomatedSource, isSyncing, userRole, ...layoutProps }) => {
+const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAddSource, onDeleteSource, onAddAutomatedSource, isSyncing, userRole }) => {
     const getCanDelete = (source: KnowledgeSource) => {
         return source.isEditable && userRole === 'Administrator';
     };
@@ -169,7 +169,7 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
     const strategySources = sources.filter(s => s.category === KnowledgeCategory.Strategy);
 
   return (
-    <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.KnowledgeBase}>
+    <>
       <div className="p-8 space-y-8">
         <KnowledgeCategorySection
             title={KnowledgeCategory.Government}
@@ -190,40 +190,40 @@ const KnowledgeBaseScreen: React.FC<KnowledgeBaseScreenProps> = ({ sources, onAd
                   <KnowledgeSourceCard key={source.id} source={source} onDelete={onDeleteSource} canDelete={getCanDelete(source)} />
               ))
           ) : (
-            <p className="text-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark p-4">No government regulations have been added yet.</p>
+              <p className="text-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark p-4">No government sources found.</p>
           )}
+          {getCanAdd() && <AddSourceForm category={KnowledgeCategory.Government} onAddSource={onAddSource} />}
         </KnowledgeCategorySection>
 
         <KnowledgeCategorySection
             title={KnowledgeCategory.Risk}
-            icon={<ShieldIcon className="w-6 h-6 mr-3 text-accent-warning" />}
+            icon={<ShieldIcon className="w-6 h-6 mr-3 text-vesta-red" />}
         >
           {riskSources.length > 0 ? (
               riskSources.map(source => (
                   <KnowledgeSourceCard key={source.id} source={source} onDelete={onDeleteSource} canDelete={getCanDelete(source)} />
               ))
           ) : (
-            <p className="text-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark p-4">No risk management plans have been added yet.</p>
+              <p className="text-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark p-4">No risk management plans found.</p>
           )}
-          {getCanAdd() && <AddSourceForm category={KnowledgeCategory.Risk} onAddSource={onAddSource} />}
+           {getCanAdd() && <AddSourceForm category={KnowledgeCategory.Risk} onAddSource={onAddSource} />}
         </KnowledgeCategorySection>
-        
+
         <KnowledgeCategorySection
             title={KnowledgeCategory.Strategy}
-            icon={<KeyIcon className="w-6 h-6 mr-3 text-accent-success" />}
+            icon={<KeyIcon className="w-6 h-6 mr-3 text-vesta-red" />}
         >
           {strategySources.length > 0 ? (
               strategySources.map(source => (
                   <KnowledgeSourceCard key={source.id} source={source} onDelete={onDeleteSource} canDelete={getCanDelete(source)} />
               ))
           ) : (
-            <p className="text-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark p-4">No strategic direction documents have been added yet.</p>
+              <p className="text-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark p-4">No strategic documents found.</p>
           )}
-          {getCanAdd() && <AddSourceForm category={KnowledgeCategory.Strategy} onAddSource={onAddSource} />}
+           {getCanAdd() && <AddSourceForm category={KnowledgeCategory.Strategy} onAddSource={onAddSource} />}
         </KnowledgeCategorySection>
-
       </div>
-    </SidebarMainLayout>
+    </>
   );
 };
 

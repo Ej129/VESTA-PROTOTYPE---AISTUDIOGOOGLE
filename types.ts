@@ -127,7 +127,7 @@ export interface ScreenLayoutProps {
   navigateTo: NavigateTo;
   currentUser: User;
   onLogout: () => void;
-  currentWorkspace: Workspace;
+  currentWorkspace: Workspace | null;
   onBackToWorkspaces: () => void;
   onManageMembers: () => void;
   userRole: UserRole;

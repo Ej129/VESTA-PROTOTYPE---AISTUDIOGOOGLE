@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole, CustomRegulation } from '../types';
-import { SidebarMainLayout } from '../components/Layout';
 import { SparklesIcon, DownloadIcon, CheckCircleIcon, ChevronDownIcon, RefreshIcon } from '../components/Icons';
 import UploadModal from '../components/UploadModal';
 import { analyzePlan, improvePlan } from '../api/vesta';
@@ -127,8 +126,7 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   customRegulations: CustomRegulation[];
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, onUpdateReport, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, customRegulations, ...layoutProps }) => {
-  const { navigateTo } = layoutProps;
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, onUpdateReport, addAuditLog, knowledgeBaseSources, dismissalRules, onAddDismissalRule, userRole, customRegulations, navigateTo }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [editorHtml, setEditorHtml] = useState('');
   const [plainTextContent, setPlainTextContent] = useState('');
@@ -319,30 +317,24 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
   if (showUploadModal) {
       return (
-        <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
-          <UploadModal onUpload={handleFileUpload} onClose={() => navigateTo(Screen.Dashboard)} />
-        </SidebarMainLayout>
+        <UploadModal onUpload={handleFileUpload} onClose={() => navigateTo(Screen.Dashboard)} />
       );
   }
   
   if (isLoading) {
       return (
-          <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
-              <div className="flex-1 flex flex-col items-center justify-center h-full">
-                  <AnimatedChecklist steps={analysisSteps} title="Analyzing Your Document..." />
-              </div>
-          </SidebarMainLayout>
+        <div className="flex-1 flex flex-col items-center justify-center h-full">
+            <AnimatedChecklist steps={analysisSteps} title="Analyzing Your Document..." />
+        </div>
       );
   }
 
   if (!currentReport) return (
-    <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
-        <div className="p-8">No report selected.</div>
-    </SidebarMainLayout>
+    <div className="p-8">No report selected.</div>
   );
   
   return (
-    <SidebarMainLayout {...layoutProps} userRole={userRole} activeScreen={Screen.Analysis}>
+    <>
         <div className="p-6 space-y-6">
             {/* Header and Metrics */}
             <div className="flex justify-between items-start">
@@ -454,7 +446,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                 onSubmit={handleFeedbackSubmit}
             />
         )}
-    </SidebarMainLayout>
+    </>
   );
 };
 
