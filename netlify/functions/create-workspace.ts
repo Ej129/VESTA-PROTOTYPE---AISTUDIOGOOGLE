@@ -1,4 +1,5 @@
 
+
 import { getStore } from "@netlify/blobs";
 import type { Handler, HandlerContext } from "@netlify/functions";
 import { KnowledgeCategory, KnowledgeSource, Workspace, WorkspaceMember } from '../../types';
@@ -50,6 +51,7 @@ export const handler: Handler = async (event, context) => {
       name: name.trim(),
       creatorId: user.email,
       createdAt: new Date().toISOString(),
+      status: 'active',
     };
 
     // Save the main workspace document

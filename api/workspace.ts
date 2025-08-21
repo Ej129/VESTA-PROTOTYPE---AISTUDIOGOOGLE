@@ -142,6 +142,20 @@ export const updateUserRole = (workspaceId: string, email: string, role: UserRol
     });
 };
 
+export const updateWorkspaceStatus = (workspaceId: string, status: 'active' | 'archived'): Promise<void> => {
+    return authenticatedFetch('update-workspace-status', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, status }),
+    });
+};
+
+export const deleteWorkspace = (workspaceId: string): Promise<void> => {
+    return authenticatedFetch('delete-workspace', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId }),
+    });
+};
+
 // --- Workspace Data Management ---
 
 export const getWorkspaceData = (workspaceId: string): Promise<WorkspaceData> => {

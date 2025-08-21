@@ -65,7 +65,10 @@ export type AuditLogAction =
   | 'Role Changed'
   | 'Analysis Archived'
   | 'Analysis Unarchived'
-  | 'Analysis Deleted';
+  | 'Analysis Deleted'
+  | 'Workspace Archived'
+  | 'Workspace Unarchived'
+  | 'Workspace Deleted';
 
 export interface AuditLog {
     id: string;
@@ -112,6 +115,7 @@ export interface Workspace {
     name: string;
     creatorId: string;
     createdAt: string;
+    status?: 'active' | 'archived';
 }
 
 export interface WorkspaceMember {

@@ -130,12 +130,24 @@ const Header: React.FC<HeaderProps> = ({ workspace, userRole, onManageMembers })
       <h1 className="text-2xl font-bold text-vesta-gold">{workspace.name}</h1>
       <div className="flex items-center space-x-4">
         {userRole === 'Administrator' && (
-          <button 
-            onClick={onManageMembers}
-            className="flex items-center px-4 py-2 bg-transparent border-2 border-vesta-gold rounded-lg text-sm font-bold text-vesta-red hover:bg-vesta-gold hover:text-white transition-colors">
-            <UsersIcon className="w-5 h-5 mr-2" />
-            Manage Members
-          </button>
+          <div className="relative group">
+            <button 
+              onClick={onManageMembers}
+              className="flex items-center px-4 py-2 bg-transparent border-2 border-vesta-gold rounded-lg text-sm font-bold text-vesta-red hover:bg-vesta-gold hover:text-white transition-colors"
+            >
+              <UsersIcon className="w-5 h-5 mr-2" />
+              Manage Members
+            </button>
+            <div className="absolute right-0 top-full mt-2 w-96 p-4 bg-vesta-card-light dark:bg-vesta-card-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+                <h4 className="font-bold text-md mb-3 text-vesta-gold">Role Permissions</h4>
+                <ul className="space-y-2 text-sm text-left text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
+                    <li className="flex items-start"><strong className="font-semibold text-vesta-text-light dark:text-vesta-text-dark w-40 flex-shrink-0">Administrator (CEO):</strong> <span>All Access</span></li>
+                    <li className="flex items-start"><strong className="font-semibold text-vesta-text-light dark:text-vesta-text-dark w-40 flex-shrink-0">Risk Management Officer:</strong> <span>Can upload and update Risk Management Plan</span></li>
+                    <li className="flex items-start"><strong className="font-semibold text-vesta-text-light dark:text-vesta-text-dark w-40 flex-shrink-0">Strategy Officer:</strong> <span>Can upload and update Strategic Management Plan</span></li>
+                    <li className="flex items-start"><strong className="font-semibold text-vesta-text-light dark:text-vesta-text-dark w-40 flex-shrink-0">Project Manager (Member):</strong> <span>Upload Business Plans and Project Proposals for validation by VESTA.</span></li>
+                </ul>
+            </div>
+          </div>
         )}
       </div>
     </header>

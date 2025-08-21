@@ -384,6 +384,26 @@ const App: React.FC = () => {
     await loadWorkspaceData(selectedWorkspace.id);
   };
 
+  const handleUpdateWorkspaceStatus = async (workspaceId: string, status: 'active' | 'archived') => {
+    try {
+        await workspaceApi.updateWorkspaceStatus(workspaceId, status);
+        await refreshWorkspaces();
+    } catch (error) {
+        console.error("Failed to update workspace status:", error);
+        alert((error as Error).message);
+    }
+  };
+
+  const handleDeleteWorkspace = async (workspaceId: string) => {
+    try {
+        await workspaceApi.deleteWorkspace(workspaceId);
+        await refreshWorkspaces();
+    } catch (error) {
+        console.error("Failed to delete workspace:", error);
+        alert((error as Error).message);
+    }
+  };
+
   const renderScreen = () => {
     if (loading) return <InitializingScreen />;
     if (!currentUser) return <LoginScreen />;
@@ -397,6 +417,8 @@ const App: React.FC = () => {
                     onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
                     currentUser={currentUser}
                     onLogout={handleLogout}
+                    onUpdateWorkspaceStatus={handleUpdateWorkspaceStatus}
+                    onDeleteWorkspace={handleDeleteWorkspace}
                 />
                 {isCreateWorkspaceModalOpen && (
                     <CreateWorkspaceModal 
