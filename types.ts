@@ -70,7 +70,10 @@ export type AuditLogAction =
   | 'Workspace Unarchived'
   | 'Workspace Deleted'
   | 'Analysis Renamed'
-  | 'Workspace Renamed';
+  | 'Workspace Renamed'
+  | 'Invitation Accepted'
+  | 'Invitation Declined'
+  | 'Invitation Revoked';
 
 export interface AuditLog {
     id: string;
@@ -123,6 +126,15 @@ export interface Workspace {
 export interface WorkspaceMember {
     email: string;
     role: UserRole;
+    status: 'active' | 'pending';
+}
+
+export interface WorkspaceInvitation {
+    workspaceId: string;
+    workspaceName: string;
+    inviterEmail: string;
+    role: UserRole;
+    timestamp: string;
 }
 
 export interface ScreenLayoutProps {

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { WorkspaceMember, UserRole } from '../types';
 import { TrashIcon, ChevronDownIcon, PlusIcon } from './Icons';
@@ -7,7 +8,7 @@ interface ManageMembersModalProps {
   currentMembers: WorkspaceMember[];
   currentUserEmail: string;
   onInviteUser: (email: string, role: UserRole) => void;
-  onRemoveUser: (email: string) => void;
+  onRemoveUser: (email: string, status: 'active' | 'pending') => void;
   onUpdateRole: (email: string, role: UserRole) => void;
 }
 
@@ -24,22 +25,27 @@ const MemberRow: React.FC<{
         return name.slice(0, 2).toUpperCase();
     }
     
+    const isPending = member.status === 'pending';
+
     return (
         <div className="flex items-center justify-between py-3">
             <div className="flex items-center">
-                <div className="w-9 h-9 bg-vesta-red rounded-full flex items-center justify-center text-white font-bold text-sm">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${isPending ? 'bg-gray-400 text-white' : 'bg-vesta-red text-white'}`}>
                     {getInitials(member.email)}
                 </div>
                 <div className="ml-3">
                     <p className="font-semibold text-vesta-text-light dark:text-vesta-text-dark text-sm">{member.email}</p>
-                    <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">{isCurrentUser ? 'You' : ''}</p>
+                    <div className="flex items-center">
+                        {isCurrentUser && <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mr-2">You</p>}
+                        {isPending && <p className="text-xs font-semibold px-2 py-0.5 bg-yellow-200 text-yellow-800 rounded-full">Pending</p>}
+                    </div>
                 </div>
             </div>
             <div className="flex items-center space-x-2">
                 <select
                     value={member.role}
                     onChange={(e) => onRoleChange(e.target.value as UserRole)}
-                    disabled={isLastAdmin}
+                    disabled={isLastAdmin || isPending}
                     className="px-3 py-1 border border-vesta-border-light dark:border-vesta-border-dark rounded-md text-sm bg-vesta-card-light dark:bg-vesta-card-dark focus:outline-none focus:ring-2 focus:ring-vesta-red disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     <option value="Administrator">Administrator</option>
@@ -51,7 +57,8 @@ const MemberRow: React.FC<{
                     onClick={onRemove}
                     disabled={isLastAdmin}
                     className="p-2 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-accent-critical dark:hover:text-accent-critical disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label="Remove member"
+                    aria-label={isPending ? "Revoke invitation" : "Remove member"}
+                    title={isPending ? "Revoke invitation" : "Remove member"}
                 >
                     <TrashIcon className="w-5 h-5" />
                 </button>
@@ -64,7 +71,7 @@ const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, curren
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<UserRole>('Member');
     
-    const adminCount = currentMembers.filter(m => m.role === 'Administrator').length;
+    const adminCount = currentMembers.filter(m => m.role === 'Administrator' && m.status === 'active').length;
 
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
@@ -117,8 +124,8 @@ const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ onClose, curren
                                 key={member.email}
                                 member={member}
                                 isCurrentUser={member.email === currentUserEmail}
-                                isLastAdmin={member.role === 'Administrator' && adminCount === 1}
-                                onRemove={() => onRemoveUser(member.email)}
+                                isLastAdmin={member.role === 'Administrator' && adminCount === 1 && member.status === 'active'}
+                                onRemove={() => onRemoveUser(member.email, member.status)}
                                 onRoleChange={(newRole) => onUpdateRole(member.email, newRole)}
                             />
                         ))}

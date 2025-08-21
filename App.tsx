@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation } from './types';
+import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import WorkspaceDashboard from './screens/WorkspaceDashboard';
@@ -101,6 +101,7 @@ const App: React.FC = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('Member');
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   
   // Data scoped to the selected workspace
   const [reports, setReports] = useState<AnalysisReport[]>([]);
@@ -168,6 +169,12 @@ const App: React.FC = () => {
     knownWorkspaceIds.current = new Set(userWorkspaces.map(ws => ws.id));
   }, [currentUser]);
 
+  const refreshInvitations = useCallback(async () => {
+      if (!currentUser) return;
+      const pendingInvitations = await workspaceApi.getPendingInvitations();
+      setInvitations(pendingInvitations);
+  }, [currentUser]);
+
   const handleBackToWorkspaces = () => {
     setSelectedWorkspace(null);
     setActiveReport(null);
@@ -177,6 +184,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       refreshWorkspaces();
+      refreshInvitations();
       if(selectedWorkspace) {
         handleBackToWorkspaces();
       }
@@ -191,12 +199,13 @@ const App: React.FC = () => {
       setCustomRegulations([]);
       setActiveReport(null);
       setScreen(Screen.WorkspaceDashboard);
+      setInvitations([]);
       knownWorkspaceIds.current.clear();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, refreshWorkspaces]);
+  }, [currentUser, refreshWorkspaces, refreshInvitations]);
 
-  // Poll for new workspaces
+  // Poll for new workspaces (from invitations being accepted)
   useEffect(() => {
       if (!currentUser) return;
 
@@ -212,10 +221,12 @@ const App: React.FC = () => {
                   workspaceName: newWorkspace.name,
               });
           }
+          // Also poll for new invitations
+          refreshInvitations();
       }, 30000); // Check every 30 seconds
 
       return () => clearInterval(intervalId);
-  }, [currentUser, refreshWorkspaces]);
+  }, [currentUser, refreshWorkspaces, refreshInvitations]);
   
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
     if(!currentUser || !selectedWorkspace) return;
@@ -358,10 +369,12 @@ const App: React.FC = () => {
       }
   };
 
-  const handleRemoveUser = async (email: string) => {
+  const handleRemoveUser = async (email: string, status: 'active' | 'pending') => {
       if (!selectedWorkspace) return;
       await workspaceApi.removeUser(selectedWorkspace.id, email);
-      await addAuditLog('User Removed', `Removed user ${email}.`);
+      const action = status === 'active' ? 'User Removed' : 'Invitation Revoked';
+      const details = status === 'active' ? `Removed user ${email}.` : `Revoked invitation for ${email}.`;
+      await addAuditLog(action, details);
       await loadWorkspaceData(selectedWorkspace.id);
   };
 
@@ -420,6 +433,18 @@ const App: React.FC = () => {
         console.error("Failed to update workspace name:", error);
         alert((error as Error).message);
         refreshWorkspaces(); // Revert on error
+    }
+  };
+
+  const handleRespondToInvitation = async (workspaceId: string, response: 'accept' | 'decline') => {
+    try {
+        await workspaceApi.respondToInvitation(workspaceId, response);
+        await refreshInvitations();
+        if (response === 'accept') {
+            await refreshWorkspaces();
+        }
+    } catch (error) {
+        alert((error as Error).message);
     }
   };
 
@@ -516,6 +541,8 @@ const App: React.FC = () => {
             userRole={userRole}
             onManageMembers={() => setManageMembersModalOpen(true)}
             onUpdateWorkspaceName={handleUpdateWorkspaceName}
+            invitations={invitations}
+            onRespondToInvitation={handleRespondToInvitation}
         >
             {renderContent()}
         </SidebarMainLayout>

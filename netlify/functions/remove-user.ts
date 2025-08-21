@@ -1,7 +1,7 @@
 
 import { getStore } from "@netlify/blobs";
 import type { Handler, HandlerContext } from "@netlify/functions";
-import { WorkspaceMember } from '../../types';
+import { WorkspaceMember, WorkspaceInvitation } from '../../types';
 
 const requireAuth = (context: HandlerContext) => {
   const user = context.clientContext?.user;
@@ -46,8 +46,8 @@ export const handler: Handler = async (event, context) => {
       return { statusCode: 404, body: JSON.stringify({ error: "User not found in this workspace." }), headers: { "Content-Type": "application/json" } };
     }
 
-    if (memberToRemove.role === "Administrator") {
-      const adminCount = members.filter(m => m.role === "Administrator").length;
+    if (memberToRemove.role === "Administrator" && memberToRemove.status === 'active') {
+      const adminCount = members.filter(m => m.role === "Administrator" && m.status === 'active').length;
       if (adminCount <= 1) {
         return { statusCode: 400, body: JSON.stringify({ error: "Cannot remove the last administrator from a workspace." }), headers: { "Content-Type": "application/json" } };
       }
@@ -57,10 +57,19 @@ export const handler: Handler = async (event, context) => {
     const updatedMembers = members.filter(m => m.email !== userToRemoveEmail);
     await membersStore.setJSON(workspaceId, updatedMembers);
 
-    // Update removed user's workspace list
-    const userWorkspaces = (await userWorkspacesStore.get(userToRemoveEmail, { type: "json" })) as string[] || [];
-    const updatedUserWorkspaces = userWorkspaces.filter(id => id !== workspaceId);
-    await userWorkspacesStore.setJSON(userToRemoveEmail, updatedUserWorkspaces);
+    // If the user was active, update their workspace list.
+    // If they were pending, update their invitations list.
+    if (memberToRemove.status === 'active') {
+        const userWorkspaces = (await userWorkspacesStore.get(userToRemoveEmail, { type: "json" })) as string[] || [];
+        const updatedUserWorkspaces = userWorkspaces.filter(id => id !== workspaceId);
+        await userWorkspacesStore.setJSON(userToRemoveEmail, updatedUserWorkspaces);
+    } else if (memberToRemove.status === 'pending') {
+        const userInvitationsStore = getStore({ name: "user-invitations", ...storeOptions });
+        const invitations = (await userInvitationsStore.get(userToRemoveEmail, { type: "json" })) as WorkspaceInvitation[] || [];
+        const updatedInvitations = invitations.filter(inv => inv.workspaceId !== workspaceId);
+        await userInvitationsStore.setJSON(userToRemoveEmail, updatedInvitations);
+    }
+
 
     return {
       statusCode: 200,

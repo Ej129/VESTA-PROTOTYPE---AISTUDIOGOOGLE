@@ -1,7 +1,7 @@
 
 import { getStore } from "@netlify/blobs";
 import type { Handler, HandlerContext } from "@netlify/functions";
-import { WorkspaceMember } from '../../types';
+import { Workspace, WorkspaceMember, WorkspaceInvitation } from '../../types';
 
 const requireAuth = (context: HandlerContext) => {
   const user = context.clientContext?.user;
@@ -36,8 +36,9 @@ export const handler: Handler = async (event, context) => {
         siteID: process.env.NETLIFY_SITE_ID,
         token: process.env.NETLIFY_API_TOKEN,
     };
+    const workspacesStore = getStore({ name: "workspaces", ...storeOptions });
     const membersStore = getStore({ name: "workspace-members", ...storeOptions });
-    const userWorkspacesStore = getStore({ name: "user-workspaces", ...storeOptions });
+    const userInvitationsStore = getStore({ name: "user-invitations", ...storeOptions });
 
     const members = (await membersStore.get(workspaceId, { type: "json" })) as WorkspaceMember[] || [];
 
@@ -47,23 +48,33 @@ export const handler: Handler = async (event, context) => {
     }
 
     if (members.some(m => m.email === invitedUserEmail)) {
-      return { statusCode: 409, body: JSON.stringify({ error: "This user is already a member of the workspace." }), headers: { "Content-Type": "application/json" } };
+      return { statusCode: 409, body: JSON.stringify({ error: "This user is already a member or has a pending invitation." }), headers: { "Content-Type": "application/json" } };
     }
 
-    // Add user to the workspace's member list
-    members.push({ email: invitedUserEmail, role });
+    const workspace = (await workspacesStore.get(workspaceId, { type: "json" })) as Workspace;
+    if (!workspace) {
+        return { statusCode: 404, body: JSON.stringify({ error: "Workspace not found." }), headers: { "Content-Type": "application/json" } };
+    }
+
+    // Add user to the workspace's member list with 'pending' status
+    members.push({ email: invitedUserEmail, role, status: 'pending' });
     await membersStore.setJSON(workspaceId, members);
 
-    // Add workspace to the invited user's list of workspaces
-    const invitedUserWorkspaces = (await userWorkspacesStore.get(invitedUserEmail, { type: "json" })) as string[] || [];
-    if (!invitedUserWorkspaces.includes(workspaceId)) {
-        invitedUserWorkspaces.push(workspaceId);
-        await userWorkspacesStore.setJSON(invitedUserEmail, invitedUserWorkspaces);
-    }
+    // Create an invitation record for the invited user
+    const userInvitations = (await userInvitationsStore.get(invitedUserEmail, { type: "json" })) as WorkspaceInvitation[] || [];
+    const newInvitation: WorkspaceInvitation = {
+        workspaceId,
+        workspaceName: workspace.name,
+        inviterEmail: user.email,
+        role,
+        timestamp: new Date().toISOString()
+    };
+    userInvitations.push(newInvitation);
+    await userInvitationsStore.setJSON(invitedUserEmail, userInvitations);
 
     return {
       statusCode: 201,
-      body: JSON.stringify({ success: true, message: `User ${invitedUserEmail} invited as ${role}.` }),
+      body: JSON.stringify({ success: true, message: `Invitation sent to ${invitedUserEmail}.` }),
       headers: { "Content-Type": "application/json" },
     };
 

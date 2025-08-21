@@ -1,5 +1,5 @@
 
-import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, WorkspaceData, CustomRegulation } from '../types';
+import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, WorkspaceData, CustomRegulation, WorkspaceInvitation } from '../types';
 
 // --- API Helper ---
 // This helper makes authenticated requests to our serverless functions.
@@ -45,7 +45,7 @@ const authenticatedFetch = async (path: string, options: RequestInit = {}) => {
 // --- User Management (from Netlify Identity) ---
 const USERS_KEY = 'vesta-users'; // User profile data can still live in local storage as it's not collaborative
 
-const get = <T>(key: string, defaultValue: T): T => {
+const get = <T,>(key: string, defaultValue: T): T => {
     try {
         const value = localStorage.getItem(key);
         return value ? JSON.parse(value) : defaultValue;
@@ -55,7 +55,7 @@ const get = <T>(key: string, defaultValue: T): T => {
     }
 };
 
-const set = <T>(key: string, value: T) => {
+const set = <T,>(key: string, value: T) => {
     try {
         localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
@@ -125,6 +125,17 @@ export const inviteUser = (workspaceId: string, email: string, role: UserRole): 
     return authenticatedFetch('invite-user', {
         method: 'POST',
         body: JSON.stringify({ workspaceId, email, role }),
+    });
+};
+
+export const getPendingInvitations = (): Promise<WorkspaceInvitation[]> => {
+    return authenticatedFetch('get-pending-invitations', { method: 'GET' });
+};
+
+export const respondToInvitation = (workspaceId: string, response: 'accept' | 'decline'): Promise<void> => {
+    return authenticatedFetch('respond-to-invitation', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, response }),
     });
 };
 

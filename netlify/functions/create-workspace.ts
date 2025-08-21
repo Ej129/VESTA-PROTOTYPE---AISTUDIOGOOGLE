@@ -58,7 +58,7 @@ export const handler: Handler = async (event, context) => {
     await workspacesStore.setJSON(newWorkspace.id, newWorkspace);
 
     // Create a dedicated member list for the new workspace
-    const initialMembers: WorkspaceMember[] = [{ email: user.email, role: "Administrator" }];
+    const initialMembers: WorkspaceMember[] = [{ email: user.email, role: "Administrator", status: 'active' }];
     await membersStore.setJSON(newWorkspace.id, initialMembers);
 
     // Add this workspace to the creator's list of workspaces
