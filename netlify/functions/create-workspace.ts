@@ -67,10 +67,40 @@ export const handler: Handler = async (event, context) => {
     // Add default knowledge sources for the new workspace
     const initialSources: Omit<KnowledgeSource, "id" | "workspaceId">[] = [
       {
-        title: "BSP Circular No. 1108: Guidelines on Virtual Asset Service Providers",
-        content: "This circular covers the rules and regulations for Virtual Asset Service Providers (VASPs) operating in the Philippines...",
+        title: "Bangko Sentral ng Pilipinas (BSP) Regulations",
+        content: "A collection of circulars, memoranda, and guidelines issued by the BSP, governing banks, financial institutions, and payment systems in the Philippines. Key areas include anti-money laundering (AML), consumer protection, and operational risk management.",
         category: KnowledgeCategory.Government,
-        isEditable: false,
+        isEditable: true,
+      },
+      {
+        title: "Bureau of Internal Revenue (BIR) Issuances",
+        content: "Regulations concerning taxation of financial transactions, digital services, and corporate income. Includes revenue regulations, circulars, and memoranda relevant to financial compliance.",
+        category: KnowledgeCategory.Government,
+        isEditable: true,
+      },
+      {
+        title: "Philippine Deposit Insurance Corporation (PDIC) Rules",
+        content: "Rules and regulations governing deposit insurance, bank resolutions, and financial stability. Ensures compliance with PDIC charters and related laws for member banks.",
+        category: KnowledgeCategory.Government,
+        isEditable: true,
+      },
+      {
+        title: "National Privacy Commission (NPC) Advisories",
+        content: "Guidelines and advisories related to the Data Privacy Act of 2012 (RA 10173). Covers data protection, breach notification, and the rights of data subjects, which are critical for financial services handling personal data.",
+        category: KnowledgeCategory.Government,
+        isEditable: true,
+      },
+      {
+        title: "Philippine Insurance Regulations (PIR)",
+        content: "Regulations from the Insurance Commission governing insurance products, operations, and market conduct. Relevant for projects involving insurance technology (Insurtech) or related financial products.",
+        category: KnowledgeCategory.Government,
+        isEditable: true,
+      },
+      {
+        title: "Securities and Exchange Commission (SEC) Memoranda",
+        content: "Memorandum Circulars from the SEC covering corporate governance, securities registration, and investment products. Essential for projects related to capital markets, crowdfunding, and digital assets.",
+        category: KnowledgeCategory.Government,
+        isEditable: true,
       },
       {
         title: "Q1 2024 Internal Risk Assessment",
