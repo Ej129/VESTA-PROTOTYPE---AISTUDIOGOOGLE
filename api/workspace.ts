@@ -156,6 +156,14 @@ export const deleteWorkspace = (workspaceId: string): Promise<void> => {
     });
 };
 
+export const updateWorkspaceName = (workspaceId: string, name: string): Promise<void> => {
+    return authenticatedFetch('update-workspace-name', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, name }),
+    });
+};
+
+
 // --- Workspace Data Management ---
 
 export const getWorkspaceData = (workspaceId: string): Promise<WorkspaceData> => {
@@ -165,6 +173,13 @@ export const getWorkspaceData = (workspaceId: string): Promise<WorkspaceData> =>
 
 export const addReport = (reportData: Omit<AnalysisReport, 'id' | 'createdAt'>): Promise<AnalysisReport> => {
     return authenticatedFetch('add-report', {
+        method: 'POST',
+        body: JSON.stringify(reportData),
+    });
+};
+
+export const updateReport = (reportData: AnalysisReport): Promise<AnalysisReport> => {
+    return authenticatedFetch('update-report', {
         method: 'POST',
         body: JSON.stringify(reportData),
     });

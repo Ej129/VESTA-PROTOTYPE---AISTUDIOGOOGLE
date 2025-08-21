@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode, useRef } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
 import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, BriefcaseIcon, ChevronsLeftIcon, ChevronsRightIcon } from './Icons';
 
@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
         </nav>
       )}
 
-      <div className={`flex-1 ${!currentWorkspace ? 'flex flex-col justify-end' : ''}`}>
+      <div className={!currentWorkspace ? 'flex-1 flex flex-col justify-end' : ''}>
         <div className="p-4 border-t border-white/20 space-y-2">
             <div 
                 onClick={() => currentWorkspace && navigateTo(Screen.Settings)}
@@ -151,10 +151,62 @@ interface HeaderProps {
     onManageMembers: () => void;
     titleContent: ReactNode | null;
     actions: ReactNode | null;
+    onUpdateWorkspaceName: (workspaceId: string, newName: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ workspace, userRole, onManageMembers, titleContent, actions }) => {
-    const defaultTitle = <h1 className="text-2xl font-bold text-vesta-gold truncate">{workspace ? workspace.name : 'Your Workspaces'}</h1>;
+const Header: React.FC<HeaderProps> = ({ workspace, userRole, onManageMembers, titleContent, actions, onUpdateWorkspaceName }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedName, setEditedName] = useState(workspace?.name || '');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if(workspace) setEditedName(workspace.name);
+    }, [workspace]);
+    
+    useEffect(() => {
+        if (isEditing) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        }
+    }, [isEditing]);
+    
+    const handleSave = () => {
+        if (workspace && editedName.trim() && editedName !== workspace.name) {
+            onUpdateWorkspaceName(workspace.id, editedName.trim());
+        }
+        setIsEditing(false);
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') handleSave();
+        else if (e.key === 'Escape') {
+            setEditedName(workspace?.name || '');
+            setIsEditing(false);
+        }
+    };
+
+    const canEdit = userRole === 'Administrator';
+
+    const defaultTitle = workspace ? (
+        isEditing && canEdit ? (
+            <input 
+                ref={inputRef}
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={handleKeyDown}
+                className="text-2xl font-bold bg-transparent border-b-2 border-vesta-gold text-vesta-gold w-full focus:outline-none"
+            />
+        ) : (
+            <h1 
+                className={`text-2xl font-bold text-vesta-gold truncate ${canEdit ? 'cursor-pointer hover:bg-white/10 rounded-md px-2 -mx-2' : ''}`}
+                onClick={() => canEdit && setIsEditing(true)}
+                title={canEdit ? "Click to rename" : ""}
+            >
+                {workspace.name}
+            </h1>
+        )
+    ) : <h1 className="text-2xl font-bold text-vesta-gold truncate">Your Workspaces</h1>;
   
     const defaultActions = (
       <>
@@ -200,10 +252,11 @@ interface SidebarMainLayoutProps {
   onBackToWorkspaces: () => void;
   userRole: UserRole;
   onManageMembers: () => void;
+  onUpdateWorkspaceName: (workspaceId: string, newName: string) => void;
 }
 
 export const SidebarMainLayout: React.FC<SidebarMainLayoutProps> = (props) => {
-    const { children, navigateTo, activeScreen, currentUser, onLogout, currentWorkspace, onBackToWorkspaces, userRole, onManageMembers } = props;
+    const { children, navigateTo, activeScreen, currentUser, onLogout, currentWorkspace, onBackToWorkspaces, userRole, onManageMembers, onUpdateWorkspaceName } = props;
     
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
         try {
@@ -251,6 +304,7 @@ export const SidebarMainLayout: React.FC<SidebarMainLayoutProps> = (props) => {
                     onManageMembers={onManageMembers} 
                     titleContent={headerTitleContent}
                     actions={headerActions}
+                    onUpdateWorkspaceName={onUpdateWorkspaceName}
                 />
                 <main className="flex-1 overflow-y-auto bg-vesta-bg-light dark:bg-vesta-bg-dark">
                 {children}

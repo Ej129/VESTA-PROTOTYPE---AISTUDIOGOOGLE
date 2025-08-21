@@ -68,7 +68,9 @@ export type AuditLogAction =
   | 'Analysis Deleted'
   | 'Workspace Archived'
   | 'Workspace Unarchived'
-  | 'Workspace Deleted';
+  | 'Workspace Deleted'
+  | 'Analysis Renamed'
+  | 'Workspace Renamed';
 
 export interface AuditLog {
     id: string;

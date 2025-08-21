@@ -261,10 +261,15 @@ const App: React.FC = () => {
     setActiveReport(addedReport);
   };
 
-  // Persists report changes (edits, auto-fix, status changes)
-  const handleUpdateReport = (updatedReport: AnalysisReport) => {
-      setReports(prevReports => prevReports.map(r => r.id === updatedReport.id ? updatedReport : r));
-      setActiveReport(updatedReport); // Keep the active report in sync
+  const handleUpdateReport = async (updatedReport: AnalysisReport) => {
+      try {
+          const savedReport = await workspaceApi.updateReport(updatedReport);
+          setReports(prevReports => prevReports.map(r => r.id === savedReport.id ? savedReport : r));
+          setActiveReport(savedReport);
+      } catch (error) {
+          console.error("Failed to update report:", error);
+          alert((error as Error).message);
+      }
   };
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
@@ -403,6 +408,20 @@ const App: React.FC = () => {
         alert((error as Error).message);
     }
   };
+  
+  const handleUpdateWorkspaceName = async (workspaceId: string, name: string) => {
+    try {
+        await workspaceApi.updateWorkspaceName(workspaceId, name);
+        // Optimistic update for smoother UX
+        setSelectedWorkspace(prev => prev ? { ...prev, name } : null);
+        setWorkspaces(prev => prev.map(ws => ws.id === workspaceId ? { ...ws, name } : ws));
+        await loadWorkspaceData(workspaceId); // Reload data to get new audit log
+    } catch (error) {
+        console.error("Failed to update workspace name:", error);
+        alert((error as Error).message);
+        refreshWorkspaces(); // Revert on error
+    }
+  };
 
   const renderContent = () => {
     const layoutProps = {
@@ -496,6 +515,7 @@ const App: React.FC = () => {
             onBackToWorkspaces={handleBackToWorkspaces}
             userRole={userRole}
             onManageMembers={() => setManageMembersModalOpen(true)}
+            onUpdateWorkspaceName={handleUpdateWorkspaceName}
         >
             {renderContent()}
         </SidebarMainLayout>

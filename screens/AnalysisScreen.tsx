@@ -137,6 +137,10 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
   
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(activeReport?.title || '');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
   const { setTitleContent, setActions } = useHeader();
   const downloadButtonRef = useRef<HTMLDivElement>(null);
 
@@ -165,6 +169,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   useEffect(() => {
     if (activeReport) {
         updateLocalReportData(activeReport);
+        setEditedTitle(activeReport.title);
         setShowUploadModal(false);
     } else {
       setShowUploadModal(true);
@@ -182,6 +187,23 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  
+  useEffect(() => {
+    if (isTitleEditing) {
+        titleInputRef.current?.focus();
+        titleInputRef.current?.select();
+    }
+  }, [isTitleEditing]);
+
+  const handleTitleSave = () => {
+    if (currentReport && editedTitle.trim() && editedTitle !== currentReport.title) {
+        const updatedReport = { ...currentReport, title: editedTitle.trim() };
+        setCurrentReport(updatedReport); // Optimistic update
+        onUpdateReport(updatedReport);
+        addAuditLog('Analysis Renamed', JSON.stringify({ message: `Analysis "${currentReport.title}" renamed to "${editedTitle.trim()}"`, reportId: currentReport.id }));
+    }
+    setIsTitleEditing(false);
+  };
 
   const handleDownload = (format: 'PDF' | 'TXT') => {
       setIsDownloadOpen(false);
@@ -276,13 +298,45 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   // Effect to manage the header content
   useEffect(() => {
     if (currentReport) {
+      const canEditTitle = userRole === 'Administrator' || userRole === 'Member';
+
+      const analysisTitle = isTitleEditing && canEditTitle ? (
+        <input
+            ref={titleInputRef}
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') handleTitleSave();
+                if (e.key === 'Escape') {
+                    setIsTitleEditing(false);
+                    setEditedTitle(currentReport.title);
+                }
+            }}
+            className="text-xl font-bold bg-transparent border-b-2 border-vesta-gold text-vesta-gold w-full focus:outline-none"
+            onClick={e => e.stopPropagation()}
+        />
+      ) : (
+        <h1 
+            className={`text-xl font-bold text-vesta-gold truncate ${canEditTitle ? 'cursor-pointer hover:bg-white/10 rounded-md px-2 -mx-2' : ''}`}
+            onClick={(e) => {
+                e.stopPropagation();
+                if(canEditTitle) setIsTitleEditing(true);
+            }}
+            title={canEditTitle ? "Click to rename" : ""}
+        >
+            {currentReport.title}
+        </h1>
+      );
+
       setTitleContent(
         <div className="flex items-baseline min-w-0">
           <h2 className="text-xl font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark truncate">{currentWorkspace?.name}</h2>
           <span className="text-xl font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mx-2">/</span>
-          <h1 className="text-xl font-bold text-vesta-gold truncate">{currentReport.title}</h1>
+          {analysisTitle}
         </div>
       );
+
       setActions(
         <div className="flex items-center space-x-2">
             <div className="relative" ref={downloadButtonRef}>
@@ -325,7 +379,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
         setTitleContent(null);
         setActions(null);
     };
-  }, [currentReport, isEditing, isDownloadOpen, isImproving, plainTextContent, currentWorkspace]);
+  }, [currentReport, isEditing, isDownloadOpen, isImproving, plainTextContent, currentWorkspace, isTitleEditing, editedTitle, userRole]);
 
   
   const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
