@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
-import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, BriefcaseIcon } from './Icons';
+import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, BriefcaseIcon, ChevronsLeftIcon, ChevronsRightIcon } from './Icons';
 
 interface SidebarProps {
   navigateTo: NavigateTo;
@@ -8,9 +8,11 @@ interface SidebarProps {
   currentUser: User;
   onLogout: () => void;
   onBackToWorkspaces: () => void;
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser, onLogout, onBackToWorkspaces }) => {
+const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser, onLogout, onBackToWorkspaces, isSidebarCollapsed, toggleSidebar }) => {
   const navItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, screen: Screen.Dashboard },
     { text: 'Audit Trail', icon: <HistoryIcon />, screen: Screen.AuditTrail },
@@ -21,90 +23,96 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
-  
-  const navRef = useRef<HTMLUListElement>(null);
-  const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0, opacity: 0 });
 
-  useEffect(() => {
-    if (navRef.current) {
-        const activeNode = navRef.current.querySelector(`[data-screen="${activeScreen}"]`) as HTMLLIElement;
-
-        if (activeNode) {
-            setIndicatorStyle({
-                top: activeNode.offsetTop,
-                height: activeNode.offsetHeight,
-                opacity: 1,
-            });
-        }
-    }
-  }, [activeScreen]);
-
+  const tooltipClasses = `absolute left-full ml-4 px-3 py-1.5 text-sm font-semibold text-white bg-vesta-card-dark rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none`;
 
   return (
-    <aside className="w-64 sidebar-bg text-white flex flex-col min-h-screen">
+    <aside className={`sidebar-bg text-white flex flex-col min-h-screen transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
       <div 
         className="flex items-center justify-center p-4 h-16 border-b border-white/20 cursor-pointer"
         onClick={() => navigateTo(Screen.Dashboard)}
         aria-label="Go to Dashboard"
       >
-        <VestaLogo className="w-10 h-10" />
-        <h1 className="text-2xl font-bold ml-3 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">Vesta</h1>
+        <VestaLogo className="w-10 h-10 flex-shrink-0" />
+        <h1 className={`text-2xl font-bold ml-3 text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)] transition-all duration-200 ease-in-out overflow-hidden ${isSidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>Vesta</h1>
       </div>
 
       <div className="p-4">
         <button
             onClick={onBackToWorkspaces}
-            className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-all duration-300 ease-in-out text-white/80 hover:bg-white/20 hover:translate-x-1"
+            className={`relative group flex items-center w-full p-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/20 ${isSidebarCollapsed ? 'justify-center' : ''}`}
         >
-            <BriefcaseIcon className="w-6 h-6 mr-4"/>
-            <span className="font-bold">All Workspaces</span>
+            <BriefcaseIcon className="w-6 h-6 flex-shrink-0"/>
+            <span className={`font-bold ml-4 whitespace-nowrap ${isSidebarCollapsed ? 'hidden' : ''}`}>All Workspaces</span>
+            {isSidebarCollapsed && <span className={tooltipClasses}>All Workspaces</span>}
         </button>
       </div>
       
       <nav className="flex-1 px-4">
-        <ul ref={navRef} className="space-y-2 relative">
-          <div 
-            className="absolute left-0 w-full bg-vesta-gold rounded-lg transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
-            style={indicatorStyle}
-          />
+        <ul className="space-y-2">
           {navItems.map((item) => (
              <li
               key={item.text}
-              data-screen={item.screen}
               onClick={() => navigateTo(item.screen)}
-              className={`relative z-10 flex items-center px-3 py-3 cursor-pointer rounded-lg transition-all duration-300 ease-in-out ${
+              className={`relative group flex items-center p-3 cursor-pointer rounded-lg transition-colors duration-200 ${
                 activeScreen === item.screen
-                  ? 'text-vesta-red font-bold'
-                  : 'text-white/80 hover:bg-white/20 hover:text-white hover:translate-x-1'
-              }`}
+                  ? 'bg-vesta-gold text-vesta-red font-bold'
+                  : 'text-white/80 hover:bg-white/20'
+              } ${isSidebarCollapsed ? 'justify-center' : ''}`}
             >
-              <div className="w-6 h-6 mr-4">{item.icon}</div>
-              <span className="font-bold">{item.text}</span>
+              <div className="w-6 h-6 flex-shrink-0">{item.icon}</div>
+              <span className={`font-bold ml-4 whitespace-nowrap ${isSidebarCollapsed ? 'hidden' : ''}`}>{item.text}</span>
+              {isSidebarCollapsed && <span className={tooltipClasses}>{item.text}</span>}
             </li>
           ))}
         </ul>
       </nav>
       <div className="p-4 border-t border-white/20 space-y-2">
-          <div className="flex items-center p-2 rounded-lg transition-colors duration-200 hover:bg-white/10">
-              <div className="w-10 h-10 bg-vesta-gold rounded-full flex items-center justify-center text-vesta-red font-bold text-sm overflow-hidden">
+          <div 
+              onClick={() => navigateTo(Screen.Settings)}
+              className={`relative group flex items-center p-2 rounded-lg transition-colors duration-200 hover:bg-white/10 cursor-pointer ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              aria-label="Go to your profile settings"
+          >
+              <div className="w-10 h-10 bg-vesta-gold rounded-full flex items-center justify-center text-vesta-red font-bold text-sm overflow-hidden flex-shrink-0">
                   {currentUser.avatar ? (
                     <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
                   ) : (
                     getInitials(currentUser.name)
                   )}
               </div>
-              <div className="ml-3">
-                  <p className="font-semibold text-white text-sm">{currentUser.name}</p>
-                  <p className="text-white/80 text-xs">{currentUser.email}</p>
+              <div className={`ml-3 overflow-hidden transition-all duration-200 ease-in-out ${isSidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+                  <p className="font-semibold text-white text-sm truncate">{currentUser.name}</p>
+                  <p className="text-white/80 text-xs truncate">{currentUser.email}</p>
               </div>
+               {isSidebarCollapsed && (
+                <div className={`${tooltipClasses} p-2 text-left`}>
+                    <p className="font-semibold text-white text-sm">{currentUser.name}</p>
+                    <p className="text-white/80 text-xs">{currentUser.email}</p>
+                </div>
+              )}
           </div>
           <button
               onClick={onLogout}
-              className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-all duration-300 ease-in-out text-white/80 hover:bg-white/20 hover:translate-x-1"
+              className={`relative group flex items-center w-full p-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/20 ${isSidebarCollapsed ? 'justify-center' : ''}`}
           >
-              <LogoutIcon className="w-6 h-6 mr-4"/>
-              <span className="font-bold">Logout</span>
+              <LogoutIcon className="w-6 h-6 flex-shrink-0"/>
+              <span className={`font-bold ml-4 whitespace-nowrap ${isSidebarCollapsed ? 'hidden' : ''}`}>Logout</span>
+              {isSidebarCollapsed && <span className={tooltipClasses}>Logout</span>}
           </button>
+           <button
+            onClick={toggleSidebar}
+            className={`flex items-center w-full p-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/20 ${isSidebarCollapsed ? 'justify-center' : ''}`}
+            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isSidebarCollapsed ? (
+                <ChevronsRightIcon className="w-6 h-6 flex-shrink-0" />
+            ) : (
+                <>
+                    <ChevronsLeftIcon className="w-6 h-6 flex-shrink-0" />
+                    <span className="font-bold ml-4 whitespace-nowrap">Collapse</span>
+                </>
+            )}
+        </button>
       </div>
     </aside>
   );
@@ -149,6 +157,25 @@ interface SidebarMainLayoutProps {
 
 export const SidebarMainLayout: React.FC<SidebarMainLayoutProps> = (props) => {
     const { children, navigateTo, activeScreen, currentUser, onLogout, currentWorkspace, onBackToWorkspaces, userRole, onManageMembers } = props;
+    
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem('vesta-sidebar-collapsed') === 'true';
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('vesta-sidebar-collapsed', String(isSidebarCollapsed));
+        } catch (error) {
+            console.error("Failed to save sidebar state to localStorage:", error);
+        }
+    }, [isSidebarCollapsed]);
+
+    const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
+
     return (
         <div className="flex h-screen bg-vesta-red">
           <Sidebar 
@@ -157,10 +184,12 @@ export const SidebarMainLayout: React.FC<SidebarMainLayoutProps> = (props) => {
             currentUser={currentUser} 
             onLogout={onLogout} 
             onBackToWorkspaces={onBackToWorkspaces}
+            isSidebarCollapsed={isSidebarCollapsed}
+            toggleSidebar={toggleSidebar}
           />
           <div className="flex-1 flex flex-col h-screen overflow-y-hidden">
             <Header workspace={currentWorkspace} userRole={userRole} onManageMembers={onManageMembers} />
-            <main key={activeScreen} className="flex-1 overflow-y-auto bg-vesta-bg-light dark:bg-vesta-bg-dark animate-content-fade-in">
+            <main className="flex-1 overflow-y-auto bg-vesta-bg-light dark:bg-vesta-bg-dark">
               {children}
             </main>
           </div>
