@@ -54,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
       <div className="p-4">
         <button
             onClick={onBackToWorkspaces}
-            className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/20"
+            className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-all duration-300 ease-in-out text-white/80 hover:bg-white/20 hover:translate-x-1"
         >
             <BriefcaseIcon className="w-6 h-6 mr-4"/>
             <span className="font-bold">All Workspaces</span>
@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
       <nav className="flex-1 px-4">
         <ul ref={navRef} className="space-y-2 relative">
           <div 
-            className="absolute left-0 w-full bg-vesta-gold rounded-lg transition-all duration-300 ease-in-out"
+            className="absolute left-0 w-full bg-vesta-gold rounded-lg transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
             style={indicatorStyle}
           />
           {navItems.map((item) => (
@@ -72,10 +72,10 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
               key={item.text}
               data-screen={item.screen}
               onClick={() => navigateTo(item.screen)}
-              className={`relative z-10 flex items-center px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 ${
+              className={`relative z-10 flex items-center px-3 py-3 cursor-pointer rounded-lg transition-all duration-300 ease-in-out ${
                 activeScreen === item.screen
                   ? 'text-vesta-red font-bold'
-                  : 'text-white/80 hover:bg-white/20 hover:text-white'
+                  : 'text-white/80 hover:bg-white/20 hover:text-white hover:translate-x-1'
               }`}
             >
               <div className="w-6 h-6 mr-4">{item.icon}</div>
@@ -100,7 +100,7 @@ const Sidebar: React.FC<SidebarProps> = ({ navigateTo, activeScreen, currentUser
           </div>
           <button
               onClick={onLogout}
-              className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-colors duration-200 text-white/80 hover:bg-white/20"
+              className="flex items-center w-full px-3 py-3 cursor-pointer rounded-lg transition-all duration-300 ease-in-out text-white/80 hover:bg-white/20 hover:translate-x-1"
           >
               <LogoutIcon className="w-6 h-6 mr-4"/>
               <span className="font-bold">Logout</span>
