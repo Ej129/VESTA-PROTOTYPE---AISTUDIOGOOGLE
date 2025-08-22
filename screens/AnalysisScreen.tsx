@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole, CustomRegulation } from '../types';
 import { SparklesIcon, DownloadIcon, EditIcon, ChevronsLeftIcon, ChevronsRightIcon } from '../components/Icons';
@@ -6,9 +7,8 @@ import UploadZone from '../components/UploadZone';
 import { analyzePlan, improvePlan } from '../api/vesta';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 import jsPDF from 'jspdf';
-import { useHeader } from '../components/Layout';
 
-// --- SUB-COMPONENTS for the new themed AnalysisScreen ---
+// --- SUB-COMPONENTS for the themed AnalysisScreen ---
 
 const ThemedScoreCard: React.FC<{ label: string, score: number }> = ({ label, score }) => (
   <div className="bg-vesta-card-light dark:bg-vesta-card-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg p-3 shadow-sm">
@@ -39,7 +39,6 @@ const formatDocumentContent = (text: string) => {
         return <div key={index} className="h-4" />;
     }
     
-    // Check if it's an all-caps heading
     if (trimmedLine === trimmedLine.toUpperCase() && trimmedLine.length > 5 && !trimmedLine.endsWith('.') && isNaN(parseInt(trimmedLine))) {
       return <h2 key={index} className="text-lg font-bold font-display text-vesta-gold uppercase tracking-wider mt-6 mb-4">{trimmedLine}</h2>;
     }
@@ -47,9 +46,6 @@ const formatDocumentContent = (text: string) => {
     return <p key={index} className="text-base leading-relaxed mb-4">{trimmedLine}</p>;
   });
 };
-
-
-// --- MAIN ANALYSIS SCREEN ---
 
 const analysisSteps = [
     "Parsing document structure...",
@@ -68,13 +64,11 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   customRegulations: CustomRegulation[];
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, onUpdateReport, addAuditLog, knowledgeBaseSources, userRole, customRegulations, currentWorkspace }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysisComplete, onUpdateReport, addAuditLog, knowledgeBaseSources, userRole, customRegulations }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [plainTextContent, setPlainTextContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-
-  const { setTitleContent, setActions } = useHeader();
 
   useEffect(() => {
     if (activeReport) {
@@ -134,58 +128,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   
   const canEdit = userRole === 'Administrator' || userRole === 'Member' || userRole === 'Risk Management Officer' || userRole === 'Strategy Officer';
 
-  // Effect to manage the header content
-  useEffect(() => {
-    setTitleContent(null);
-    setActions(null);
-
-    if (currentReport && currentWorkspace) {
-        const title = (
-            <div className="flex items-center text-sm font-bold uppercase tracking-wider text-vesta-text-light dark:text-vesta-text-dark">
-                <span>{currentWorkspace.name}</span>
-                <span className="mx-2 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">/</span>
-                <span className="truncate text-vesta-gold">{currentReport.title}</span>
-            </div>
-        );
-      
-        const actions = (
-            <div className="flex items-center space-x-4">
-                <button 
-                    onClick={() => handleDownload('PDF')} 
-                    className="flex items-center px-4 py-2 bg-transparent border-2 border-vesta-gold rounded-lg text-sm font-bold text-vesta-red hover:bg-vesta-gold hover:text-white transition-colors"
-                >
-                    <DownloadIcon className="w-4 h-4 mr-2" /> Download
-                </button>
-                {isEditing ? (
-                    <button 
-                        onClick={handleSaveChanges} 
-                        className="px-4 py-2 border-2 border-vesta-red rounded-lg text-sm font-bold bg-vesta-red text-white hover:bg-vesta-red-dark"
-                    >
-                        Save Changes
-                    </button>
-                ) : (
-                    <button 
-                        onClick={() => setIsEditing(true)} 
-                        className="p-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:border-vesta-red hover:text-vesta-red" 
-                        disabled={!canEdit}
-                        aria-label="Edit document"
-                    >
-                        <EditIcon className="w-5 h-5" />
-                    </button>
-                )}
-            </div>
-        );
-      
-        setTitleContent(title);
-        setActions(actions);
-    }
-    
-    return () => { // Cleanup
-      setTitleContent(null);
-      setActions(null);
-    };
-  }, [currentReport, currentWorkspace, isEditing, plainTextContent, canEdit, setTitleContent, setActions]);
-
   const handleFileUpload = async (content: string, fileName: string) => {
       addAuditLog('Document Upload', `File uploaded: ${fileName}`);
       setIsLoading(true);
@@ -221,38 +163,67 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   };
 
   return (
-    <div className="flex h-full w-full bg-vesta-card-light dark:bg-vesta-card-dark">
-        {/* Center Panel: Document Viewer */}
-        <div className="flex-1 w-0 flex flex-col">
-            <div className="flex-grow p-8 lg:p-12 overflow-y-auto text-vesta-text-light dark:text-vesta-text-dark">
+    <div className="flex flex-col h-full bg-vesta-bg-light dark:bg-vesta-bg-dark">
+        <div className="flex-shrink-0 p-4 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center bg-vesta-card-light dark:bg-vesta-card-dark">
+            <h2 className="text-lg font-bold text-vesta-text-light dark:text-vesta-text-dark truncate">{currentReport.title}</h2>
+            <div className="flex items-center space-x-2">
+                <button 
+                    onClick={() => handleDownload('PDF')} 
+                    className="flex items-center px-3 py-1.5 bg-transparent border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-sm font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-100 dark:hover:bg-vesta-card-dark"
+                >
+                    <DownloadIcon className="w-4 h-4 mr-2" /> Download
+                </button>
                 {isEditing ? (
-                    <textarea
-                        value={plainTextContent}
-                        onChange={(e) => setPlainTextContent(e.target.value)}
-                        className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed"
-                        autoFocus
-                    />
+                    <button 
+                        onClick={handleSaveChanges} 
+                        className="px-4 py-1.5 border border-vesta-red rounded-lg text-sm font-bold bg-vesta-red text-white hover:bg-vesta-red-dark"
+                    >
+                        Save Changes
+                    </button>
                 ) : (
-                    <div>{formatDocumentContent(plainTextContent)}</div>
+                    <button 
+                        onClick={() => setIsEditing(true)} 
+                        className="p-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:border-vesta-red hover:text-vesta-red disabled:opacity-50" 
+                        disabled={!canEdit}
+                        aria-label="Edit document"
+                    >
+                        <EditIcon className="w-5 h-5" />
+                    </button>
                 )}
             </div>
         </div>
 
-        {/* Right Panel: Analysis */}
-        <div className="w-[384px] flex-shrink-0 bg-vesta-bg-light dark:bg-vesta-bg-dark flex flex-col border-l border-vesta-border-light dark:border-vesta-border-dark">
-            <div className="p-6 flex flex-col h-full">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-vesta-border-light dark:border-vesta-border-dark">
-                    <button className="p-1 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-vesta-red"><ChevronsLeftIcon className="w-6 h-6" /></button>
-                    <h2 className="text-xl font-bold font-display text-vesta-gold uppercase tracking-wider">Analysis</h2>
-                    <button className="p-1 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-vesta-red"><ChevronsRightIcon className="w-6 h-6" /></button>
+        <div className="flex-1 flex overflow-hidden">
+             <div className="flex-1 w-0 flex flex-col">
+                <div className="flex-grow p-8 lg:p-12 overflow-y-auto text-vesta-text-light dark:text-vesta-text-dark">
+                    {isEditing ? (
+                        <textarea
+                            value={plainTextContent}
+                            onChange={(e) => setPlainTextContent(e.target.value)}
+                            className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans"
+                            autoFocus
+                        />
+                    ) : (
+                        <div>{formatDocumentContent(plainTextContent)}</div>
+                    )}
                 </div>
-                <div className="space-y-4">
-                    <ThemedScoreCard label="Project Score" score={scores.project} />
-                    <ThemedScoreCard label="Strategic Goals" score={scores.strategicGoals} />
-                    <ThemedScoreCard label="Regulations" score={scores.regulations} />
-                    <ThemedScoreCard label="Risk" score={scores.risk} />
+            </div>
+            
+            <div className="w-[384px] flex-shrink-0 bg-vesta-card-light dark:bg-vesta-card-dark flex flex-col border-l border-vesta-border-light dark:border-vesta-border-dark">
+                <div className="p-6 flex flex-col h-full overflow-y-auto">
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-vesta-border-light dark:border-vesta-border-dark">
+                        <button className="p-1 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-vesta-red"><ChevronsLeftIcon className="w-6 h-6" /></button>
+                        <h2 className="text-xl font-bold font-display text-vesta-gold uppercase tracking-wider">Analysis</h2>
+                        <button className="p-1 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-vesta-red"><ChevronsRightIcon className="w-6 h-6" /></button>
+                    </div>
+                    <div className="space-y-4">
+                        <ThemedScoreCard label="Project Score" score={scores.project} />
+                        <ThemedScoreCard label="Strategic Goals" score={scores.strategicGoals} />
+                        <ThemedScoreCard label="Regulations" score={scores.regulations} />
+                        <ThemedScoreCard label="Risk" score={scores.risk} />
+                    </div>
+                    <AskGemini />
                 </div>
-                <AskGemini />
             </div>
         </div>
     </div>

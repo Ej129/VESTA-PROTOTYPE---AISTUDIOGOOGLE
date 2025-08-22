@@ -148,9 +148,10 @@ export interface ScreenLayoutProps {
   navigateTo: NavigateTo;
   currentUser: User;
   onLogout: () => void;
-  currentWorkspace: Workspace | null;
+  currentWorkspace: Workspace;
   onManageMembers: () => void;
   userRole: UserRole;
+  onBackToWorkspaces: () => void;
 }
 
 export interface TourStep {

@@ -14,8 +14,8 @@ import ManageMembersModal from './components/ManageMembersModal';
 import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon } from './components/Icons';
 import NotificationToast from './components/NotificationToast';
-import { WorkspaceLayout } from './components/Layout';
-import NoWorkspaceSelectedScreen from './screens/NoWorkspaceSelectedScreen';
+import { Layout } from './components/Layout';
+import WorkspaceDashboard from './screens/WorkspaceDashboard';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 text-center">
@@ -92,7 +92,7 @@ const App: React.FC = () => {
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
 
-  const [screen, setScreen] = useState<Screen>(Screen.Analysis);
+  const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -239,7 +239,17 @@ const App: React.FC = () => {
     setSelectedWorkspace(workspace);
     await loadWorkspaceData(workspace.id);
     setActiveReport(null);
-    navigateTo(Screen.Analysis);
+    navigateTo(Screen.Dashboard);
+  };
+
+  const handleBackToWorkspaces = () => {
+    setSelectedWorkspace(null);
+    setReports([]);
+    setAuditLogs([]);
+    setKnowledgeBaseSources([]);
+    setDismissalRules([]);
+    setCustomRegulations([]);
+    setActiveReport(null);
   };
 
   const handleStartNewAnalysis = () => {
@@ -416,61 +426,64 @@ const App: React.FC = () => {
     }
   };
 
-  const renderContent = () => {
+  const renderScreenComponent = () => {
     const layoutProps = {
         navigateTo,
         currentUser: currentUser!,
         onLogout: handleLogout,
-        currentWorkspace: selectedWorkspace,
+        currentWorkspace: selectedWorkspace!,
         onManageMembers: () => setManageMembersModalOpen(true),
         userRole,
+        onBackToWorkspaces: handleBackToWorkspaces,
     };
-
-    if (!selectedWorkspace) {
-        return <NoWorkspaceSelectedScreen onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)} />;
-    }
-
-    let screenComponent: React.ReactNode;
 
     switch (screen) {
       case Screen.Dashboard:
-        screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
-        break;
+        return <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
       case Screen.Analysis:
-        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} customRegulations={customRegulations} />;
-        break;
+        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} customRegulations={customRegulations} />;
       case Screen.AuditTrail:
-        screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
-        break;
+        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
       case Screen.KnowledgeBase:
-        screenComponent = <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} isSyncing={isSyncingSources} />;
-        break;
+        return <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} isSyncing={isSyncingSources} />;
       case Screen.Settings:
-        screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
-        break;
+        return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
       default:
-        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} customRegulations={customRegulations} />;
+        return <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
     }
-
-    return (
-        <>
-            {screenComponent}
-            {isManageMembersModalOpen && selectedWorkspace && currentUser && (
-                <ManageMembersModal 
-                    onClose={() => setManageMembersModalOpen(false)}
-                    currentMembers={workspaceMembers}
-                    currentUserEmail={currentUser.email}
-                    onInviteUser={handleInviteUser}
-                    onRemoveUser={handleRemoveUser}
-                    onUpdateRole={handleUpdateRole}
-                />
-            )}
-        </>
-    );
   };
 
   if (loading) return <InitializingScreen />;
   if (!currentUser) return <LoginScreen />;
+
+  if (!selectedWorkspace) {
+      return (
+          <>
+            <WorkspaceDashboard
+                workspaces={workspaces}
+                currentUser={currentUser}
+                onSelectWorkspace={handleSelectWorkspace}
+                onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
+                onLogout={handleLogout}
+                invitations={invitations}
+                onRespondToInvitation={handleRespondToInvitation}
+            />
+            {isCreateWorkspaceModalOpen && (
+                <CreateWorkspaceModal 
+                    onClose={() => setCreateWorkspaceModalOpen(false)}
+                    onCreate={handleCreateWorkspace}
+                />
+            )}
+            {notification && (
+                <NotificationToast 
+                    message={notification.message}
+                    workspaceName={notification.workspaceName}
+                    onClose={() => setNotification(null)}
+                />
+            )}
+          </>
+      );
+  }
 
   return (
     <div className="font-sans bg-vesta-bg-light dark:bg-vesta-bg-dark min-h-screen text-vesta-text-light dark:text-vesta-text-dark">
@@ -487,23 +500,28 @@ const App: React.FC = () => {
                 onCreate={handleCreateWorkspace}
             />
         )}
-        <WorkspaceLayout
+        {isManageMembersModalOpen && (
+            <ManageMembersModal 
+                onClose={() => setManageMembersModalOpen(false)}
+                currentMembers={workspaceMembers}
+                currentUserEmail={currentUser.email}
+                onInviteUser={handleInviteUser}
+                onRemoveUser={handleRemoveUser}
+                onUpdateRole={handleUpdateRole}
+            />
+        )}
+        <Layout
             navigateTo={navigateTo}
-            activeScreen={selectedWorkspace ? screen : Screen.WorkspaceDashboard}
+            activeScreen={screen}
             currentUser={currentUser}
             onLogout={handleLogout}
             currentWorkspace={selectedWorkspace}
             onManageMembers={() => setManageMembersModalOpen(true)}
-            onUpdateWorkspaceName={handleUpdateWorkspaceName}
-            invitations={invitations}
-            onRespondToInvitation={handleRespondToInvitation}
-            workspaces={workspaces}
-            onSelectWorkspace={handleSelectWorkspace}
-            onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
             userRole={userRole}
+            onBackToWorkspaces={handleBackToWorkspaces}
         >
-            {renderContent()}
-        </WorkspaceLayout>
+            {renderScreenComponent()}
+        </Layout>
     </div>
   );
 }
