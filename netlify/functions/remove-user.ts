@@ -1,5 +1,4 @@
 
-
 import { getStore } from "@netlify/blobs";
 import type { Handler, HandlerContext } from "@netlify/functions";
 import { WorkspaceMember, WorkspaceInvitation } from '../../types';
@@ -34,7 +33,73 @@ export const handler: Handler = async (event, context) => {
     };
     const membersStore = getStore({ name: "workspace-members", ...storeOptions });
     const userWorkspacesStore = getStore({ name: "user-workspaces", ...storeOptions });
+    const userInvitationsStore = getStore({ name: "user-invitations", ...storeOptions });
     
     const members = (await membersStore.get(workspaceId, { type: "json" })) as WorkspaceMember[] || [];
 
     const currentUser = members.find(m => m.email === user.email);
+    // Authorization: User must be an administrator
+    if (!currentUser || currentUser.role !== "Administrator") {
+      return { statusCode: 403, body: JSON.stringify({ error: "Forbidden: Only administrators can remove users." }), headers: { "Content-Type": "application/json" } };
+    }
+    
+    const userToRemove = members.find(m => m.email === userToRemoveEmail);
+    if (!userToRemove) {
+      return { statusCode: 404, body: JSON.stringify({ error: "User not found in this workspace." }), headers: { "Content-Type": "application/json" } };
+    }
+
+    // Business rule: Cannot remove the last administrator
+    if (userToRemove.role === "Administrator" && userToRemove.status === 'active') {
+      const adminCount = members.filter(m => m.role === "Administrator" && m.status === 'active').length;
+      if (adminCount <= 1) {
+        return { statusCode: 400, body: JSON.stringify({ error: "Cannot remove the last administrator from the workspace." }), headers: { "Content-Type": "application/json" } };
+      }
+    }
+    
+    // Remove from workspace members list
+    const updatedMembers = members.filter(m => m.email !== userToRemoveEmail);
+    await membersStore.setJSON(workspaceId, updatedMembers);
+
+    if (userToRemove.status === 'active') {
+        // If they were an active user, remove workspace from their list
+        const userWorkspaces = (await userWorkspacesStore.get(userToRemoveEmail, { type: "json" })) as string[] || [];
+        const updatedUserWorkspaces = userWorkspaces.filter(id => id !== workspaceId);
+        await userWorkspacesStore.setJSON(userToRemoveEmail, updatedUserWorkspaces);
+    } else { // status === 'pending'
+        // If it was a pending invitation, remove it from their invitations list
+        const userInvitations = (await userInvitationsStore.get(userToRemoveEmail, { type: "json" })) as WorkspaceInvitation[] || [];
+        const updatedInvitations = userInvitations.filter(inv => inv.workspaceId !== workspaceId);
+        await userInvitationsStore.setJSON(userToRemoveEmail, updatedInvitations);
+    }
+    
+    return {
+      statusCode: 204, // No Content
+      body: '',
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error(`Error in remove-user: ${errorMessage}`, error);
+
+    if (error instanceof Error && error.name === 'MissingBlobsEnvironmentError') {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ 
+                error: "Netlify Blobs is not configured. Ensure NETLIFY_SITE_ID and NETLIFY_API_TOKEN environment variables are set correctly in your site configuration.",
+                details: errorMessage 
+            }),
+            headers: { "Content-Type": "application/json" },
+        };
+    }
+    if (error instanceof SyntaxError) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON format." }), headers: { "Content-Type": "application/json" } };
+    }
+    if (error instanceof Error && error.message === "Authentication required.") {
+      return { statusCode: 401, body: JSON.stringify({ error: error.message }), headers: { "Content-Type": "application/json" } };
+    }
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "An internal server error occurred.", details: errorMessage }),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+};
