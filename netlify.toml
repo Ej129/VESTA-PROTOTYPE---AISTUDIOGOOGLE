@@ -1,0 +1,24 @@
+[build]
+  command = """
+    rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && \
+    esbuild index.tsx --bundle --format=esm --outfile=dist/index.js \
+    --jsx=automatic \
+    --loader:.ts=ts --loader:.tsx=tsx \
+    --platform=browser --target=esnext \
+    --define:process.env.API_KEY='"$API_KEY"' \
+    --external:@google/genai --external:jspdf --external:pdfjs-dist --external:mammoth
+  """
+  publish = "dist"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
+
+[functions."*"]
+  external_node_modules = ["@netlify/blobs"]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
