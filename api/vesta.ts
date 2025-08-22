@@ -1,7 +1,7 @@
 
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation } from '../types';
+import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
 
 let ai: GoogleGenAI | null = null;
 
@@ -194,5 +194,33 @@ export async function improvePlan(planContent: string, report: AnalysisReport): 
         console.error("Error improving plan with Gemini:", error);
         // Fallback to original content on error
         return planContent; 
+    }
+}
+
+export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
+    const contents = [
+        ...history.map(msg => ({
+            role: msg.role,
+            parts: [{ text: msg.content }]
+        })),
+        {
+            role: 'user' as const,
+            parts: [{ text: newMessage }]
+        }
+    ];
+
+    try {
+        const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: contents,
+            config: {
+                systemInstruction: `You are Vesta, an AI assistant. The user is asking questions about the following document. Use the document as the primary source of truth to answer their questions. Be concise and helpful. If the question cannot be answered from the document, say so. Do not make up information.\n\nDOCUMENT CONTEXT:\n---\n${documentContent}\n---`,
+            },
+        });
+
+        return response.text.trim();
+    } catch (error) {
+        console.error("Error getting chat response from Gemini:", error);
+        return "Sorry, I encountered an error while processing your request. Please try again.";
     }
 }

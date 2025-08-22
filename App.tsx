@@ -11,6 +11,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
 import ManageMembersModal from './components/ManageMembersModal';
 import KnowledgeBaseModal from './components/KnowledgeBaseModal';
+import UploadModal from './components/UploadModal';
 import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import NotificationToast from './components/NotificationToast';
@@ -91,6 +92,7 @@ const App: React.FC = () => {
   const [isCreateWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [isManageMembersModalOpen, setManageMembersModalOpen] = useState(false);
   const [isKnowledgeBaseModalOpen, setKnowledgeBaseModalOpen] = useState(false);
+  const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   
   // Notification State
   const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
@@ -228,6 +230,7 @@ const App: React.FC = () => {
     await addAuditLog('Analysis Run', JSON.stringify({ message: `Analysis completed for: ${report.title}`, reportId: addedReport.id }));
     await loadWorkspaceData(selectedWorkspace.id);
     setActiveReport(addedReport);
+    return addedReport;
   };
 
   const handleFileUpload = async (content: string, fileName: string) => {
@@ -238,6 +241,12 @@ const App: React.FC = () => {
     const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
     await handleAnalysisComplete(report as AnalysisReport);
     setIsAnalyzing(false);
+    setUploadModalOpen(false);
+    navigateTo(Screen.Analysis);
+  };
+  
+  const handleSelectReport = (report: AnalysisReport) => {
+    setActiveReport(report);
     navigateTo(Screen.Analysis);
   };
 
@@ -256,11 +265,19 @@ const App: React.FC = () => {
       if (!report) return;
       setIsAnalyzing(true);
       const improvedContent = await vestaApi.improvePlan(report.documentContent, report);
-      const updatedReport = { ...report, documentContent: improvedContent };
-      setActiveReport(updatedReport);
+      const updatedReportData = { ...report, documentContent: improvedContent };
+      // Re-run analysis on the improved content
+      const newAnalysisData = await vestaApi.analyzePlan(improvedContent, knowledgeBaseSources, dismissalRules, customRegulations);
+      const enhancedReport = {
+          ...updatedReportData,
+          ...newAnalysisData,
+          title: report.title, // Keep original title
+      };
+      
+      const finalReport = await handleAnalysisComplete(enhancedReport as AnalysisReport);
       addAuditLog('Auto-Fix', `Auto-Enhanced document: ${report.title}`);
       setIsAnalyzing(false);
-      return updatedReport;
+      return finalReport;
   };
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
@@ -375,15 +392,15 @@ const App: React.FC = () => {
 
     switch (screen) {
       case Screen.Dashboard:
-        return <UploadScreen onUpload={handleFileUpload} isAnalyzing={isAnalyzing} />;
+        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} />;
       case Screen.Analysis:
         return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} />;
       case Screen.AuditTrail:
-        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={() => {}} />;
+        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
       case Screen.Settings:
         return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
       default:
-        return <UploadScreen onUpload={handleFileUpload} isAnalyzing={isAnalyzing} />;
+        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} />;
     }
   };
 
@@ -425,6 +442,13 @@ const App: React.FC = () => {
                 userRole={userRole}
             />
         )}
+        {isUploadModalOpen && (
+            <UploadModal
+                onClose={() => setUploadModalOpen(false)}
+                onUpload={handleFileUpload}
+                isAnalyzing={isAnalyzing}
+            />
+        )}
         <Layout
             navigateTo={navigateTo}
             currentUser={currentUser}
@@ -437,7 +461,7 @@ const App: React.FC = () => {
             onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
             onUpdateWorkspaceName={handleUpdateWorkspaceName}
             onKnowledgeBase={() => setKnowledgeBaseModalOpen(true)}
-            onNewAnalysis={() => navigateTo(Screen.Dashboard)}
+            onNewAnalysis={() => setUploadModalOpen(true)}
         >
             {renderScreenComponent()}
         </Layout>

@@ -165,3 +165,8 @@ export interface WorkspaceData {
     dismissalRules: DismissalRule[];
     customRegulations: CustomRegulation[];
 }
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
+}
