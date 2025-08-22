@@ -6,7 +6,6 @@ export enum Screen {
   Dashboard,
   Analysis,
   AuditTrail,
-  KnowledgeBase,
   Settings,
 }
 
@@ -151,10 +150,6 @@ export interface ScreenLayoutProps {
   currentWorkspace: Workspace;
   onManageMembers: () => void;
   userRole: UserRole;
-  workspaces: Workspace[];
-  onSelectWorkspace: (workspace: Workspace) => void;
-  onCreateWorkspace: () => void;
-  onUpdateWorkspaceName: (workspaceId: string, name: string) => void;
 }
 
 export interface TourStep {

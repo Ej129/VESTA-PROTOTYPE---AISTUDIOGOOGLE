@@ -1,6 +1,6 @@
 
+
 import React, { useState, useCallback } from 'react';
-import { UploadCloudIcon } from './Icons';
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -9,6 +9,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.5.136/build/p
 
 interface UploadZoneProps {
   onUpload: (content: string, fileName: string) => void;
+  children: React.ReactNode;
 }
 
 const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
@@ -29,15 +30,10 @@ const readFileAsText = (file: File): Promise<string> => {
     });
 };
 
-const UploadZone: React.FC<UploadZoneProps> = ({ onUpload }) => {
+const UploadZone: React.FC<UploadZoneProps> = ({ onUpload, children }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'parsing' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-
+  
   const processFile = async (file: File) => {
-    setStatus('parsing');
-    setErrorMessage('');
-
     const extension = file.name.split('.').pop()?.toLowerCase();
     
     try {
@@ -57,15 +53,13 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUpload }) => {
         } else if (extension === 'txt') {
             textContent = await readFileAsText(file);
         } else {
-            setErrorMessage(`Unsupported file type: .${extension}. Please use PDF, DOCX, or TXT.`);
-            setStatus('error');
+            alert(`Unsupported file type: .${extension}. Please use PDF, DOCX, or TXT.`);
             return;
         }
         onUpload(textContent, file.name);
     } catch (e) {
         console.error('File processing error:', e);
-        setErrorMessage('Could not read file. It might be corrupted or in an unsupported format.');
-        setStatus('error');
+        alert('Could not read file. It might be corrupted or in an unsupported format.');
     }
   };
   
@@ -73,53 +67,38 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUpload }) => {
     if (file) {
       processFile(file);
     }
-  }, []);
+  }, [onUpload]);
 
-  const handleFileDrop = useCallback((e: React.DragEvent<HTMLLabelElement>) => {
+  const handleFileDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     handleFileAction(e.dataTransfer.files?.[0]);
   }, [handleFileAction]);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileAction(e.target.files?.[0]);
-    e.target.value = '';
-  }, [handleFileAction]);
-
-  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    if (!isDragging) setIsDragging(true);
   };
   
-  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-        <label 
-            htmlFor="file-upload-zone" 
-            onDrop={handleFileDrop} 
-            onDragOver={handleDragOver} 
-            onDragLeave={handleDragLeave}
-            className={`flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-xl cursor-pointer bg-vesta-card-light dark:bg-vesta-card-dark hover:bg-gray-50 dark:hover:bg-vesta-bg-dark/50 transition ${isDragging ? 'border-vesta-red' : 'border-vesta-border-light dark:border-vesta-border-dark'}`}
-        >
-            <input id="file-upload-zone" type="file" className="hidden" onChange={handleFileSelect} accept=".pdf,.docx,.txt" />
-            <div className="text-center">
-                <div className="w-24 h-24 mx-auto p-4 rounded-full bg-vesta-bg-light dark:bg-vesta-bg-dark">
-                  <UploadCloudIcon className="w-full h-full text-vesta-red" />
-                </div>
-                <h3 className="mt-4 text-xl font-bold uppercase text-vesta-text-light dark:text-vesta-text-dark">Upload Your Files</h3>
-                <p className="mt-2 text-sm text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
-                    {status === 'error' ? errorMessage : 'Drag & drop your documents here, or click to browse.'}
-                </p>
-                {status === 'parsing' && <p className="mt-2 text-sm font-semibold text-vesta-red">Parsing document...</p>}
-            </div>
-        </label>
+    <div
+      onDrop={handleFileDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      className={`h-full w-full relative transition-all duration-300 ${isDragging ? 'bg-vesta-gold/10' : ''}`}
+    >
+      <div 
+        className={`absolute inset-4 border-2 border-dashed rounded-2xl pointer-events-none transition-all duration-300 ${isDragging ? 'border-vesta-gold opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'}`}
+      />
+      {children}
     </div>
   );
 };

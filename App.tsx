@@ -7,10 +7,10 @@ import LoginScreen from './screens/LoginScreen';
 import UploadScreen from './screens/UploadScreen';
 import AnalysisScreen from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
-import KnowledgeBaseScreen from './screens/KnowledgeBaseScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
 import ManageMembersModal from './components/ManageMembersModal';
+import KnowledgeBaseModal from './components/KnowledgeBaseModal';
 import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import NotificationToast from './components/NotificationToast';
@@ -90,6 +90,7 @@ const App: React.FC = () => {
   // Modal State
   const [isCreateWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [isManageMembersModalOpen, setManageMembersModalOpen] = useState(false);
+  const [isKnowledgeBaseModalOpen, setKnowledgeBaseModalOpen] = useState(false);
   
   // Notification State
   const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
@@ -251,13 +252,22 @@ const App: React.FC = () => {
       }
   };
 
+  const handleAutoEnhance = async (report: AnalysisReport) => {
+      if (!report) return;
+      setIsAnalyzing(true);
+      const improvedContent = await vestaApi.improvePlan(report.documentContent, report);
+      const updatedReport = { ...report, documentContent: improvedContent };
+      setActiveReport(updatedReport);
+      addAuditLog('Auto-Fix', `Auto-Enhanced document: ${report.title}`);
+      setIsAnalyzing(false);
+      return updatedReport;
+  };
+
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
     if (!selectedWorkspace) return;
     await workspaceApi.addKnowledgeSource(selectedWorkspace.id, { title, content, category, isEditable: true });
     await loadWorkspaceData(selectedWorkspace.id);
   };
-
-  const handleAddAutomatedSource = async () => {};
 
   const deleteKnowledgeSource = async (id: string) => {
     if (!selectedWorkspace) return;
@@ -361,21 +371,15 @@ const App: React.FC = () => {
         currentWorkspace: selectedWorkspace,
         onManageMembers: () => setManageMembersModalOpen(true),
         userRole,
-        workspaces,
-        onSelectWorkspace: handleSelectWorkspace,
-        onCreateWorkspace: () => setCreateWorkspaceModalOpen(true),
-        onUpdateWorkspaceName: handleUpdateWorkspaceName,
     };
 
     switch (screen) {
       case Screen.Upload:
         return <UploadScreen onUpload={handleFileUpload} isAnalyzing={isAnalyzing} />;
       case Screen.Analysis:
-        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} customRegulations={customRegulations} />;
+        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} />;
       case Screen.AuditTrail:
         return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={() => {}} />;
-      case Screen.KnowledgeBase:
-        return <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} isSyncing={isSyncingSources} />;
       case Screen.Settings:
         return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
       default:
@@ -411,6 +415,16 @@ const App: React.FC = () => {
                 onUpdateRole={handleUpdateRole}
             />
         )}
+        {isKnowledgeBaseModalOpen && selectedWorkspace && (
+             <KnowledgeBaseModal
+                onClose={() => setKnowledgeBaseModalOpen(false)}
+                sources={knowledgeBaseSources}
+                onAddSource={addKnowledgeSource}
+                onDeleteSource={deleteKnowledgeSource}
+                isSyncing={isSyncingSources}
+                userRole={userRole}
+            />
+        )}
         <Layout
             navigateTo={navigateTo}
             currentUser={currentUser}
@@ -422,6 +436,8 @@ const App: React.FC = () => {
             userRole={userRole}
             onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
             onUpdateWorkspaceName={handleUpdateWorkspaceName}
+            onKnowledgeBase={() => setKnowledgeBaseModalOpen(true)}
+            onNewAnalysis={() => navigateTo(Screen.Upload)}
         >
             {renderScreenComponent()}
         </Layout>

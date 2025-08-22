@@ -1,10 +1,12 @@
 
 
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { AnalysisReport, AuditLogAction, KnowledgeSource, ScreenLayoutProps, CustomRegulation, Workspace } from '../types';
-import { SparklesIcon, DownloadIcon, EditIcon } from '../components/Icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { AnalysisReport, Finding, ScreenLayoutProps, FindingStatus, FeedbackReason } from '../types';
+import { SparklesIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon } from '../components/Icons';
 import jsPDF from 'jspdf';
-import { HeaderActionsContext } from '../components/Layout';
+import * as workspaceApi from '../api/workspace';
+import FeedbackModal from '../components/FeedbackModal';
+import { AnimatedChecklist } from '../components/AnimatedChecklist';
 
 const ThemedScoreCard: React.FC<{ label: string, score: number }> = ({ label, score }) => (
   <div className="bg-vesta-bg-light dark:bg-vesta-bg-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg p-3 shadow-sm">
@@ -18,58 +20,80 @@ const ThemedScoreCard: React.FC<{ label: string, score: number }> = ({ label, sc
   </div>
 );
 
-const AskGemini: React.FC = () => (
-    <div className="bg-vesta-bg-light dark:bg-vesta-bg-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg flex-grow mt-6 flex flex-col items-center justify-center p-4">
-        <SparklesIcon className="w-8 h-8 text-vesta-gold mb-2" />
-        <button className="text-lg font-bold text-vesta-red dark:text-vesta-gold">
-            Ask Gemini
-        </button>
-        <p className="text-xs text-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-1">AI chat about this document</p>
-    </div>
-);
+const FindingCard: React.FC<{ finding: Finding; onStatusChange: (findingId: string, status: FindingStatus) => void; onDismiss: (finding: Finding) => void; }> = ({ finding, onStatusChange, onDismiss }) => {
+    const severityClasses = {
+        critical: {
+            icon: <AlertTriangleIcon className="w-5 h-5 text-white" />,
+            bg: 'bg-accent-critical',
+            text: 'text-white',
+        },
+        warning: {
+            icon: <AlertCircleIcon className="w-5 h-5 text-vesta-red" />,
+            bg: 'bg-accent-warning',
+            text: 'text-vesta-red',
+        },
+    };
+    const { icon, bg, text } = severityClasses[finding.severity];
 
-const formatDocumentContent = (text: string) => {
-  return text.split('\n').map((line, index) => {
-    const trimmedLine = line.trim();
-    if (!trimmedLine) {
-        return <div key={index} className="h-4" />;
-    }
-    
-    if (trimmedLine === trimmedLine.toUpperCase() && trimmedLine.length > 5 && !trimmedLine.endsWith('.') && isNaN(parseInt(trimmedLine))) {
-      return <h2 key={index} className="text-lg font-bold font-display text-vesta-gold uppercase tracking-wider mt-6 mb-4">{trimmedLine}</h2>;
-    }
-    
-    return <p key={index} className="text-base leading-relaxed mb-4">{trimmedLine}</p>;
-  });
+    return (
+        <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-sm border border-vesta-border-light dark:border-vesta-border-dark overflow-hidden">
+            <div className={`p-4 flex items-start ${bg} ${text}`}>
+                <div className="flex-shrink-0 mt-0.5">{icon}</div>
+                <div className="ml-3">
+                    <h3 className="font-bold">{finding.title}</h3>
+                </div>
+            </div>
+            <div className="p-4 space-y-4">
+                <div>
+                    <h4 className="font-semibold text-sm text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mb-1">Source Snippet</h4>
+                    <blockquote className="border-l-4 border-vesta-red pl-4 py-2 bg-gray-50 dark:bg-vesta-bg-dark text-vesta-text-light dark:text-vesta-text-dark italic">
+                        "{finding.sourceSnippet}"
+                    </blockquote>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-sm text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mb-1">Recommendation</h4>
+                    <p className="text-vesta-text-light dark:text-vesta-text-dark">{finding.recommendation}</p>
+                </div>
+            </div>
+            {finding.status === 'active' && (
+                 <div className="px-4 py-3 bg-gray-50 dark:bg-vesta-bg-dark border-t border-vesta-border-light dark:border-vesta-border-dark flex justify-end space-x-3">
+                    <button onClick={() => onDismiss(finding)} className="flex items-center px-3 py-1 text-xs font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md">
+                        <XCircleIcon className="w-4 h-4 mr-1" /> Dismiss
+                    </button>
+                    <button onClick={() => onStatusChange(finding.id, 'resolved')} className="flex items-center px-3 py-1 text-xs font-semibold text-white bg-accent-success hover:bg-green-600 rounded-md">
+                        <CheckCircleIcon className="w-4 h-4 mr-1" /> Mark as Resolved
+                    </button>
+                </div>
+            )}
+        </div>
+    );
 };
 
-interface AnalysisScreenProps extends Omit<ScreenLayoutProps, 'onBackToWorkspaces' | 'currentWorkspace'> {
+
+const enhancementSteps = [
+    "Analyzing findings...",
+    "Applying compliance formatting...",
+    "Improving clarity and structure...",
+    "Generating revised document...",
+];
+
+interface AnalysisScreenProps extends ScreenLayoutProps {
   activeReport: AnalysisReport | null;
-  currentWorkspace: Workspace;
-  onAnalysisComplete: (report: Omit<AnalysisReport, 'id'|'workspaceId'|'createdAt'>) => void;
   onUpdateReport: (report: AnalysisReport) => void;
-  addAuditLog: (action: AuditLogAction, details: string) => void;
-  knowledgeBaseSources: KnowledgeSource[];
-  customRegulations: CustomRegulation[];
+  onAutoEnhance: (report: AnalysisReport) => Promise<AnalysisReport>;
+  isEnhancing: boolean;
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, addAuditLog, userRole }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing, currentWorkspace }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
-  const [plainTextContent, setPlainTextContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const { setActions } = useContext(HeaderActionsContext);
+  const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
 
   useEffect(() => {
-    if (activeReport) {
-        setCurrentReport(activeReport);
-        setPlainTextContent(activeReport.documentContent);
-    } else {
-      setCurrentReport(null);
-      setPlainTextContent('');
-    }
+    setCurrentReport(activeReport);
   }, [activeReport]);
 
-  const canEdit = userRole === 'Administrator' || userRole === 'Member' || userRole === 'Risk Management Officer' || userRole === 'Strategy Officer';
+  const canEdit = true;
 
   const handleDownload = (format: 'PDF') => {
       const title = currentReport?.title.replace(/\.[^/.]+$/, "") || 'document';
@@ -79,7 +103,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
           const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
           const margin = 20;
           let y = margin;
-          const lines = doc.splitTextToSize(plainTextContent, doc.internal.pageSize.width - margin * 2);
+          const lines = doc.splitTextToSize(currentReport.documentContent, doc.internal.pageSize.width - margin * 2);
           doc.setFontSize(18);
           doc.text(title, margin, y);
           y += 15;
@@ -99,44 +123,30 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
 
   const handleSaveChanges = () => {
     setIsEditing(false);
-    if (!currentReport || currentReport.documentContent === plainTextContent) return;
-    const updatedReport = { ...currentReport, documentContent: plainTextContent };
+    if (!currentReport) return;
+    onUpdateReport(currentReport);
+  };
+  
+  const handleEnhanceClick = async () => {
+    if (!currentReport) return;
+    const updatedReport = await onAutoEnhance(currentReport);
     setCurrentReport(updatedReport);
-    onUpdateReport(updatedReport);
-    addAuditLog('Document Upload', `Document content for "${currentReport.title}" was manually edited.`);
   };
 
-  useEffect(() => {
-    setActions(
-      <div className="flex items-center space-x-2">
-        <button 
-            onClick={() => handleDownload('PDF')} 
-            className="flex items-center px-3 py-1.5 bg-transparent border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-sm font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-100 dark:hover:bg-vesta-card-dark"
-        >
-            <DownloadIcon className="w-4 h-4 mr-2" /> Download
-        </button>
-        {isEditing ? (
-            <button 
-                onClick={handleSaveChanges} 
-                className="px-4 py-1.5 border border-vesta-red rounded-lg text-sm font-bold bg-vesta-red text-white hover:bg-vesta-red-dark"
-            >
-                Save Changes
-            </button>
-        ) : (
-            <button 
-                onClick={() => setIsEditing(true)} 
-                className="p-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:border-vesta-red hover:text-vesta-red disabled:opacity-50" 
-                disabled={!canEdit}
-                aria-label="Edit document"
-            >
-                <EditIcon className="w-5 h-5" />
-            </button>
-        )}
-      </div>
-    );
-    return () => setActions(null);
-  }, [isEditing, plainTextContent, currentReport, canEdit]);
-
+  const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
+    if (!currentReport) return;
+    const updatedFindings = currentReport.findings.map(f => f.id === findingId ? { ...f, status } : f);
+    const updatedReport = { ...currentReport, findings: updatedFindings };
+    setCurrentReport(updatedReport);
+    onUpdateReport(updatedReport);
+  };
+  
+  const handleDismiss = async (reason: FeedbackReason) => {
+      if (!feedbackFinding || !currentReport) return;
+      await workspaceApi.addDismissalRule(currentWorkspace.id, { findingTitle: feedbackFinding.title, reason });
+      handleFindingStatusChange(feedbackFinding.id, 'dismissed');
+      setFeedbackFinding(null);
+  };
 
   if (!currentReport) {
       return (
@@ -146,40 +156,77 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
       );
   }
   
-  const scores = currentReport.scores || {
-    project: currentReport.resilienceScore,
-    strategicGoals: 0,
-    regulations: 0,
-    risk: 0
-  };
+  const activeFindings = currentReport.findings.filter(f => f.status === 'active');
 
   return (
-    <div className="flex h-full bg-vesta-bg-light dark:bg-vesta-bg-dark">
-        <div className="flex-1 w-0 flex flex-col">
-            <div className="flex-grow p-8 lg:p-12 overflow-y-auto text-vesta-text-light dark:text-vesta-text-dark">
-                {isEditing ? (
-                    <textarea
-                        value={plainTextContent}
-                        onChange={(e) => setPlainTextContent(e.target.value)}
-                        className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans"
-                        autoFocus
-                    />
-                ) : (
-                    <div>{formatDocumentContent(plainTextContent)}</div>
-                )}
+    <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {feedbackFinding && <FeedbackModal finding={feedbackFinding} onClose={() => setFeedbackFinding(null)} onSubmit={handleDismiss} />}
+        
+        {/* Left Column: Document Editor */}
+        <div className="lg:col-span-2 space-y-6">
+            <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark">
+                <div className="p-4 flex justify-between items-center border-b border-vesta-border-light dark:border-vesta-border-dark">
+                    <h2 className="font-bold text-lg text-vesta-text-light dark:text-vesta-text-dark truncate pr-4">{currentReport.title}</h2>
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                         <button onClick={() => handleDownload('PDF')} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-vesta-bg-dark"><DownloadIcon className="w-5 h-5 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark"/></button>
+                         {isEditing ? (
+                             <button onClick={handleSaveChanges} className="px-4 py-1.5 border border-vesta-red rounded-lg text-sm font-bold bg-vesta-red text-white hover:bg-vesta-red-dark">Save</button>
+                         ) : (
+                             <button onClick={() => setIsEditing(true)} disabled={!canEdit} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-vesta-bg-dark disabled:opacity-50"><EditIcon className="w-5 h-5 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark"/></button>
+                         )}
+                    </div>
+                </div>
+                <div className={`p-6 bg-vesta-bg-springwood dark:bg-gray-900 rounded-b-xl min-h-[60vh] ${isEnhancing ? 'flex items-center justify-center' : ''}`}>
+                    {isEnhancing ? (
+                        <AnimatedChecklist steps={enhancementSteps} />
+                    ) : (
+                        isEditing ? (
+                            <textarea
+                                value={currentReport.documentContent}
+                                onChange={(e) => setCurrentReport({ ...currentReport, documentContent: e.target.value })}
+                                className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans text-black"
+                                autoFocus
+                            />
+                        ) : (
+                            <div className="prose prose-sm max-w-none text-black whitespace-pre-wrap">{currentReport.documentContent}</div>
+                        )
+                    )}
+                </div>
             </div>
         </div>
         
-        <div className="w-96 flex-shrink-0 bg-vesta-card-light dark:bg-vesta-card-dark flex flex-col border-l border-vesta-border-light dark:border-vesta-border-dark">
-            <div className="p-6 flex flex-col h-full overflow-y-auto">
-                <h2 className="text-xl font-bold font-display text-vesta-gold uppercase tracking-wider text-center mb-6 pb-4 border-b border-vesta-border-light dark:border-vesta-border-dark">Analysis Report</h2>
-                <div className="space-y-4">
-                    <ThemedScoreCard label="Project Score" score={scores.project} />
-                    <ThemedScoreCard label="Strategic Goals" score={scores.strategicGoals} />
-                    <ThemedScoreCard label="Regulations" score={scores.regulations} />
-                    <ThemedScoreCard label="Risk" score={scores.risk} />
-                </div>
-                <AskGemini />
+        {/* Right Column: Analysis & Findings */}
+        <div className="lg:col-span-1 space-y-6">
+            <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark p-6 space-y-4">
+                <h2 className="text-xl font-bold font-display text-vesta-gold uppercase tracking-wider text-center">Analysis Report</h2>
+                <ThemedScoreCard label="Project Score" score={currentReport.scores?.project || currentReport.resilienceScore} />
+                <ThemedScoreCard label="Strategic Goals" score={currentReport.scores?.strategicGoals || 0} />
+                <ThemedScoreCard label="Regulations" score={currentReport.scores?.regulations || 0} />
+                <ThemedScoreCard label="Risk" score={currentReport.scores?.risk || 0} />
+            </div>
+            
+            <button
+                onClick={handleEnhanceClick}
+                disabled={isEnhancing}
+                className="w-full flex items-center justify-center py-3 px-4 bg-vesta-red text-vesta-gold font-bold rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+                <SparklesIcon className="w-5 h-5 mr-2" />
+                {isEnhancing ? 'Enhancing...' : 'Auto-Enhance Document'}
+            </button>
+            
+            <div className="space-y-4">
+                <h3 className="font-bold text-lg text-vesta-text-light dark:text-vesta-text-dark">Actionable Findings ({activeFindings.length})</h3>
+                {activeFindings.length > 0 ? (
+                    activeFindings.map(finding => (
+                        <FindingCard key={finding.id} finding={finding} onStatusChange={handleFindingStatusChange} onDismiss={() => setFeedbackFinding(finding)} />
+                    ))
+                ) : (
+                    <div className="text-center p-8 bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg border border-vesta-border-light dark:border-vesta-border-dark">
+                        <CheckCircleIcon className="w-12 h-12 mx-auto text-accent-success" />
+                        <p className="mt-4 font-semibold text-vesta-text-light dark:text-vesta-text-dark">No active findings!</p>
+                        <p className="text-sm text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">This document meets all checks.</p>
+                    </div>
+                )}
             </div>
         </div>
     </div>
