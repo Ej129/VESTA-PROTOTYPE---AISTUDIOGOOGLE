@@ -4,7 +4,7 @@
   "description": "An AI-powered collaborative platform for analyzing project plans.",
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && esbuild index.tsx --bundle --format=esm --outfile=dist/index.js --jsx=automatic --define:process.env.API_KEY='\"'$API_KEY'\"' --external:@google/genai --external:jspdf --external:pdfjs-dist --external:mammoth"
+    "build": "rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && esbuild src/index.tsx --bundle --format=esm --outfile=dist/index.js --jsx=automatic --define:process.env.API_KEY='\"'$API_KEY'\"' --external:@google/genai --external:jspdf --external:pdfjs-dist --external:mammoth"
   },
   "engines": {
     "node": ">=20"
