@@ -2,7 +2,6 @@
 
 export enum Screen {
   Login,
-  Upload,
   Dashboard,
   Analysis,
   AuditTrail,

@@ -69,7 +69,7 @@ const App: React.FC = () => {
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
 
-  const [screen, setScreen] = useState<Screen>(Screen.Upload);
+  const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -216,9 +216,9 @@ const App: React.FC = () => {
   const handleSelectWorkspace = async (workspace: Workspace) => {
     if(selectedWorkspace?.id === workspace.id && screen !== Screen.Analysis) return;
     setSelectedWorkspace(workspace);
-    setActiveReport(null);
+    setActiveReport(null); // Clear active report when switching workspace
     await loadWorkspaceData(workspace.id);
-    navigateTo(Screen.Upload);
+    navigateTo(Screen.Dashboard); // Always go to Dashboard on workspace select
   };
 
   const handleAnalysisComplete = async (report: AnalysisReport) => {
@@ -374,7 +374,7 @@ const App: React.FC = () => {
     };
 
     switch (screen) {
-      case Screen.Upload:
+      case Screen.Dashboard:
         return <UploadScreen onUpload={handleFileUpload} isAnalyzing={isAnalyzing} />;
       case Screen.Analysis:
         return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} />;
@@ -437,7 +437,7 @@ const App: React.FC = () => {
             onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
             onUpdateWorkspaceName={handleUpdateWorkspaceName}
             onKnowledgeBase={() => setKnowledgeBaseModalOpen(true)}
-            onNewAnalysis={() => navigateTo(Screen.Upload)}
+            onNewAnalysis={() => navigateTo(Screen.Dashboard)}
         >
             {renderScreenComponent()}
         </Layout>

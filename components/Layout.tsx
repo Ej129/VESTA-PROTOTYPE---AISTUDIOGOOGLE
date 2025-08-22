@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
-import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, SettingsIcon, HistoryIcon, LogoutIcon, BriefcaseIcon } from './Icons';
+import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, SettingsIcon, HistoryIcon, LogoutIcon, BriefcaseIcon, EditIcon } from './Icons';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,8 +38,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
     </div>
 );
 
-const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers'> & { isCollapsed: boolean }> =
-  ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed }) => {
+const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase'> & { isCollapsed: boolean, onToggleCollapse: () => void }> =
+  ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
@@ -78,21 +78,43 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
 
     return (
         <aside className={`bg-vesta-red text-white flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
-            <div className={`p-4 flex-shrink-0 border-b border-white/20 transition-all duration-300 ${isCollapsed ? 'h-20' : 'h-16'}`}>
-                <div className={`relative ${isCollapsed ? 'mt-1' : ''}`}>
-                    <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-vesta-gold transition-all duration-300`} />
+            {/* Sidebar Header */}
+            <div className={`p-4 flex-shrink-0 border-b border-white/20 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+                <VestaLogo className={`w-9 h-9 transition-all duration-300 ${isCollapsed ? '' : 'mr-2'}`} />
+                 <div className={`flex items-center space-x-1 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+                    <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md hover:bg-black/20 text-vesta-gold">
+                        <LibraryIcon className="w-5 h-5" />
+                    </button>
+                    <button onClick={onNewAnalysis} title="New Analysis" className="p-2 rounded-md hover:bg-black/20 text-vesta-gold">
+                        <EditIcon className="w-5 h-5" />
+                    </button>
+                    <button onClick={onToggleCollapse} title="Collapse Sidebar" className="p-2 rounded-md hover:bg-black/20 text-white">
+                        <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
+                 {isCollapsed && (
+                     <button onClick={onToggleCollapse} title="Expand Sidebar" className="p-2 rounded-md hover:bg-black/20 text-white">
+                        <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+                    </button>
+                 )}
+            </div>
+
+             {/* Search */}
+            <div className={`p-4 flex-shrink-0 border-b border-white/20`}>
+                <div className={`relative`}>
+                    <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-vesta-gold/80 transition-all duration-300`} />
                     <input
                         type="text"
                         placeholder={isCollapsed ? '' : "Search..."}
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className={`w-full bg-black/20 border border-vesta-red-dark rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-vesta-gold placeholder:text-vesta-gold/70 transition-all duration-300 ${isCollapsed ? 'pl-10 cursor-pointer' : 'pl-10 pr-4'}`}
+                        className={`w-full bg-black/20 border border-transparent rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-vesta-gold placeholder:text-vesta-gold/70 transition-all duration-300 ${isCollapsed ? 'pl-10 cursor-pointer' : 'pl-10 pr-4'}`}
                     />
                 </div>
             </div>
 
             <nav className="flex-1 p-4 pt-2 overflow-y-auto">
-                <p className={`text-xs font-bold uppercase text-white/50 mb-2 px-3 transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>Workspaces</p>
+                <p className={`text-xs font-bold uppercase tracking-wider text-white/60 mb-2 px-3 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 h-0' : 'opacity-100'}`}>Workspaces</p>
                 <ul className="space-y-1">
                     {filteredWorkspaces.map(ws => (
                         <li key={ws.id}>
@@ -130,27 +152,11 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     );
 };
 
-const TopNavbar: React.FC<Pick<LayoutProps, 'onNewAnalysis' | 'onKnowledgeBase'> & { isCollapsed: boolean, onToggleCollapse: () => void }> =
-  ({ onNewAnalysis, onKnowledgeBase, isCollapsed, onToggleCollapse }) => {
+const TopNavbar: React.FC = () => {
     return (
         <header className="bg-vesta-card-light dark:bg-vesta-card-dark h-16 px-6 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center flex-shrink-0 z-10">
-            <div className="flex items-center">
-                <VestaLogo className="w-9 h-9" />
-            </div>
-            <div className="flex items-center space-x-2">
-                <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-vesta-bg-dark text-vesta-gold">
-                    <LibraryIcon className="w-6 h-6" />
-                </button>
-                 <button 
-                    onClick={onNewAnalysis} 
-                    className="px-5 py-2 bg-vesta-gold text-vesta-red font-bold text-sm rounded-lg shadow-sm hover:bg-yellow-500 transition-colors"
-                >
-                    New Analysis
-                </button>
-                <button onClick={onToggleCollapse} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-vesta-bg-dark text-vesta-red">
-                    <ChevronsLeftIcon className={`w-6 h-6 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
-                </button>
-            </div>
+            <div></div>
+            <div></div>
         </header>
     );
 };
@@ -159,19 +165,18 @@ export const Layout: React.FC<LayoutProps> = (props) => {
     const { children } = props;
     const [isSidebarCollapsed, setSidebarCollapsed] = useState(localStorage.getItem('vesta-sidebar-collapsed') === 'true');
 
-    useEffect(() => {
-        localStorage.setItem('vesta-sidebar-collapsed', String(isSidebarCollapsed));
-    }, [isSidebarCollapsed]);
+    const handleToggleCollapse = () => {
+        const newState = !isSidebarCollapsed;
+        setSidebarCollapsed(newState);
+        localStorage.setItem('vesta-sidebar-collapsed', String(newState));
+    };
     
     return (
-        <div className="flex flex-col h-screen bg-vesta-bg-light dark:bg-vesta-bg-dark overflow-hidden">
-            <TopNavbar {...props} isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)} />
-            <div className="flex flex-1 overflow-hidden">
-                <WorkspaceSidebar {...props} isCollapsed={isSidebarCollapsed} />
-                <main className="flex-1 overflow-y-auto">
-                    {children}
-                </main>
-            </div>
+        <div className="flex h-screen bg-vesta-bg-light dark:bg-vesta-bg-dark overflow-hidden">
+            <WorkspaceSidebar {...props} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleCollapse} />
+            <main className="flex-1 overflow-y-auto">
+                {children}
+            </main>
         </div>
     );
 };
