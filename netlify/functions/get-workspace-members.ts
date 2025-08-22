@@ -2,7 +2,7 @@
 
 import { getStore } from "@netlify/blobs";
 import type { Handler, HandlerContext } from "@netlify/functions";
-import { WorkspaceMember } from '../../types';
+import { WorkspaceMember } from '../../src/types';
 
 // Helper to check for user authentication
 const requireAuth = (context: HandlerContext) => {

@@ -2,7 +2,7 @@
 
 import { getStore } from "@netlify/blobs";
 import type { Handler, HandlerContext } from "@netlify/functions";
-import { Workspace, WorkspaceMember, WorkspaceInvitation } from '../../types';
+import { Workspace, WorkspaceMember, WorkspaceInvitation } from '../../src/types';
 
 const requireAuth = (context: HandlerContext) => {
   const user = context.clientContext?.user;

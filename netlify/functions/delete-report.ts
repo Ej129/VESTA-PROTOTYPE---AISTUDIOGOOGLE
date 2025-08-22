@@ -1,7 +1,7 @@
 
 import { getStore } from "@netlify/blobs";
 import type { Handler, HandlerContext } from "@netlify/functions";
-import { AnalysisReport } from '../../types';
+import { AnalysisReport } from '../../src/types';
 
 const requireAuth = (context: HandlerContext) => {
   const user = context.clientContext?.user;
