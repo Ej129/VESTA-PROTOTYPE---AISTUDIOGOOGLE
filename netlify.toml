@@ -2,8 +2,8 @@
   command = """
     rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && \
     esbuild src/index.tsx --bundle --format=esm --outfile=dist/index.js \
-    --loader:.ts=ts --loader:.tsx=tsx \
-    --platform=browser --target=esnext
+    --loader:.ts=ts --loader:.tsx=tsx --platform=browser --target=esnext \
+    --external:@google/genai --external:pdfjs-dist --external:mammoth
   """
   publish = "dist"
 
