@@ -1,0 +1,19 @@
+[build]
+  # Clean dist, transpile and bundle with esbuild (TSX support enabled)
+  command = "rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && esbuild index.tsx --bundle --format=esm --outfile=dist/index.js --loader:.ts=ts --loader:.tsx=tsx"
+  publish = "dist"
+
+  # Env vars available during build
+  environment = ["API_KEY", "NETLIFY_API_TOKEN", "NETLIFY_SITE_ID"]
+
+[functions]
+  directory = "netlify/functions"
+
+  [functions."*"]
+    node_bundler = "esbuild"
+    external_node_modules = ["@netlify/blobs"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
