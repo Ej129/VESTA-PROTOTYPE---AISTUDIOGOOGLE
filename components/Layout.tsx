@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext, ReactNode, useRef } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace, WorkspaceInvitation } from '../types';
 import { VestaLogo, DashboardIcon, HistoryIcon, SettingsIcon, LogoutIcon, UsersIcon, ChevronsLeftIcon, BellIcon, SearchIcon, PlusIcon, EditIcon, MessageSquareIcon } from './Icons';
@@ -66,34 +65,34 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = (props) => {
   }
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
-  const tooltipClasses = `absolute left-full ml-2 px-2 py-1 text-xs font-semibold text-white bg-vesta-card-dark rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none`;
+  const tooltipClasses = `absolute left-full ml-2 px-2 py-1 text-xs font-semibold text-white bg-black rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none`;
 
   const filteredWorkspaces = workspaces.filter(ws => ws.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <aside className={`bg-vesta-card-light dark:bg-vesta-card-dark text-vesta-text-light dark:text-vesta-text-dark flex flex-col h-screen border-r border-vesta-border-light dark:border-vesta-border-dark transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-80'}`}>
+    <aside className={`bg-vesta-red text-white flex flex-col h-screen transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-80'}`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 h-16 border-b border-vesta-border-light dark:border-vesta-border-dark flex-shrink-0">
+      <div className="flex items-center justify-between p-4 h-16 border-b border-white/20 flex-shrink-0">
         <div className="flex items-center gap-2">
             <VestaLogo className="w-8 h-8 flex-shrink-0" />
-            <button onClick={() => currentWorkspace && navigateTo(Screen.KnowledgeBase)} disabled={!currentWorkspace} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark disabled:opacity-50 disabled:cursor-not-allowed">
+            <button onClick={() => currentWorkspace && navigateTo(Screen.KnowledgeBase)} disabled={!currentWorkspace} className="relative group p-2 rounded-md hover:bg-black/20 disabled:opacity-50 disabled:cursor-not-allowed">
                 <MessageSquareIcon className="w-5 h-5"/>
                 <span className={tooltipClasses}>Knowledge Base</span>
             </button>
-             <button onClick={() => currentWorkspace && handleEdit(currentWorkspace)} disabled={!currentWorkspace} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark disabled:opacity-50 disabled:cursor-not-allowed">
+             <button onClick={() => currentWorkspace && handleEdit(currentWorkspace)} disabled={!currentWorkspace} className="relative group p-2 rounded-md hover:bg-black/20 disabled:opacity-50 disabled:cursor-not-allowed">
                 <EditIcon className="w-5 h-5"/>
                  <span className={tooltipClasses}>Rename Workspace</span>
             </button>
              <div ref={dropdownRef} className="relative">
-                <button onClick={() => setDropdownOpen(o => !o)} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark">
+                <button onClick={() => setDropdownOpen(o => !o)} className="relative group p-2 rounded-md hover:bg-black/20">
                     <BellIcon className="w-5 h-5"/>
-                    {invitations.length > 0 && <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-vesta-red ring-1 ring-white dark:ring-vesta-card-light dark:ring-vesta-card-dark"></span>}
+                    {invitations.length > 0 && <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-vesta-gold ring-1 ring-vesta-red"></span>}
                     <span className={tooltipClasses}>Notifications</span>
                 </button>
                 {isDropdownOpen && <InvitationDropdown invitations={invitations} onRespond={onRespondToInvitation} onClose={() => setDropdownOpen(false)} />}
             </div>
         </div>
-        <button onClick={toggleSidebar} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark">
+        <button onClick={toggleSidebar} className="relative group p-2 rounded-md hover:bg-black/20">
             <ChevronsLeftIcon className="w-5 h-5"/>
             <span className={tooltipClasses}>Collapse Sidebar</span>
         </button>
@@ -102,18 +101,18 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = (props) => {
       {/* Search & Workspaces */}
       <div className="flex-1 flex flex-col p-4 overflow-y-hidden">
         <div className="relative mb-4 flex-shrink-0">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/70" />
             <input 
                 type="search"
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full h-10 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg bg-vesta-bg-light dark:bg-vesta-bg-dark focus:outline-none focus:ring-2 focus:ring-vesta-red transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0' : 'pl-10 pr-4'}`}
+                className={`w-full h-10 border border-white/30 rounded-lg bg-black/20 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-vesta-gold transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0' : 'pl-10 pr-4'}`}
             />
         </div>
         <div className={`flex items-center justify-between mb-2 flex-shrink-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-             <h2 className={`font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark ${isSidebarCollapsed ? 'hidden' : ''}`}>Work Space</h2>
-             <button onClick={onCreateWorkspace} className={`relative group p-1 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark ${isSidebarCollapsed ? 'mb-2' : ''}`}>
+             <h2 className={`font-display font-bold text-vesta-gold uppercase text-sm tracking-wider ${isSidebarCollapsed ? 'hidden' : ''}`}>Work Space</h2>
+             <button onClick={onCreateWorkspace} className={`relative group p-1 rounded-md hover:bg-black/20 ${isSidebarCollapsed ? 'mb-2' : ''}`}>
                 <PlusIcon className="w-5 h-5"/>
                 <span className={tooltipClasses}>New Workspace</span>
             </button>
@@ -130,14 +129,14 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = (props) => {
                                 onChange={e => setEditedName(e.target.value)}
                                 onBlur={handleSaveName}
                                 onKeyDown={e => e.key === 'Enter' && handleSaveName()}
-                                className="w-full text-sm font-semibold p-3 rounded-lg bg-vesta-bg-light dark:bg-vesta-bg-dark border-2 border-vesta-red focus:outline-none"
+                                className="w-full text-sm font-semibold p-3 rounded-lg bg-black/20 border-2 border-vesta-gold text-white focus:outline-none"
                             />
                         ) : (
                             <button 
                                 onClick={() => onSelectWorkspace(ws)}
-                                className={`w-full flex items-center text-left p-3 rounded-lg transition-colors duration-200 ${currentWorkspace?.id === ws.id ? 'bg-vesta-red/10 text-vesta-red' : 'hover:bg-gray-100 dark:hover:bg-vesta-bg-dark'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                className={`w-full flex items-center text-left p-3 rounded-lg transition-colors duration-200 ${currentWorkspace?.id === ws.id ? 'bg-black/30 text-vesta-gold' : 'text-white hover:bg-black/20'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
                             >
-                                <span className={`flex-shrink-0 w-6 h-6 rounded-md text-xs font-bold flex items-center justify-center ${currentWorkspace?.id === ws.id ? 'bg-vesta-red text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                                <span className={`flex-shrink-0 w-6 h-6 rounded-md text-xs font-bold flex items-center justify-center ${currentWorkspace?.id === ws.id ? 'bg-vesta-gold text-vesta-red' : 'bg-vesta-red-dark text-white'}`}>
                                     {getInitials(ws.name)}
                                 </span>
                                 <span className={`ml-3 text-sm font-semibold truncate ${isSidebarCollapsed ? 'hidden' : ''}`}>{ws.name}</span>
@@ -150,14 +149,14 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = (props) => {
       </div>
       
       {/* User Profile Footer */}
-      <div className="p-4 border-t border-vesta-border-light dark:border-vesta-border-dark flex-shrink-0">
+      <div className="p-4 bg-black flex-shrink-0">
            <div className={`flex items-center p-2 rounded-lg transition-colors duration-200 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
               <div className="w-10 h-10 bg-vesta-gold rounded-full flex items-center justify-center text-vesta-red font-bold text-sm overflow-hidden flex-shrink-0">
                   {currentUser.avatar ? <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" /> : getInitials(currentUser.name)}
               </div>
               <div className={`ml-3 overflow-hidden transition-all duration-200 ease-in-out ${isSidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
-                  <p className="font-semibold text-white text-sm truncate text-vesta-text-light dark:text-vesta-text-dark">{currentUser.name}</p>
-                  <button onClick={onLogout} className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:underline">Logout</button>
+                  <p className="font-semibold text-vesta-gold text-sm truncate">{currentUser.name}</p>
+                  <button onClick={onLogout} className="text-xs text-gray-400 hover:text-white hover:underline">Logout</button>
               </div>
           </div>
       </div>
@@ -198,7 +197,7 @@ const ContentHeader: React.FC<ContentHeaderProps> = (props) => {
       { text: 'Settings', icon: <SettingsIcon />, screen: Screen.Settings },
     ];
 
-    const defaultTitle = <h1 className="text-xl font-bold text-vesta-gold truncate">{currentWorkspace?.name || 'Vesta'}</h1>;
+    const defaultTitle = <h1 className="text-xl font-bold font-sans text-vesta-gold truncate">{currentWorkspace?.name || 'Vesta'}</h1>;
 
     const defaultActions = (
       <>
@@ -219,7 +218,7 @@ const ContentHeader: React.FC<ContentHeaderProps> = (props) => {
                     <button 
                         key={item.text}
                         onClick={() => navigateTo(item.screen)}
-                        className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${activeScreen === item.screen ? 'text-vesta-red dark:text-vesta-gold' : 'text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-vesta-text-light dark:hover:text-vesta-text-dark'}`}
+                        className={`px-4 py-2 text-sm font-bold font-sans rounded-md transition-colors ${activeScreen === item.screen ? 'text-vesta-gold' : 'text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:text-vesta-red dark:hover:text-vesta-gold'}`}
                     >
                         {item.text}
                     </button>
