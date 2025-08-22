@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole, CustomRegulation } from '../types';
 import { SparklesIcon, DownloadIcon, CheckCircleIcon, ChevronDownIcon, RefreshIcon } from '../components/Icons';
-import UploadModal from '../components/UploadModal';
+import UploadZone from '../components/UploadZone';
 import { analyzePlan, improvePlan } from '../api/vesta';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 import jsPDF from 'jspdf';
@@ -132,7 +132,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
   const [plainTextContent, setPlainTextContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(!activeReport);
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
@@ -170,9 +169,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
     if (activeReport) {
         updateLocalReportData(activeReport);
         setEditedTitle(activeReport.title);
-        setShowUploadModal(false);
     } else {
-      setShowUploadModal(true);
       setCurrentReport(null);
       setEditorHtml('');
     }
@@ -297,6 +294,9 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
   // Effect to manage the header content
   useEffect(() => {
+    setTitleContent(null);
+    setActions(null);
+
     if (currentReport) {
       const canEditTitle = userRole === 'Administrator' || userRole === 'Member';
 
@@ -329,13 +329,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
         </h1>
       );
 
-      setTitleContent(
-        <div className="flex items-baseline min-w-0">
-          <h2 className="text-xl font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark truncate">{currentWorkspace?.name}</h2>
-          <span className="text-xl font-bold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mx-2">/</span>
-          {analysisTitle}
-        </div>
-      );
+      setTitleContent(analysisTitle);
 
       setActions(
         <div className="flex items-center space-x-2">
@@ -373,13 +367,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
         </div>
       );
     }
-    
-    // Cleanup function
-    return () => {
-        setTitleContent(null);
-        setActions(null);
-    };
-  }, [currentReport, isEditing, isDownloadOpen, isImproving, plainTextContent, currentWorkspace, isTitleEditing, editedTitle, userRole]);
+  }, [currentReport, isEditing, isDownloadOpen, isImproving, plainTextContent, currentWorkspace, isTitleEditing, editedTitle, userRole, setTitleContent, setActions]);
 
   
   const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
@@ -401,7 +389,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
 
   const handleFileUpload = async (content: string, fileName: string) => {
       addAuditLog('Document Upload', `File uploaded: ${fileName}`);
-      setShowUploadModal(false);
       setIsLoading(true);
       const reportData = await analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
       const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
@@ -424,9 +411,11 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
     setFeedbackFinding(null);
   };
 
-  if (showUploadModal) {
+  if (!activeReport) {
       return (
-        <UploadModal onUpload={handleFileUpload} onClose={() => navigateTo(Screen.Dashboard)} />
+        <div className="h-full p-8 flex items-center justify-center">
+            <UploadZone onUpload={handleFileUpload} />
+        </div>
       );
   }
   
@@ -438,9 +427,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
       );
   }
 
-  if (!currentReport) return (
-    <div className="p-8">No report selected.</div>
-  );
+  if (!currentReport) return null;
   
   return (
     <>
@@ -463,7 +450,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
             {/* Main Content */}
             <div className="grid grid-cols-5 gap-6">
                 {/* Left Panel: Document Editor */}
-                <div id="editor-panel" className="col-span-3 h-[calc(100vh-250px)] flex flex-col relative bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-sm border border-vesta-border-light dark:border-vesta-border-dark">
+                <div id="editor-panel" className="col-span-3 h-[calc(100vh-320px)] flex flex-col relative bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-sm border border-vesta-border-light dark:border-vesta-border-dark">
                     {isImproving && (
                         <div className="absolute inset-0 bg-vesta-bg-dark/80 flex items-center justify-center z-20 rounded-lg">
                             <AnimatedChecklist steps={improvingSteps} title="Enhancing Document..." textColorClass="text-gray-200"/>
@@ -485,7 +472,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onAnalysi
                 </div>
 
                 {/* Right Panel: Findings */}
-                <div id="findings-panel" className="col-span-2 h-[calc(100vh-250px)] overflow-y-auto pr-2 space-y-4">
+                <div id="findings-panel" className="col-span-2 h-[calc(100vh-320px)] overflow-y-auto pr-2 space-y-4">
                      {currentReport.findings.length > 0 ? (
                         currentReport.findings.map(finding => (
                             <FindingCard

@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
-import WorkspaceDashboard from './screens/WorkspaceDashboard';
 import DashboardScreen from './screens/DashboardScreen';
 import AnalysisScreen from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
@@ -14,7 +13,8 @@ import ManageMembersModal from './components/ManageMembersModal';
 import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon } from './components/Icons';
 import NotificationToast from './components/NotificationToast';
-import { SidebarMainLayout } from './components/Layout';
+import { WorkspaceLayout } from './components/Layout';
+import NoWorkspaceSelectedScreen from './screens/NoWorkspaceSelectedScreen';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 text-center">
@@ -85,16 +85,13 @@ const defaultGovSources = [
 
 const App: React.FC = () => {
   // --- FAIL-FAST CHECK ---
-  // This is the most critical part of the fix. We check for the environment
-  // variable immediately. If it's missing, we render *only* the error screen
-  // and none of the other application logic runs, preventing a crash.
   if (!process.env.API_KEY) {
     return <ErrorScreen message="The 'API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
   }
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
 
-  const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
+  const [screen, setScreen] = useState<Screen>(Screen.Analysis);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -175,19 +172,10 @@ const App: React.FC = () => {
       setInvitations(pendingInvitations);
   }, [currentUser]);
 
-  const handleBackToWorkspaces = () => {
-    setSelectedWorkspace(null);
-    setActiveReport(null);
-    navigateTo(Screen.WorkspaceDashboard);
-  };
-
   useEffect(() => {
     if (currentUser) {
       refreshWorkspaces();
       refreshInvitations();
-      if(selectedWorkspace) {
-        handleBackToWorkspaces();
-      }
     } else {
       // Clear all state when user logs out
       setWorkspaces([]);
@@ -198,11 +186,9 @@ const App: React.FC = () => {
       setDismissalRules([]);
       setCustomRegulations([]);
       setActiveReport(null);
-      setScreen(Screen.WorkspaceDashboard);
       setInvitations([]);
       knownWorkspaceIds.current.clear();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
 
   // Poll for new workspaces (from invitations being accepted)
@@ -237,20 +223,22 @@ const App: React.FC = () => {
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
     try {
-        await workspaceApi.createWorkspace(name);
+        const newWorkspace = await workspaceApi.createWorkspace(name);
         await refreshWorkspaces();
         setCreateWorkspaceModalOpen(false);
+        await handleSelectWorkspace(newWorkspace); // Auto-select the new workspace
     } catch (error) {
         console.error("Failed to create workspace:", error);
-        // Re-throw the error for the modal to catch and display
         throw error;
     }
   };
 
   const handleSelectWorkspace = async (workspace: Workspace) => {
+    if(selectedWorkspace?.id === workspace.id) return;
     setSelectedWorkspace(workspace);
     await loadWorkspaceData(workspace.id);
-    navigateTo(Screen.Dashboard);
+    setActiveReport(null);
+    navigateTo(Screen.Analysis);
   };
 
   const handleStartNewAnalysis = () => {
@@ -401,34 +389,13 @@ const App: React.FC = () => {
     await addAuditLog('Analysis Deleted', JSON.stringify({ message: `Report "${report?.title}" was permanently deleted.`, reportId: reportId }));
     await loadWorkspaceData(selectedWorkspace.id);
   };
-
-  const handleUpdateWorkspaceStatus = async (workspaceId: string, status: 'active' | 'archived') => {
-    try {
-        await workspaceApi.updateWorkspaceStatus(workspaceId, status);
-        await refreshWorkspaces();
-    } catch (error) {
-        console.error("Failed to update workspace status:", error);
-        alert((error as Error).message);
-    }
-  };
-
-  const handleDeleteWorkspace = async (workspaceId: string) => {
-    try {
-        await workspaceApi.deleteWorkspace(workspaceId);
-        await refreshWorkspaces();
-    } catch (error) {
-        console.error("Failed to delete workspace:", error);
-        alert((error as Error).message);
-    }
-  };
   
   const handleUpdateWorkspaceName = async (workspaceId: string, name: string) => {
     try {
         await workspaceApi.updateWorkspaceName(workspaceId, name);
-        // Optimistic update for smoother UX
         setSelectedWorkspace(prev => prev ? { ...prev, name } : null);
         setWorkspaces(prev => prev.map(ws => ws.id === workspaceId ? { ...ws, name } : ws));
-        await loadWorkspaceData(workspaceId); // Reload data to get new audit log
+        await loadWorkspaceData(workspaceId);
     } catch (error) {
         console.error("Failed to update workspace name:", error);
         alert((error as Error).message);
@@ -454,30 +421,12 @@ const App: React.FC = () => {
         currentUser: currentUser!,
         onLogout: handleLogout,
         currentWorkspace: selectedWorkspace,
-        onBackToWorkspaces: handleBackToWorkspaces,
         onManageMembers: () => setManageMembersModalOpen(true),
         userRole,
     };
 
     if (!selectedWorkspace) {
-        return (
-            <>
-                <WorkspaceDashboard 
-                    workspaces={workspaces}
-                    onSelectWorkspace={handleSelectWorkspace}
-                    onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
-                    currentUser={currentUser!}
-                    onUpdateWorkspaceStatus={handleUpdateWorkspaceStatus}
-                    onDeleteWorkspace={handleDeleteWorkspace}
-                />
-                {isCreateWorkspaceModalOpen && (
-                    <CreateWorkspaceModal 
-                        onClose={() => setCreateWorkspaceModalOpen(false)}
-                        onCreate={handleCreateWorkspace}
-                    />
-                )}
-            </>
-        );
+        return <NoWorkspaceSelectedScreen onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)} />;
     }
 
     let screenComponent: React.ReactNode;
@@ -499,7 +448,7 @@ const App: React.FC = () => {
         screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
         break;
       default:
-        screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
+        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} dismissalRules={dismissalRules} onAddDismissalRule={addDismissalRule} customRegulations={customRegulations} />;
     }
 
     return (
@@ -531,21 +480,29 @@ const App: React.FC = () => {
                 onClose={() => setNotification(null)}
             />
         )}
-        <SidebarMainLayout
+        {isCreateWorkspaceModalOpen && (
+            <CreateWorkspaceModal 
+                onClose={() => setCreateWorkspaceModalOpen(false)}
+                onCreate={handleCreateWorkspace}
+            />
+        )}
+        <WorkspaceLayout
             navigateTo={navigateTo}
             activeScreen={selectedWorkspace ? screen : Screen.WorkspaceDashboard}
             currentUser={currentUser}
             onLogout={handleLogout}
             currentWorkspace={selectedWorkspace}
-            onBackToWorkspaces={handleBackToWorkspaces}
-            userRole={userRole}
             onManageMembers={() => setManageMembersModalOpen(true)}
             onUpdateWorkspaceName={handleUpdateWorkspaceName}
             invitations={invitations}
             onRespondToInvitation={handleRespondToInvitation}
+            workspaces={workspaces}
+            onSelectWorkspace={handleSelectWorkspace}
+            onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
+            userRole={userRole}
         >
             {renderContent()}
-        </SidebarMainLayout>
+        </WorkspaceLayout>
     </div>
   );
 }

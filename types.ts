@@ -142,7 +142,6 @@ export interface ScreenLayoutProps {
   currentUser: User;
   onLogout: () => void;
   currentWorkspace: Workspace | null;
-  onBackToWorkspaces: () => void;
   onManageMembers: () => void;
   userRole: UserRole;
 }
