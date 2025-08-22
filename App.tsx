@@ -17,6 +17,7 @@ import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import NotificationToast from './components/NotificationToast';
 import { Layout } from './components/Layout';
 import * as vestaApi from './api/vesta';
+import ConfirmationModal from './components/ConfirmationModal';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4 text-center">
@@ -93,6 +94,8 @@ const App: React.FC = () => {
   const [isManageMembersModalOpen, setManageMembersModalOpen] = useState(false);
   const [isKnowledgeBaseModalOpen, setKnowledgeBaseModalOpen] = useState(false);
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
+  const [confirmation, setConfirmation] = useState<{ title: string; message: string; onConfirm: () => Promise<void>; confirmText?: string; } | null>(null);
+
   
   // Notification State
   const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
@@ -377,6 +380,84 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateWorkspaceStatus = async (workspaceId: string, status: 'active' | 'archived') => {
+    try {
+        await workspaceApi.updateWorkspaceStatus(workspaceId, status);
+        // The serverless function now handles audit logging, so we just refresh.
+        await refreshWorkspaces();
+        // If the currently selected workspace was archived, navigate away
+        if (selectedWorkspace?.id === workspaceId && status === 'archived') {
+            const firstActive = workspaces.find(ws => ws.status !== 'archived' && ws.id !== workspaceId);
+            if (firstActive) {
+                handleSelectWorkspace(firstActive);
+            } else {
+                setSelectedWorkspace(null);
+            }
+        }
+    } catch (error) {
+        console.error(`Failed to ${status === 'active' ? 'unarchive' : 'archive'} workspace:`, error);
+        alert((error as Error).message);
+    }
+  };
+
+  const handleDeleteWorkspace = (workspace: Workspace) => {
+    setConfirmation({
+        title: "Delete Workspace",
+        message: `Are you sure you want to permanently delete the "${workspace.name}" workspace? This will also delete all associated analyses and data. This action cannot be undone.`,
+        confirmText: "Delete Workspace",
+        onConfirm: async () => {
+            try {
+                if (currentUser) {
+                     // The delete function will remove all data, so log first. The function itself cannot log to a store that's about to be deleted.
+                    await workspaceApi.addAuditLog(workspace.id, currentUser.email, 'Workspace Deleted', `Workspace "${workspace.name}" was permanently deleted.`);
+                }
+                await workspaceApi.deleteWorkspace(workspace.id);
+                await refreshWorkspaces();
+            } catch (error) {
+                console.error("Failed to delete workspace:", error);
+                alert((error as Error).message);
+            }
+        }
+    });
+  };
+
+  const handleUpdateReportStatus = async (reportId: string, status: 'active' | 'archived') => {
+    if (!selectedWorkspace) return;
+    try {
+        await workspaceApi.updateReportStatus(reportId, status);
+        const action = status === 'archived' ? 'Analysis Archived' : 'Analysis Unarchived';
+        const report = reports.find(r => r.id === reportId);
+        await addAuditLog(action, `Analysis "${report?.title || reportId}" status changed to ${status}.`);
+        await loadWorkspaceData(selectedWorkspace.id);
+    } catch (error) {
+        console.error(`Failed to ${status === 'active' ? 'unarchive' : 'archive'} report:`, error);
+        alert((error as Error).message);
+    }
+  };
+
+  const handleDeleteReport = (report: AnalysisReport) => {
+    if (!selectedWorkspace) return;
+    setConfirmation({
+        title: "Delete Analysis",
+        message: `Are you sure you want to permanently delete the analysis for "${report.title}"? This action cannot be undone.`,
+        confirmText: "Delete Analysis",
+        onConfirm: async () => {
+            try {
+                await addAuditLog('Analysis Deleted', `Analysis "${report.title}" was permanently deleted.`);
+                await workspaceApi.deleteReport(report.id);
+                if (activeReport?.id === report.id) {
+                    setActiveReport(null);
+                    navigateTo(Screen.Dashboard);
+                }
+                await loadWorkspaceData(selectedWorkspace.id);
+            } catch (error) {
+                console.error("Failed to delete report:", error);
+                alert((error as Error).message);
+            }
+        }
+    });
+  };
+
   const renderScreenComponent = () => {
     if (!selectedWorkspace) {
         return <NoWorkspaceSelectedScreen onCreate={() => setCreateWorkspaceModalOpen(true)} />;
@@ -392,7 +473,7 @@ const App: React.FC = () => {
 
     switch (screen) {
       case Screen.Dashboard:
-        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} />;
+        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
       case Screen.Analysis:
         return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} />;
       case Screen.AuditTrail:
@@ -400,7 +481,7 @@ const App: React.FC = () => {
       case Screen.Settings:
         return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
       default:
-        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} />;
+        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
     }
   };
 
@@ -409,6 +490,15 @@ const App: React.FC = () => {
 
   return (
     <div className="font-sans bg-gray-50 dark:bg-neutral-950 min-h-screen text-gray-800 dark:text-neutral-200">
+        {confirmation && (
+            <ConfirmationModal
+                title={confirmation.title}
+                message={confirmation.message}
+                confirmText={confirmation.confirmText}
+                onConfirm={confirmation.onConfirm}
+                onCancel={() => setConfirmation(null)}
+            />
+        )}
         {notification && (
             <NotificationToast 
                 message={notification.message}
@@ -462,6 +552,8 @@ const App: React.FC = () => {
             onUpdateWorkspaceName={handleUpdateWorkspaceName}
             onKnowledgeBase={() => setKnowledgeBaseModalOpen(true)}
             onNewAnalysis={() => setUploadModalOpen(true)}
+            onUpdateWorkspaceStatus={handleUpdateWorkspaceStatus}
+            onDeleteWorkspace={handleDeleteWorkspace}
         >
             {renderScreenComponent()}
         </Layout>

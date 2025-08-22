@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
-import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, SettingsIcon, HistoryIcon, LogoutIcon, BriefcaseIcon, EditIcon } from './Icons';
+import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, SettingsIcon, HistoryIcon, LogoutIcon, BriefcaseIcon, EditIcon, MoreVerticalIcon } from './Icons';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +18,8 @@ interface LayoutProps {
   onUpdateWorkspaceName: (workspaceId: string, newName: string) => void;
   onKnowledgeBase: () => void;
   onNewAnalysis: () => void;
+  onUpdateWorkspaceStatus: (workspaceId: string, status: 'active' | 'archived') => void;
+  onDeleteWorkspace: (workspace: Workspace) => void;
 }
 
 const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => void; onManageMembers: () => void }> = ({ navigateTo, onLogout, onManageMembers }) => (
@@ -38,27 +40,56 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
     </div>
 );
 
-const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase'> & { isCollapsed: boolean, onToggleCollapse: () => void }> =
-  ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis }) => {
+const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
+  ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setProfileOpen] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
+    const [activeMenu, setActiveMenu] = useState<string | null>(null);
+    const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+    const [newName, setNewName] = useState("");
     const profileRef = useRef<HTMLDivElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-                setProfileOpen(false);
-            }
+            if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false);
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) setActiveMenu(null);
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [profileRef]);
+    }, [profileRef, menuRef]);
 
-    const filteredWorkspaces = workspaces.filter(ws =>
-        ws.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+     useEffect(() => {
+        if (editingWorkspace && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [editingWorkspace]);
+    
+    const activeWorkspaces = workspaces.filter(ws => ws.status !== 'archived');
+    const archivedWorkspaces = workspaces.filter(ws => ws.status === 'archived');
+
+    const filteredWorkspaces = [
+        ...activeWorkspaces.filter(ws => ws.name.toLowerCase().includes(searchTerm.toLowerCase())),
+        ...(showArchived ? archivedWorkspaces.filter(ws => ws.name.toLowerCase().includes(searchTerm.toLowerCase())) : [])
+    ];
 
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
+    
+    const handleRename = (ws: Workspace) => {
+        setEditingWorkspace(ws);
+        setNewName(ws.name);
+        setActiveMenu(null);
+    };
+
+    const handleRenameSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingWorkspace && newName.trim()) {
+            onUpdateWorkspaceName(editingWorkspace.id, newName.trim());
+        }
+        setEditingWorkspace(null);
+    };
     
     const highlightMatch = (name: string) => {
         if (!searchTerm) return name;
@@ -115,18 +146,52 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
 
             <nav className="flex-1 px-4 pt-2 overflow-y-auto">
                 <p className={`text-sm font-semibold tracking-wider text-gray-500 dark:text-neutral-400 mb-2 px-3 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 h-0' : 'opacity-100'}`}>Workspaces</p>
-                <ul className="space-y-2">
+                <ul className="space-y-1">
                     {filteredWorkspaces.map(ws => (
-                        <li key={ws.id}>
-                            <button
-                                title={ws.name}
-                                onClick={() => onSelectWorkspace(ws)}
-                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors duration-200 flex items-center relative ${currentWorkspace?.id === ws.id ? 'bg-gray-100 dark:bg-neutral-800' : 'hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-800 dark:text-neutral-200'}`}
-                            >
-                                {currentWorkspace?.id === ws.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-700 rounded-r-full"></div>}
-                                <BriefcaseIcon className={`w-5 h-5 flex-shrink-0 ${currentWorkspace?.id === ws.id ? 'text-red-700' : 'text-gray-500 dark:text-neutral-400'}`} />
-                                <span className={`ml-3 truncate transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'} ${currentWorkspace?.id === ws.id ? 'font-semibold text-gray-800 dark:text-neutral-200' : ''}`}>{highlightMatch(ws.name)}</span>
-                            </button>
+                        <li key={ws.id} className="group relative">
+                            {editingWorkspace?.id === ws.id ? (
+                                <form onSubmit={handleRenameSubmit}>
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={newName}
+                                        onChange={e => setNewName(e.target.value)}
+                                        onBlur={handleRenameSubmit}
+                                        className="w-full text-left px-3 py-2.5 rounded-lg text-sm bg-white dark:bg-black ring-2 ring-red-700 outline-none"
+                                    />
+                                </form>
+                            ) : (
+                                <>
+                                <button
+                                    title={ws.name}
+                                    onClick={() => onSelectWorkspace(ws)}
+                                    className={`w-full text-left pl-3 pr-10 py-2.5 rounded-lg text-sm transition-colors duration-200 flex items-center relative ${currentWorkspace?.id === ws.id ? 'bg-gray-100 dark:bg-neutral-800' : 'hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-800 dark:text-neutral-200'} ${ws.status === 'archived' ? 'opacity-60' : ''}`}
+                                >
+                                    {currentWorkspace?.id === ws.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-700 rounded-r-full"></div>}
+                                    <BriefcaseIcon className={`w-5 h-5 flex-shrink-0 ${currentWorkspace?.id === ws.id ? 'text-red-700' : 'text-gray-500 dark:text-neutral-400'}`} />
+                                    <span className={`ml-3 truncate transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'} ${currentWorkspace?.id === ws.id ? 'font-semibold text-gray-800 dark:text-neutral-200' : ''}`}>{highlightMatch(ws.name)}</span>
+                                </button>
+                                {!isCollapsed && (
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => setActiveMenu(ws.id)} className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-neutral-700">
+                                            <MoreVerticalIcon className="w-4 h-4 text-gray-500 dark:text-neutral-400"/>
+                                        </button>
+                                    </div>
+                                )}
+                                </>
+                            )}
+                            {activeMenu === ws.id && !isCollapsed && (
+                                <div ref={menuRef} className="absolute z-10 right-0 top-10 w-48 bg-white dark:bg-neutral-900 rounded-md shadow-lg border border-gray-200 dark:border-neutral-700 py-1">
+                                    <button onClick={() => handleRename(ws)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Rename</button>
+                                    <div className="my-1 h-px bg-gray-200 dark:bg-neutral-700" />
+                                    {ws.status === 'archived' ? (
+                                        <button onClick={() => { onUpdateWorkspaceStatus(ws.id, 'active'); setActiveMenu(null); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Unarchive</button>
+                                    ) : (
+                                        <button onClick={() => { onUpdateWorkspaceStatus(ws.id, 'archived'); setActiveMenu(null); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Archive</button>
+                                    )}
+                                    <button onClick={() => { onDeleteWorkspace(ws); setActiveMenu(null); }} className="block w-full text-left px-3 py-1.5 text-sm text-red-700 hover:bg-gray-100 dark:hover:bg-neutral-800">Delete</button>
+                                </div>
+                            )}
                         </li>
                     ))}
                     <li>
@@ -136,6 +201,14 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                         </button>
                     </li>
                 </ul>
+                {archivedWorkspaces.length > 0 && !isCollapsed && (
+                     <div className="mt-4 px-3">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked={showArchived} onChange={() => setShowArchived(!showArchived)} className="h-4 w-4 rounded border-gray-300 dark:border-neutral-600 text-red-700 focus:ring-red-700 bg-gray-100 dark:bg-neutral-800"/>
+                            <span className="text-sm text-gray-500 dark:text-neutral-400">Show archived</span>
+                        </label>
+                    </div>
+                 )}
             </nav>
 
             <div ref={profileRef} className="p-4 border-t border-gray-200 dark:border-neutral-700 flex-shrink-0 relative mt-auto">
