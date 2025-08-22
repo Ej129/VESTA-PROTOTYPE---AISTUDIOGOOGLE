@@ -1,23 +1,23 @@
 
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
-import { useAuth } from './contexts/AuthContext';
-import LoginScreen from './screens/LoginScreen';
-import UploadScreen from './screens/UploadScreen';
-import AnalysisScreen from './screens/AnalysisScreen';
-import AuditTrailScreen from './screens/AuditTrailScreen';
-import SettingsScreen from './screens/SettingsScreen';
-import CreateWorkspaceModal from './components/CreateWorkspaceModal';
-import ManageMembersModal from './components/ManageMembersModal';
-import KnowledgeBaseModal from './components/KnowledgeBaseModal';
-import UploadModal from './components/UploadModal';
-import * as workspaceApi from './api/workspace';
-import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
-import { NotificationToast } from './components/NotificationToast';
-import { Layout } from './components/Layout';
-import * as vestaApi from './api/vesta';
-import ConfirmationModal from './components/ConfirmationModal';
+import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './src/types';
+import { useAuth } from './src/contexts/AuthContext';
+import LoginScreen from './src/screens/LoginScreen';
+import UploadScreen from './src/screens/UploadScreen';
+import AnalysisScreen from './src/screens/AnalysisScreen';
+import AuditTrailScreen from './src/screens/AuditTrailScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import CreateWorkspaceModal from './src/components/CreateWorkspaceModal';
+import ManageMembersModal from './src/components/ManageMembersModal';
+import KnowledgeBaseModal from './src/components/KnowledgeBaseModal';
+import UploadModal from './src/components/UploadModal';
+import * as workspaceApi from './src/api/workspace';
+import { AlertTriangleIcon, BriefcaseIcon } from './src/components/Icons';
+import { NotificationToast } from './src/components/NotificationToast';
+import { Layout } from './src/components/Layout';
+import * as vestaApi from './src/api/vesta';
+import ConfirmationModal from './src/components/ConfirmationModal';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4 text-center">
