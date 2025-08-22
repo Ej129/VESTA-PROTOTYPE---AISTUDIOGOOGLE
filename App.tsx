@@ -19,17 +19,17 @@ import { Layout } from './components/Layout';
 import * as vestaApi from './api/vesta';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 text-center">
-        <div className="max-w-2xl bg-vesta-card-light dark:bg-vesta-card-dark p-8 rounded-lg shadow-lg border border-vesta-red">
-            <AlertTriangleIcon className="w-16 h-16 mx-auto text-vesta-red" />
-            <h1 className="text-2xl font-bold text-vesta-red dark:text-vesta-gold mt-4">Application Configuration Error</h1>
-            <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4 text-center">
+        <div className="max-w-2xl bg-white dark:bg-neutral-900 p-8 rounded-lg shadow-lg border border-red-700">
+            <AlertTriangleIcon className="w-16 h-16 mx-auto text-red-700" />
+            <h1 className="text-2xl font-bold text-red-700 dark:text-red-600 mt-4">Application Configuration Error</h1>
+            <p className="text-gray-500 dark:text-neutral-400 mt-2">
                 The application cannot start because a required configuration is missing.
             </p>
-            <div className="mt-4 p-4 bg-vesta-red/10 rounded-md text-left">
-                <p className="font-mono text-sm text-vesta-red">{message}</p>
+            <div className="mt-4 p-4 bg-red-700/10 rounded-md text-left">
+                <p className="font-mono text-sm text-red-700">{message}</p>
             </div>
-            <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-6">
+            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-6">
                 <strong>Action Required:</strong> Please add the `API_KEY` environment variable in your Netlify site settings under "Site configuration" {'>'} "Build & deploy" {'>'} "Environment" and then trigger a new deploy.
             </p>
         </div>
@@ -38,9 +38,9 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
 
 
 const InitializingScreen: React.FC = () => (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-vesta-red"></div>
-        <p className="mt-4 text-lg font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-700"></div>
+        <p className="mt-4 text-lg font-semibold text-gray-500 dark:text-neutral-400">
             Initializing Session...
         </p>
     </div>
@@ -48,14 +48,14 @@ const InitializingScreen: React.FC = () => (
 
 const NoWorkspaceSelectedScreen: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
     <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <BriefcaseIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
-        <h2 className="text-xl font-bold text-vesta-text-light dark:text-vesta-text-dark">No Workspace Selected</h2>
-        <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2 max-w-sm">
+        <BriefcaseIcon className="w-16 h-16 text-gray-300 dark:text-neutral-600 mb-4" />
+        <h2 className="text-xl font-bold text-gray-800 dark:text-neutral-200">No Workspace Selected</h2>
+        <p className="text-gray-500 dark:text-neutral-400 mt-2 max-w-sm">
             Please select a workspace from the sidebar to view its content, or create a new one to get started.
         </p>
         <button
             onClick={onCreate}
-            className="mt-6 bg-vesta-red text-white font-bold py-2 px-5 rounded-lg transition-all duration-200 inline-flex items-center shadow-sm hover:shadow-md hover:bg-vesta-red-dark"
+            className="mt-6 bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-all duration-200 inline-flex items-center shadow-sm hover:shadow-md hover:bg-red-800"
         >
             Create Your First Workspace
         </button>
@@ -408,7 +408,7 @@ const App: React.FC = () => {
   if (!currentUser) return <LoginScreen />;
 
   return (
-    <div className="font-sans bg-vesta-bg-light dark:bg-vesta-bg-dark min-h-screen text-vesta-text-light dark:text-vesta-text-dark">
+    <div className="font-sans bg-gray-50 dark:bg-neutral-950 min-h-screen text-gray-800 dark:text-neutral-200">
         {notification && (
             <NotificationToast 
                 message={notification.message}

@@ -24,22 +24,22 @@ const DocumentEditor: React.FC<{
   onToggleEdit: () => void;
   onDownload: () => void;
 }> = ({ report, isEditing, onContentChange, isEnhancing, onSaveChanges, onToggleEdit, onDownload }) => (
-    <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark flex flex-col h-full">
-        <div className="p-4 flex justify-between items-center border-b border-vesta-border-light dark:border-vesta-border-dark flex-shrink-0">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700 flex flex-col h-full">
+        <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
             <div>
-                <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">{report.workspaceId.replace('-', ' ').toUpperCase()}</p>
-                <h2 className="font-bold text-lg text-vesta-text-light dark:text-vesta-text-dark truncate pr-4">{report.title}</h2>
+                <p className="text-xs text-gray-500 dark:text-neutral-400">{report.workspaceId.replace('-', ' ').toUpperCase()}</p>
+                <h2 className="font-bold text-lg text-gray-800 dark:text-neutral-200 truncate pr-4">{report.title}</h2>
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
-                <button onClick={onDownload} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-vesta-bg-dark" title="Download as PDF"><DownloadIcon className="w-5 h-5 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark"/></button>
+                <button onClick={onDownload} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Download as PDF"><DownloadIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/></button>
                 {isEditing ? (
-                    <button onClick={onSaveChanges} className="px-4 py-1.5 border border-vesta-red rounded-lg text-sm font-bold bg-vesta-red text-white hover:bg-vesta-red-dark">Save Draft</button>
+                    <button onClick={onSaveChanges} className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800">Save Draft</button>
                 ) : (
-                    <button onClick={onToggleEdit} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-vesta-bg-dark" title="Edit Document"><EditIcon className="w-5 h-5 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark"/></button>
+                    <button onClick={onToggleEdit} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Edit Document"><EditIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/></button>
                 )}
             </div>
         </div>
-        <div className={`p-6 bg-vesta-bg-springwood dark:bg-gray-900 rounded-b-xl flex-1 overflow-y-auto ${isEnhancing ? 'flex items-center justify-center' : ''}`}>
+        <div className={`p-6 bg-gray-50 dark:bg-neutral-950 rounded-b-xl flex-1 overflow-y-auto ${isEnhancing ? 'flex items-center justify-center' : ''}`}>
             {isEnhancing ? (
                 <AnimatedChecklist steps={enhancementSteps} />
             ) : (
@@ -47,14 +47,14 @@ const DocumentEditor: React.FC<{
                     <textarea
                         value={report.documentContent}
                         onChange={(e) => onContentChange(e.target.value)}
-                        className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans text-black"
+                        className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans text-gray-800 dark:text-neutral-200"
                         autoFocus
                     />
                 ) : (
-                    <div className="prose prose-sm max-w-none text-black whitespace-pre-wrap" dangerouslySetInnerHTML={{
+                    <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap" dangerouslySetInnerHTML={{
                         __html: report.documentContent.replace(
                             /\[\[(.*?)\]\]/g,
-                            '<mark class="bg-vesta-gold/30 px-1 rounded">$1</mark>'
+                            '<mark class="bg-yellow-400/30 px-1 rounded">$1</mark>'
                         ),
                     }}></div>
                 )
@@ -62,6 +62,27 @@ const DocumentEditor: React.FC<{
         </div>
     </div>
 );
+
+const ScoreMeter: React.FC<{ label: string; score: number }> = ({ label, score }) => (
+    <div>
+        <div className="flex justify-between items-center mb-1">
+            <p className="text-sm font-semibold text-gray-800 dark:text-neutral-200">{label}</p>
+            <p className="text-sm font-bold text-gray-800 dark:text-neutral-200">{score}%</p>
+        </div>
+        <div className="w-full bg-gray-200 dark:bg-neutral-700 rounded-full h-2.5">
+            <div 
+                className="bg-gradient-to-r from-red-700 via-yellow-500 to-amber-400 h-2.5 rounded-full" 
+                style={{ width: `${score}%` }}
+                role="progressbar"
+                aria-valuenow={score}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${label} score`}
+            />
+        </div>
+    </div>
+);
+
 
 const AnalysisPanel: React.FC<{
   report: AnalysisReport;
@@ -72,62 +93,67 @@ const AnalysisPanel: React.FC<{
 }> = ({ report, onEnhance, isEnhancing, onStatusChange, onDismiss }) => {
     const activeFindings = report.findings.filter(f => f.status === 'active');
     return (
-        <div className="space-y-4">
-             {/* Analysis Title Card */}
-             <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark p-4">
-                <h2 className="text-xl font-bold font-display text-vesta-text-light dark:text-vesta-text-dark text-center">Analysis</h2>
-             </div>
-             
-             {/* Auto-Enhance Button */}
-            <button
-                onClick={onEnhance}
-                disabled={isEnhancing}
-                className="w-full flex items-center justify-center py-3 px-4 bg-vesta-red text-vesta-gold font-bold rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-                <StarIcon className="w-5 h-5 mr-2" />
-                {isEnhancing ? 'Enhancing...' : 'Auto-Enhance Document'}
-            </button>
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700">
+                <div className="p-4 border-b border-gray-200 dark:border-neutral-700">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-neutral-200 text-center">Analysis</h2>
+                </div>
+                <div className="p-6 space-y-6">
+                    <button
+                        onClick={onEnhance}
+                        disabled={isEnhancing}
+                        className="w-full flex items-center justify-center py-3 px-4 bg-red-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        <StarIcon className="w-5 h-5 mr-2 text-yellow-300" />
+                        {isEnhancing ? 'Enhancing...' : 'Auto-Enhance Document'}
+                    </button>
+                    
+                    <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-neutral-700">
+                        {report.scores ? (
+                            <>
+                                <ScoreMeter label="Project Score" score={report.scores.project} />
+                                <ScoreMeter label="Strategic Goals" score={report.scores.strategicGoals} />
+                                <ScoreMeter label="Regulations" score={report.scores.regulations} />
+                                <ScoreMeter label="Risk" score={report.scores.risk} />
+                            </>
+                        ) : (
+                            <>
+                                <ScoreMeter label="Overall Score" score={report.resilienceScore} />
+                                <p className="text-xs text-center text-gray-500 dark:text-neutral-400 pt-2">
+                                    Detailed score breakdown is available for new analyses.
+                                </p>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
 
-             {/* Scores Section */}
-            {report.scores && (
-              <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark p-6">
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                      {(Object.keys(report.scores) as (keyof typeof report.scores)[]).map(key => (
-                          <div key={key}>
-                              <p className="text-2xl font-bold font-display text-vesta-red">{report.scores?.[key]}%</p>
-                              <p className="text-xs capitalize text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
-                                  {key.replace(/([A-Z])/g, ' $1').trim()}
-                              </p>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-                <h3 className="font-bold text-lg text-vesta-text-light dark:text-vesta-text-dark">Actionable Findings ({activeFindings.length})</h3>
+            <div>
+                <h3 className="font-bold text-lg text-gray-800 dark:text-neutral-200 mb-4">Actionable Findings ({activeFindings.length})</h3>
                 {activeFindings.length > 0 ? (
-                    activeFindings.map(finding => (
-                        <div key={finding.id} className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg shadow-sm border border-vesta-border-light dark:border-vesta-border-dark">
-                          <div className={`p-3 flex items-start ${finding.severity === 'critical' ? 'bg-accent-critical text-white' : 'bg-accent-warning text-vesta-red'}`}>
+                    <div className="space-y-4">
+                    {activeFindings.map(finding => (
+                        <div key={finding.id} className="bg-white dark:bg-neutral-900 rounded-lg shadow-sm border border-gray-200 dark:border-neutral-700">
+                          <div className={`p-3 flex items-start rounded-t-lg ${finding.severity === 'critical' ? 'bg-red-700 text-white' : 'bg-yellow-400 text-yellow-900'}`}>
                               <div className="flex-shrink-0 mt-0.5">{finding.severity === 'critical' ? <AlertTriangleIcon className="w-5 h-5"/> : <AlertCircleIcon className="w-5 h-5"/>}</div>
                               <h4 className="ml-2 font-bold text-sm">{finding.title}</h4>
                           </div>
                           <div className="p-3 space-y-2">
-                            <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark italic">"{finding.sourceSnippet}"</p>
-                            <p className="text-sm text-vesta-text-light dark:text-vesta-text-dark">{finding.recommendation}</p>
+                            <p className="text-xs text-gray-500 dark:text-neutral-400 italic">"{finding.sourceSnippet}"</p>
+                            <p className="text-sm text-gray-800 dark:text-neutral-200">{finding.recommendation}</p>
                           </div>
-                           <div className="px-3 py-2 bg-gray-50 dark:bg-vesta-bg-dark border-t border-vesta-border-light dark:border-vesta-border-dark flex justify-end space-x-2">
-                              <button onClick={() => onDismiss(finding)} className="flex items-center px-2 py-1 text-xs font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md"><XCircleIcon className="w-4 h-4 mr-1" /> Dismiss</button>
-                              <button onClick={() => onStatusChange(finding.id, 'resolved')} className="flex items-center px-2 py-1 text-xs font-semibold text-white bg-accent-success hover:bg-green-600 rounded-md"><CheckCircleIcon className="w-4 h-4 mr-1" /> Resolved</button>
+                           <div className="px-3 py-2 bg-gray-50 dark:bg-neutral-800/50 border-t border-gray-200 dark:border-neutral-700 flex justify-end space-x-2 rounded-b-lg">
+                              <button onClick={() => onDismiss(finding)} className="flex items-center px-2 py-1 text-xs font-semibold text-gray-500 dark:text-neutral-400 bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 rounded-md transition-colors duration-200"><XCircleIcon className="w-4 h-4 mr-1" /> Dismiss</button>
+                              <button onClick={() => onStatusChange(finding.id, 'resolved')} className="flex items-center px-2 py-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-200"><CheckCircleIcon className="w-4 h-4 mr-1" /> Resolved</button>
                           </div>
                         </div>
-                    ))
+                    ))}
+                    </div>
                 ) : (
-                    <div className="text-center p-8 bg-vesta-card-light dark:bg-vesta-card-dark rounded-lg border border-vesta-border-light dark:border-vesta-border-dark">
-                        <CheckCircleIcon className="w-12 h-12 mx-auto text-accent-success" />
-                        <p className="mt-4 font-semibold text-vesta-text-light dark:text-vesta-text-dark">No active findings!</p>
-                        <p className="text-sm text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">This document meets all checks.</p>
+                    <div className="text-center p-8 bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700">
+                        <CheckCircleIcon className="w-12 h-12 mx-auto text-green-500" />
+                        <p className="mt-4 font-semibold text-gray-800 dark:text-neutral-200">No active findings!</p>
+                        <p className="text-sm text-gray-500 dark:text-neutral-400">This document meets all checks.</p>
                     </div>
                 )}
             </div>
@@ -161,21 +187,21 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
     };
 
     return (
-        <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark flex flex-col h-full">
-            <h3 className="text-lg font-bold p-4 border-b border-vesta-border-light dark:border-vesta-border-dark flex items-center text-vesta-text-light dark:text-vesta-text-dark">
-              <MessageSquareIcon className="w-5 h-5 mr-3 text-vesta-gold" /> Ask Gemini
+        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700 flex flex-col h-full">
+            <h3 className="text-lg font-bold p-4 border-b border-gray-200 dark:border-neutral-700 flex items-center text-gray-800 dark:text-neutral-200">
+              <MessageSquareIcon className="w-5 h-5 mr-3 text-red-700" /> Ask Gemini
             </h3>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs lg:max-w-sm px-4 py-2 rounded-2xl ${msg.role === 'user' ? 'bg-vesta-red text-white rounded-br-none' : 'bg-gray-200 dark:bg-vesta-bg-dark text-vesta-text-light dark:text-vesta-text-dark rounded-bl-none'}`}>
+                        <div className={`max-w-xs lg:max-w-sm px-4 py-2 rounded-2xl ${msg.role === 'user' ? 'bg-red-700 text-white rounded-br-none' : 'bg-gray-200 dark:bg-neutral-800 text-gray-800 dark:text-neutral-200 rounded-bl-none'}`}>
                             <p className="text-sm">{msg.content}</p>
                         </div>
                     </div>
                 ))}
                 {isLoading && (
                     <div className="flex justify-start">
-                        <div className="px-4 py-2 rounded-2xl bg-gray-200 dark:bg-vesta-bg-dark rounded-bl-none">
+                        <div className="px-4 py-2 rounded-2xl bg-gray-200 dark:bg-neutral-800 rounded-bl-none">
                             <div className="flex items-center space-x-1">
                                 <span className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></span>
                                 <span className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></span>
@@ -186,16 +212,16 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
                 )}
                 <div ref={messagesEndRef} />
             </div>
-            <form onSubmit={handleSend} className="p-4 border-t border-vesta-border-light dark:border-vesta-border-dark">
+            <form onSubmit={handleSend} className="p-4 border-t border-gray-200 dark:border-neutral-700">
                 <div className="relative">
                     <input
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Summarize risk factors..."
-                        className="w-full pl-4 pr-12 py-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-full focus:outline-none focus:ring-2 focus:ring-vesta-red bg-vesta-bg-light dark:bg-vesta-card-dark"
+                        className="w-full pl-4 pr-12 py-2 border border-gray-200 dark:border-neutral-700 rounded-full focus:outline-none focus:ring-2 focus:ring-red-700 bg-gray-50 dark:bg-neutral-800"
                     />
-                    <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-vesta-red text-white hover:bg-vesta-red-dark disabled:opacity-50" disabled={!input.trim() || isLoading}>
+                    <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-red-700 text-white hover:bg-red-800 disabled:opacity-50" disabled={!input.trim() || isLoading}>
                         <SendIcon className="w-5 h-5"/>
                     </button>
                 </div>
