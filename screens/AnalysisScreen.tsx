@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisReport, Finding, ScreenLayoutProps, FindingStatus, FeedbackReason, ChatMessage } from '../types';
-import { SparklesIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon } from '../components/Icons';
+import { StarIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon } from '../components/Icons';
 import jsPDF from 'jspdf';
 import * as workspaceApi from '../api/workspace';
 import * as vestaApi from '../api/vesta';
@@ -74,27 +73,37 @@ const AnalysisPanel: React.FC<{
     const activeFindings = report.findings.filter(f => f.status === 'active');
     return (
         <div className="space-y-4">
-             <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark p-6 space-y-3">
+             {/* Analysis Title Card */}
+             <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark p-4">
                 <h2 className="text-xl font-bold font-display text-vesta-text-light dark:text-vesta-text-dark text-center">Analysis</h2>
-                <div className="grid grid-cols-2 gap-3 text-center">
-                    {(Object.keys(report.scores || {}) as (keyof typeof report.scores)[]).map(key => (
-                        <div key={key}>
-                            <p className="text-2xl font-bold font-display text-vesta-red">{report.scores?.[key]}%</p>
-                            <p className="text-xs capitalize text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
-                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-            </div>
+             </div>
+             
+             {/* Auto-Enhance Button */}
             <button
                 onClick={onEnhance}
                 disabled={isEnhancing}
                 className="w-full flex items-center justify-center py-3 px-4 bg-vesta-red text-vesta-gold font-bold rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-                <SparklesIcon className="w-5 h-5 mr-2" />
+                <StarIcon className="w-5 h-5 mr-2" />
                 {isEnhancing ? 'Enhancing...' : 'Auto-Enhance Document'}
             </button>
+
+             {/* Scores Section */}
+            {report.scores && (
+              <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-lg border border-vesta-border-light dark:border-vesta-border-dark p-6">
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                      {(Object.keys(report.scores) as (keyof typeof report.scores)[]).map(key => (
+                          <div key={key}>
+                              <p className="text-2xl font-bold font-display text-vesta-red">{report.scores?.[key]}%</p>
+                              <p className="text-xs capitalize text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                              </p>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+            )}
+
             <div className="space-y-4">
                 <h3 className="font-bold text-lg text-vesta-text-light dark:text-vesta-text-dark">Actionable Findings ({activeFindings.length})</h3>
                 {activeFindings.length > 0 ? (
