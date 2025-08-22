@@ -5,19 +5,19 @@ import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, Kno
 import { useAuth } from './src/contexts/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
 import UploadScreen from './src/screens/UploadScreen';
-import AnalysisScreen from './src/screens/AnalysisScreen';
+import { AnalysisScreen } from './src/screens/AnalysisScreen';
 import AuditTrailScreen from './src/screens/AuditTrailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import CreateWorkspaceModal from './src/components/CreateWorkspaceModal';
 import ManageMembersModal from './src/components/ManageMembersModal';
-import KnowledgeBaseModal from './src/components/KnowledgeBaseModal';
+import KnowledgeBaseModal from './src/components/KnowledgeBaseModal.tsx';
 import UploadModal from './src/components/UploadModal';
 import * as workspaceApi from './src/api/workspace';
 import { AlertTriangleIcon, BriefcaseIcon } from './src/components/Icons';
 import { NotificationToast } from './src/components/NotificationToast';
 import { Layout } from './src/components/Layout';
 import * as vestaApi from './src/api/vesta';
-import ConfirmationModal from './src/components/ConfirmationModal';
+import ConfirmationModal from './src/components/ConfirmationModal.tsx';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4 text-center">

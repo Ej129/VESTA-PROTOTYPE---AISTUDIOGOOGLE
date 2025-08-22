@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace, WorkspaceInvitation } from '../types';
 import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, SettingsIcon, HistoryIcon, LogoutIcon, BriefcaseIcon, EditIcon, MoreVerticalIcon, UsersIcon, BellIcon } from './Icons';
-import InvitationDropdown from './InvitationDropdown';
+import InvitationDropdown from './InvitationDropdown.tsx';
 
 
 interface LayoutProps {
