@@ -1,7 +1,7 @@
 [build]
   command = """
     rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && \
-    esbuild src/index.tsx --bundle --format=esm --outfile=dist/index.js \
+    esbuild index.tsx --bundle --format=esm --outfile=dist/index.js \
     --jsx=automatic \
     --loader:.ts=ts --loader:.tsx=tsx \
     --platform=browser --target=esnext \
@@ -9,6 +9,7 @@
     --external:@google/genai --external:jspdf --external:pdfjs-dist --external:mammoth
   """
   publish = "dist"
+
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs"]
@@ -21,4 +22,3 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
-
