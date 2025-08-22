@@ -1,131 +1,211 @@
 
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
-import { VestaLogo, DashboardIcon, HistoryIcon, SettingsIcon, UsersIcon, LogoutIcon, ChevronsLeftIcon, BriefcaseIcon, MessageSquareIcon } from './Icons';
+import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, EditIcon, SettingsIcon, HistoryIcon, LogoutIcon } from './Icons';
 
 interface LayoutProps {
   children: React.ReactNode;
   navigateTo: NavigateTo;
-  activeScreen: Screen;
   currentUser: User;
   onLogout: () => void;
-  currentWorkspace: Workspace;
+  currentWorkspace: Workspace | null;
+  workspaces: Workspace[];
+  onSelectWorkspace: (workspace: Workspace) => void;
   userRole: UserRole;
   onManageMembers: () => void;
-  onBackToWorkspaces: () => void;
+  onCreateWorkspace: () => void;
+  onUpdateWorkspaceName: (workspaceId: string, newName: string) => void;
 }
 
-const Sidebar: React.FC<Omit<LayoutProps, 'children'>> = (props) => {
-    const { navigateTo, currentUser, onLogout, currentWorkspace, onBackToWorkspaces, activeScreen } = props;
-    const [isCollapsed, setIsCollapsed] = useState(localStorage.getItem('vesta-sidebar-collapsed') === 'true');
+export const HeaderActionsContext = createContext<{ setActions: (actions: React.ReactNode | null) => void }>({
+    setActions: () => {},
+});
 
-    React.useEffect(() => {
-        localStorage.setItem('vesta-sidebar-collapsed', String(isCollapsed));
-    }, [isCollapsed]);
+const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => void }> = ({ navigateTo, onLogout }) => (
+    <div className="absolute bottom-full mb-2 w-56 bg-vesta-card-light dark:bg-vesta-card-dark rounded-md shadow-lg z-20 border border-vesta-border-light dark:border-vesta-border-dark py-1">
+        <button onClick={() => navigateTo(Screen.Settings)} className="w-full text-left flex items-center px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-gray-100 dark:hover:bg-vesta-bg-dark">
+            <SettingsIcon className="w-4 h-4 mr-3" /> Settings
+        </button>
+        <button onClick={() => navigateTo(Screen.AuditTrail)} className="w-full text-left flex items-center px-4 py-2 text-sm text-vesta-text-light dark:text-vesta-text-dark hover:bg-gray-100 dark:hover:bg-vesta-bg-dark">
+            <HistoryIcon className="w-4 h-4 mr-3" /> Audit Trail
+        </button>
+        <div className="my-1 h-px bg-vesta-border-light dark:bg-vesta-border-dark" />
+        <button onClick={onLogout} className="w-full text-left flex items-center px-4 py-2 text-sm text-vesta-red hover:bg-gray-100 dark:hover:bg-vesta-bg-dark">
+            <LogoutIcon className="w-4 h-4 mr-3" /> Logout
+        </button>
+    </div>
+);
 
-    const navItems = [
-      { text: 'Analysis', icon: <DashboardIcon className="w-5 h-5" />, screen: Screen.Analysis },
-      { text: 'Dashboard', icon: <DashboardIcon className="w-5 h-5" />, screen: Screen.Dashboard },
-      { text: 'Audit Trail', icon: <HistoryIcon className="w-5 h-5" />, screen: Screen.AuditTrail },
-      { text: 'Knowledge Base', icon: <MessageSquareIcon className="w-5 h-5" />, screen: Screen.KnowledgeBase },
-      { text: 'Settings', icon: <SettingsIcon className="w-5 h-5" />, screen: Screen.Settings },
-    ];
+const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo'> & { isCollapsed: boolean }> =
+  ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, isCollapsed }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isProfileOpen, setProfileOpen] = useState(false);
+    const profileRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+                setProfileOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [profileRef]);
+
+    const filteredWorkspaces = workspaces.filter(ws =>
+        ws.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
-    const tooltipClasses = `absolute left-full ml-2 px-2 py-1 text-xs font-semibold text-white bg-black rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none`;
 
     return (
-      <aside className={`sidebar-bg text-white flex flex-col h-screen transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
-        <div className="flex items-center justify-between p-4 h-16 border-b border-white/20 flex-shrink-0">
-          <VestaLogo className={`w-8 h-8 flex-shrink-0 transition-opacity ${isCollapsed ? 'opacity-0' : 'opacity-100'}`} />
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="relative group p-2 rounded-md hover:bg-black/20">
-            <ChevronsLeftIcon className="w-5 h-5"/>
-            <span className={tooltipClasses}>Collapse</span>
-          </button>
-        </div>
-        
-        <div className="p-4 border-b border-white/20">
-            <button onClick={onBackToWorkspaces} className={`w-full flex items-center text-sm font-semibold p-2 rounded-lg hover:bg-black/20 text-left ${isCollapsed ? 'justify-center' : ''}`}>
-                <BriefcaseIcon className="w-5 h-5 flex-shrink-0" />
-                <span className={`ml-3 truncate ${isCollapsed ? 'hidden' : ''}`}>All Workspaces</span>
-            </button>
-            <div className={`mt-2 ${isCollapsed ? 'text-center' : ''}`}>
-                <p className={`text-xs uppercase font-bold text-vesta-gold tracking-wider ${isCollapsed ? 'hidden' : ''}`}>Current Workspace</p>
-                <h3 className={`font-bold mt-1 truncate text-white ${isCollapsed ? 'text-xs' : 'text-lg'}`}>{currentWorkspace.name}</h3>
+        <aside className={`bg-vesta-card-light dark:bg-vesta-card-dark text-vesta-text-light dark:text-vesta-text-dark flex flex-col h-screen border-r border-vesta-border-light dark:border-vesta-border-dark transition-all duration-300 ease-in-out ${isCollapsed ? 'w-0' : 'w-72'}`}>
+            <div className="flex-shrink-0 p-4 h-16 border-b border-vesta-border-light dark:border-vesta-border-dark flex items-center justify-between">
+                <div className="flex items-center">
+                    <VestaLogo className="w-8 h-8" />
+                    <h1 className="ml-3 font-bold text-lg font-display">Vesta</h1>
+                </div>
             </div>
-        </div>
 
-        <nav className="flex-1 p-4 overflow-y-auto">
-          <ul className="space-y-2">
-            {navItems.map(item => (
-              <li key={item.text} className="relative group">
-                <button
-                  onClick={() => navigateTo(item.screen)}
-                  className={`w-full flex items-center p-3 rounded-lg transition-colors text-sm font-semibold ${activeScreen === item.screen ? 'bg-black/30 text-vesta-gold' : 'hover:bg-black/20'} ${isCollapsed ? 'justify-center' : ''}`}
-                >
-                  {item.icon}
-                  <span className={`ml-4 truncate ${isCollapsed ? 'hidden' : ''}`}>{item.text}</span>
+            <div className="p-4 flex-shrink-0">
+                <div className="relative">
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark" />
+                    <input
+                        type="text"
+                        placeholder="Search workspaces..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full bg-vesta-bg-light dark:bg-vesta-bg-dark border border-vesta-border-light dark:border-vesta-border-dark rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-vesta-red"
+                    />
+                </div>
+            </div>
+
+            <nav className="flex-1 p-4 pt-0 overflow-y-auto">
+                <ul className="space-y-1">
+                    {filteredWorkspaces.map(ws => (
+                        <li key={ws.id}>
+                            <button
+                                onClick={() => onSelectWorkspace(ws)}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center ${currentWorkspace?.id === ws.id ? 'bg-vesta-red text-white' : 'hover:bg-gray-100 dark:hover:bg-vesta-bg-dark'}`}
+                            >
+                                <span className="flex-shrink-0 w-2 h-2 mr-3 rounded-full bg-vesta-gold" />
+                                <span className="truncate">{ws.name}</span>
+                            </button>
+                        </li>
+                    ))}
+                    <li>
+                        <button onClick={onCreateWorkspace} className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark hover:bg-gray-100 dark:hover:bg-vesta-bg-dark">
+                            <PlusIcon className="w-5 h-5 mr-2" />
+                            <span className="truncate">Create Workspace</span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+
+            <div ref={profileRef} className="p-4 bg-vesta-card-light dark:bg-vesta-card-dark border-t border-vesta-border-light dark:border-vesta-border-dark flex-shrink-0 relative">
+                {isProfileOpen && <UserProfileDropdown navigateTo={navigateTo} onLogout={onLogout} />}
+                <button onClick={() => setProfileOpen(o => !o)} className="w-full flex items-center p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-vesta-bg-dark">
+                    <div className="w-10 h-10 bg-vesta-gold rounded-full flex items-center justify-center text-vesta-red font-bold text-sm overflow-hidden flex-shrink-0">
+                        {currentUser.avatar ? <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" /> : getInitials(currentUser.name)}
+                    </div>
+                    <div className="ml-3 overflow-hidden text-left">
+                        <p className="font-semibold text-vesta-text-light dark:text-vesta-text-dark text-sm truncate">{currentUser.name}</p>
+                        <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">View profile</p>
+                    </div>
                 </button>
-                {isCollapsed && <span className={tooltipClasses}>{item.text}</span>}
-              </li>
-            ))}
-          </ul>
-        </nav>
-        
-        <div className="p-4 bg-black/30 border-t border-white/20 flex-shrink-0">
-           <div className={`flex items-center p-2 rounded-lg transition-colors duration-200 ${isCollapsed ? 'justify-center' : ''}`}>
-              <div className="w-10 h-10 bg-vesta-gold rounded-full flex items-center justify-center text-vesta-red font-bold text-sm overflow-hidden flex-shrink-0">
-                  {currentUser.avatar ? <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" /> : getInitials(currentUser.name)}
-              </div>
-              <div className={`ml-3 overflow-hidden transition-all duration-200 ease-in-out ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
-                  <p className="font-semibold text-white text-sm truncate">{currentUser.name}</p>
-                  <button onClick={onLogout} className="text-xs text-gray-400 hover:text-white hover:underline">Logout</button>
-              </div>
-          </div>
-      </div>
-      </aside>
+            </div>
+        </aside>
     );
 };
 
-const Header: React.FC<Omit<LayoutProps, 'children' | 'navigateTo'>> = (props) => {
-    const { activeScreen, currentWorkspace, onManageMembers, userRole } = props;
+const ContentHeader: React.FC<Pick<LayoutProps, 'currentWorkspace' | 'navigateTo' | 'onUpdateWorkspaceName'> & { isCollapsed: boolean, onToggleCollapse: () => void, headerActions: React.ReactNode | null }> =
+  ({ currentWorkspace, navigateTo, isCollapsed, onToggleCollapse, headerActions, onUpdateWorkspaceName }) => {
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [workspaceName, setWorkspaceName] = useState(currentWorkspace?.name || '');
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    const screenTitles: { [key in Screen]?: string } = {
-        [Screen.Dashboard]: 'Dashboard',
-        [Screen.Analysis]: 'Analysis',
-        [Screen.AuditTrail]: 'Audit Trail',
-        [Screen.KnowledgeBase]: 'Knowledge Base',
-        [Screen.Settings]: 'Settings',
+    useEffect(() => {
+        setWorkspaceName(currentWorkspace?.name || '');
+    }, [currentWorkspace]);
+    
+    useEffect(() => {
+        if (isEditingName) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        }
+    }, [isEditingName]);
+
+    const handleNameSave = () => {
+        if (currentWorkspace && workspaceName.trim() && workspaceName !== currentWorkspace.name) {
+            onUpdateWorkspaceName(currentWorkspace.id, workspaceName);
+        }
+        setIsEditingName(false);
     };
-    const title = screenTitles[activeScreen] || 'Vesta';
 
     return (
-         <header className="bg-vesta-card-light dark:bg-vesta-card-dark h-16 px-6 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center flex-shrink-0">
-            <div>
-                <h1 className="text-2xl font-bold text-vesta-text-light dark:text-vesta-text-dark">{title}</h1>
-            </div>
-            {(userRole === 'Administrator' || userRole === 'Member') && (
-                 <button onClick={onManageMembers} className="flex items-center px-4 py-2 bg-vesta-red text-white font-bold rounded-lg hover:bg-vesta-red-dark transition-colors">
-                    <UsersIcon className="w-5 h-5 mr-2" />
-                    Manage Members
+        <header className="bg-vesta-card-light dark:bg-vesta-card-dark h-16 px-6 border-b border-vesta-border-light dark:border-vesta-border-dark flex justify-between items-center flex-shrink-0">
+            <div className="flex items-center">
+                <button onClick={onToggleCollapse} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-vesta-bg-dark mr-2">
+                    <ChevronsLeftIcon className={`w-6 h-6 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
                 </button>
-            )}
+                 {isEditingName ? (
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        value={workspaceName}
+                        onChange={(e) => setWorkspaceName(e.target.value)}
+                        onBlur={handleNameSave}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNameSave()}
+                        className="text-2xl font-bold bg-transparent focus:outline-none ring-2 ring-vesta-red rounded-md px-2 -ml-2"
+                    />
+                 ) : (
+                    <h1 className="text-2xl font-bold text-vesta-text-light dark:text-vesta-text-dark truncate">{currentWorkspace?.name || 'Vesta'}</h1>
+                 )}
+            </div>
+            <div className="flex items-center space-x-2">
+                {headerActions}
+                {currentWorkspace && (
+                    <>
+                        <button onClick={() => navigateTo(Screen.KnowledgeBase)} title="Knowledge Base" className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-vesta-bg-dark text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
+                            <LibraryIcon className="w-6 h-6" />
+                        </button>
+                        <button onClick={() => setIsEditingName(true)} title="Rename Workspace" className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-vesta-bg-dark text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">
+                            <EditIcon className="w-6 h-6" />
+                        </button>
+                    </>
+                )}
+            </div>
         </header>
-    )
-}
+    );
+};
 
 export const Layout: React.FC<LayoutProps> = (props) => {
+    const { children, currentWorkspace } = props;
+    const [isSidebarCollapsed, setSidebarCollapsed] = useState(localStorage.getItem('vesta-sidebar-collapsed') === 'true');
+    const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null);
+
+    useEffect(() => {
+        localStorage.setItem('vesta-sidebar-collapsed', String(isSidebarCollapsed));
+    }, [isSidebarCollapsed]);
+    
+    useEffect(() => {
+      // Reset header actions when workspace changes
+      setHeaderActions(null);
+    }, [currentWorkspace]);
+
     return (
-        <div className="flex h-screen bg-vesta-bg-light dark:bg-vesta-bg-dark">
-            <Sidebar {...props} />
-            <div className="flex-1 flex flex-col overflow-y-hidden">
-                <Header {...props} />
-                <main className="flex-1 overflow-y-auto">
-                    {props.children}
-                </main>
+        <HeaderActionsContext.Provider value={{ setActions: setHeaderActions }}>
+            <div className="flex h-screen bg-vesta-bg-light dark:bg-vesta-bg-dark overflow-hidden">
+                <WorkspaceSidebar {...props} isCollapsed={isSidebarCollapsed} />
+                <div className="flex-1 flex flex-col overflow-y-hidden">
+                    <ContentHeader {...props} isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)} headerActions={headerActions} />
+                    <main className="flex-1 overflow-y-auto">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </HeaderActionsContext.Provider>
     );
 };
 

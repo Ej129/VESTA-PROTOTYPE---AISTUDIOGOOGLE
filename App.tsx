@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
-import DashboardScreen from './screens/DashboardScreen';
+import UploadScreen from './screens/UploadScreen';
 import AnalysisScreen from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
 import KnowledgeBaseScreen from './screens/KnowledgeBaseScreen';
@@ -12,10 +12,10 @@ import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
 import ManageMembersModal from './components/ManageMembersModal';
 import * as workspaceApi from './api/workspace';
-import { AlertTriangleIcon } from './components/Icons';
+import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import NotificationToast from './components/NotificationToast';
 import { Layout } from './components/Layout';
-import WorkspaceDashboard from './screens/WorkspaceDashboard';
+import * as vestaApi from './api/vesta';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 text-center">
@@ -45,44 +45,21 @@ const InitializingScreen: React.FC = () => (
     </div>
 );
 
-const defaultGovSources = [
-    {
-      title: "Bangko Sentral ng Pilipinas (BSP) Regulations",
-      content: "A collection of circulars, memoranda, and guidelines from the BSP, governing banks, financial institutions, and payment systems in the Philippines. Official source: https://www.bsp.gov.ph/",
-      category: KnowledgeCategory.Government,
-      isEditable: true,
-    },
-    {
-      title: "Bureau of Internal Revenue (BIR) Issuances",
-      content: "Regulations concerning taxation of financial transactions, digital services, and corporate income. Official source: https://www.bir.gov.ph/",
-      category: KnowledgeCategory.Government,
-      isEditable: true,
-    },
-    {
-      title: "Philippine Deposit Insurance Corporation (PDIC) Rules",
-      content: "Rules and regulations governing deposit insurance, bank resolutions, and financial stability. Official source: https://www.pdic.gov.ph/",
-      category: KnowledgeCategory.Government,
-      isEditable: true,
-    },
-    {
-      title: "National Privacy Commission (NPC) Advisories",
-      content: "Guidelines and advisories related to the Data Privacy Act of 2012 (RA 10173). Official source: https://www.privacy.gov.ph/",
-      category: KnowledgeCategory.Government,
-      isEditable: true,
-    },
-    {
-      title: "Philippine Insurance Regulations (PIR)",
-      content: "Regulations from the Insurance Commission governing insurance products, operations, and market conduct. Official source: https://www.insurance.gov.ph/",
-      category: KnowledgeCategory.Government,
-      isEditable: true,
-    },
-    {
-      title: "Securities and Exchange Commission (SEC) Memoranda",
-      content: "Memorandum Circulars from the SEC covering corporate governance, securities registration, and investment products. Official source: https://www.sec.gov.ph/",
-      category: KnowledgeCategory.Government,
-      isEditable: true,
-    },
-];
+const NoWorkspaceSelectedScreen: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
+    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <BriefcaseIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
+        <h2 className="text-xl font-bold text-vesta-text-light dark:text-vesta-text-dark">No Workspace Selected</h2>
+        <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2 max-w-sm">
+            Please select a workspace from the sidebar to view its content, or create a new one to get started.
+        </p>
+        <button
+            onClick={onCreate}
+            className="mt-6 bg-vesta-red text-white font-bold py-2 px-5 rounded-lg transition-all duration-200 inline-flex items-center shadow-sm hover:shadow-md hover:bg-vesta-red-dark"
+        >
+            Create Your First Workspace
+        </button>
+    </div>
+);
 
 const App: React.FC = () => {
   // --- FAIL-FAST CHECK ---
@@ -92,7 +69,7 @@ const App: React.FC = () => {
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
 
-  const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
+  const [screen, setScreen] = useState<Screen>(Screen.Upload);
   
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -120,6 +97,7 @@ const App: React.FC = () => {
 
   // Loading State
   const [isSyncingSources, setIsSyncingSources] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Global Theme Persistence Fix
   useEffect(() => {
@@ -131,9 +109,7 @@ const App: React.FC = () => {
       }
     };
     
-    // Listen for changes from other tabs/windows
     window.addEventListener('storage', handleThemeChange);
-    // Apply theme on initial load
     handleThemeChange();
 
     return () => {
@@ -165,7 +141,13 @@ const App: React.FC = () => {
     const userWorkspaces = await workspaceApi.getWorkspacesForUser();
     setWorkspaces(userWorkspaces);
     knownWorkspaceIds.current = new Set(userWorkspaces.map(ws => ws.id));
-  }, [currentUser]);
+    // If no workspace is selected, or the selected one is no longer available, select the first one.
+    if ((!selectedWorkspace || !userWorkspaces.some(ws => ws.id === selectedWorkspace.id)) && userWorkspaces.length > 0) {
+      handleSelectWorkspace(userWorkspaces[0]);
+    } else if (userWorkspaces.length === 0) {
+      setSelectedWorkspace(null);
+    }
+  }, [currentUser, selectedWorkspace]);
 
   const refreshInvitations = useCallback(async () => {
       if (!currentUser) return;
@@ -195,23 +177,19 @@ const App: React.FC = () => {
   // Poll for new workspaces (from invitations being accepted)
   useEffect(() => {
       if (!currentUser) return;
-
       const intervalId = setInterval(async () => {
           const currentWorkspaces = await workspaceApi.getWorkspacesForUser();
           const newWorkspaces = currentWorkspaces.filter(ws => !knownWorkspaceIds.current.has(ws.id));
-
           if (newWorkspaces.length > 0) {
               const newWorkspace = newWorkspaces[0];
-              await refreshWorkspaces(); // Refresh the list automatically
+              await refreshWorkspaces();
               setNotification({
                   message: `You've been added to a new workspace!`,
                   workspaceName: newWorkspace.name,
               });
           }
-          // Also poll for new invitations
           refreshInvitations();
-      }, 30000); // Check every 30 seconds
-
+      }, 30000);
       return () => clearInterval(intervalId);
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
   
@@ -227,7 +205,7 @@ const App: React.FC = () => {
         const newWorkspace = await workspaceApi.createWorkspace(name);
         await refreshWorkspaces();
         setCreateWorkspaceModalOpen(false);
-        await handleSelectWorkspace(newWorkspace); // Auto-select the new workspace
+        await handleSelectWorkspace(newWorkspace);
     } catch (error) {
         console.error("Failed to create workspace:", error);
         throw error;
@@ -235,31 +213,11 @@ const App: React.FC = () => {
   };
 
   const handleSelectWorkspace = async (workspace: Workspace) => {
-    if(selectedWorkspace?.id === workspace.id) return;
+    if(selectedWorkspace?.id === workspace.id && screen !== Screen.Analysis) return;
     setSelectedWorkspace(workspace);
+    setActiveReport(null);
     await loadWorkspaceData(workspace.id);
-    setActiveReport(null);
-    navigateTo(Screen.Dashboard);
-  };
-
-  const handleBackToWorkspaces = () => {
-    setSelectedWorkspace(null);
-    setReports([]);
-    setAuditLogs([]);
-    setKnowledgeBaseSources([]);
-    setDismissalRules([]);
-    setCustomRegulations([]);
-    setActiveReport(null);
-  };
-
-  const handleStartNewAnalysis = () => {
-    setActiveReport(null);
-    navigateTo(Screen.Analysis);
-  };
-
-  const handleSelectReport = (report: AnalysisReport) => {
-    setActiveReport(report);
-    navigateTo(Screen.Analysis);
+    navigateTo(Screen.Upload);
   };
 
   const handleAnalysisComplete = async (report: AnalysisReport) => {
@@ -269,6 +227,17 @@ const App: React.FC = () => {
     await addAuditLog('Analysis Run', JSON.stringify({ message: `Analysis completed for: ${report.title}`, reportId: addedReport.id }));
     await loadWorkspaceData(selectedWorkspace.id);
     setActiveReport(addedReport);
+  };
+
+  const handleFileUpload = async (content: string, fileName: string) => {
+    if (!selectedWorkspace) return;
+    addAuditLog('Document Upload', `File uploaded: ${fileName}`);
+    setIsAnalyzing(true);
+    const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
+    const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
+    await handleAnalysisComplete(report as AnalysisReport);
+    setIsAnalyzing(false);
+    navigateTo(Screen.Analysis);
   };
 
   const handleUpdateReport = async (updatedReport: AnalysisReport) => {
@@ -288,35 +257,7 @@ const App: React.FC = () => {
     await loadWorkspaceData(selectedWorkspace.id);
   };
 
-  const handleAddAutomatedSource = async () => {
-    if (!selectedWorkspace || isSyncingSources) return;
-
-    setIsSyncingSources(true);
-    try {
-        const existingTitles = new Set(knowledgeBaseSources.map(s => s.title));
-        const missingSources = defaultGovSources.filter(ds => !existingTitles.has(ds.title));
-
-        if (missingSources.length === 0) {
-            alert("All default government sources are already in your knowledge base.");
-            return;
-        }
-
-        const addPromises = missingSources.map(source => 
-            workspaceApi.addKnowledgeSource(selectedWorkspace.id, source)
-        );
-
-        await Promise.all(addPromises);
-        
-        await loadWorkspaceData(selectedWorkspace.id);
-        alert(`Successfully added ${missingSources.length} missing government source(s).`);
-
-    } catch (error) {
-        console.error("Failed to add automated sources:", error);
-        alert(`Error: ${error instanceof Error ? error.message : 'Could not sync sources.'}`);
-    } finally {
-        setIsSyncingSources(false);
-    }
-  };
+  const handleAddAutomatedSource = async () => {};
 
   const deleteKnowledgeSource = async (id: string) => {
     if (!selectedWorkspace) return;
@@ -384,23 +325,6 @@ const App: React.FC = () => {
       await loadWorkspaceData(selectedWorkspace.id);
   };
 
-  const handleUpdateReportStatus = async (reportId: string, status: 'active' | 'archived') => {
-    if (!selectedWorkspace) return;
-    await workspaceApi.updateReportStatus(reportId, status);
-    const report = reports.find(r => r.id === reportId);
-    const action: AuditLogAction = status === 'archived' ? 'Analysis Archived' : 'Analysis Unarchived';
-    await addAuditLog(action, JSON.stringify({ message: `Report "${report?.title}" status changed to ${status}.`, reportId: reportId }));
-    await loadWorkspaceData(selectedWorkspace.id);
-  };
-
-  const handleDeleteReport = async (reportId: string) => {
-    if (!selectedWorkspace) return;
-    const report = reports.find(r => r.id === reportId);
-    await workspaceApi.deleteReport(reportId);
-    await addAuditLog('Analysis Deleted', JSON.stringify({ message: `Report "${report?.title}" was permanently deleted.`, reportId: reportId }));
-    await loadWorkspaceData(selectedWorkspace.id);
-  };
-  
   const handleUpdateWorkspaceName = async (workspaceId: string, name: string) => {
     try {
         await workspaceApi.updateWorkspaceName(workspaceId, name);
@@ -410,10 +334,10 @@ const App: React.FC = () => {
     } catch (error) {
         console.error("Failed to update workspace name:", error);
         alert((error as Error).message);
-        refreshWorkspaces(); // Revert on error
+        refreshWorkspaces();
     }
   };
-
+  
   const handleRespondToInvitation = async (workspaceId: string, response: 'accept' | 'decline') => {
     try {
         await workspaceApi.respondToInvitation(workspaceId, response);
@@ -427,63 +351,40 @@ const App: React.FC = () => {
   };
 
   const renderScreenComponent = () => {
+    if (!selectedWorkspace) {
+        return <NoWorkspaceSelectedScreen onCreate={() => setCreateWorkspaceModalOpen(true)} />;
+    }
     const layoutProps = {
         navigateTo,
         currentUser: currentUser!,
         onLogout: handleLogout,
-        currentWorkspace: selectedWorkspace!,
+        currentWorkspace: selectedWorkspace,
         onManageMembers: () => setManageMembersModalOpen(true),
         userRole,
-        onBackToWorkspaces: handleBackToWorkspaces,
+        workspaces,
+        onSelectWorkspace: handleSelectWorkspace,
+        onCreateWorkspace: () => setCreateWorkspaceModalOpen(true),
+        onUpdateWorkspaceName: handleUpdateWorkspaceName,
     };
 
     switch (screen) {
-      case Screen.Dashboard:
-        return <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
+      case Screen.Upload:
+        return <UploadScreen onUpload={handleFileUpload} isAnalyzing={isAnalyzing} />;
       case Screen.Analysis:
         return <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} customRegulations={customRegulations} />;
       case Screen.AuditTrail:
-        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
+        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={() => {}} />;
       case Screen.KnowledgeBase:
         return <KnowledgeBaseScreen {...layoutProps} sources={knowledgeBaseSources} onAddSource={addKnowledgeSource} onDeleteSource={deleteKnowledgeSource} onAddAutomatedSource={handleAddAutomatedSource} isSyncing={isSyncingSources} />;
       case Screen.Settings:
         return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
       default:
-        return <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
+        return <UploadScreen onUpload={handleFileUpload} isAnalyzing={isAnalyzing} />;
     }
   };
 
   if (loading) return <InitializingScreen />;
   if (!currentUser) return <LoginScreen />;
-
-  if (!selectedWorkspace) {
-      return (
-          <>
-            <WorkspaceDashboard
-                workspaces={workspaces}
-                currentUser={currentUser}
-                onSelectWorkspace={handleSelectWorkspace}
-                onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
-                onLogout={handleLogout}
-                invitations={invitations}
-                onRespondToInvitation={handleRespondToInvitation}
-            />
-            {isCreateWorkspaceModalOpen && (
-                <CreateWorkspaceModal 
-                    onClose={() => setCreateWorkspaceModalOpen(false)}
-                    onCreate={handleCreateWorkspace}
-                />
-            )}
-            {notification && (
-                <NotificationToast 
-                    message={notification.message}
-                    workspaceName={notification.workspaceName}
-                    onClose={() => setNotification(null)}
-                />
-            )}
-          </>
-      );
-  }
 
   return (
     <div className="font-sans bg-vesta-bg-light dark:bg-vesta-bg-dark min-h-screen text-vesta-text-light dark:text-vesta-text-dark">
@@ -500,7 +401,7 @@ const App: React.FC = () => {
                 onCreate={handleCreateWorkspace}
             />
         )}
-        {isManageMembersModalOpen && (
+        {selectedWorkspace && isManageMembersModalOpen && (
             <ManageMembersModal 
                 onClose={() => setManageMembersModalOpen(false)}
                 currentMembers={workspaceMembers}
@@ -512,13 +413,15 @@ const App: React.FC = () => {
         )}
         <Layout
             navigateTo={navigateTo}
-            activeScreen={screen}
             currentUser={currentUser}
             onLogout={handleLogout}
             currentWorkspace={selectedWorkspace}
+            workspaces={workspaces}
+            onSelectWorkspace={handleSelectWorkspace}
             onManageMembers={() => setManageMembersModalOpen(true)}
             userRole={userRole}
-            onBackToWorkspaces={handleBackToWorkspaces}
+            onCreateWorkspace={() => setCreateWorkspaceModalOpen(true)}
+            onUpdateWorkspaceName={handleUpdateWorkspaceName}
         >
             {renderScreenComponent()}
         </Layout>
