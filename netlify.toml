@@ -1,7 +1,7 @@
 [build]
   command = """
-    rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && \
-    esbuild index.tsx --bundle --format=esm --outfile=dist/index.js \
+    rm -rf dist && mkdir -p dist && cp index.html dist/ && cp metadata.json dist/ && \
+    npx esbuild src/index.tsx --bundle --format=esm --outfile=dist/index.js \
     --jsx=automatic \
     --loader:.ts=ts --loader:.tsx=tsx \
     --platform=browser --target=esnext \
