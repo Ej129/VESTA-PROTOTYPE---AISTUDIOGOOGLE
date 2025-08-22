@@ -1,10 +1,11 @@
 [build]
-  # Clean dist, transpile and bundle with esbuild (TSX support enabled)
   command = "rm -rf dist && mkdir -p dist && cp index.html metadata.json dist/ && esbuild index.tsx --bundle --format=esm --outfile=dist/index.js --loader:.ts=ts --loader:.tsx=tsx"
   publish = "dist"
 
-  # Env vars available during build
-  environment = ["API_KEY", "NETLIFY_API_TOKEN", "NETLIFY_SITE_ID"]
+  [build.environment]
+    API_KEY = "AIzaSyCWwrqGX3uOwW5UeA5P3G0zfqA2pq5jcDQ"
+    NETLIFY_API_TOKEN = "nfp_pTcj8xGScWsGXSZugrPASgur1vJPuWJL4384"
+    NETLIFY_SITE_ID = "98b37587-6540-4302-b7cf-555e32c1be78"
 
 [functions]
   directory = "netlify/functions"
