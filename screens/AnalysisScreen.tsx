@@ -124,7 +124,7 @@ const DocumentEditor: React.FC<{
                 ) : (
                     <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}></div>
                 )
-            )}
+            }
         </div>
     </div>
 );
@@ -461,5 +461,3 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, on
     </div>
   );
 };
-
-// Removed default export
