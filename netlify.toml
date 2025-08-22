@@ -7,17 +7,18 @@
   """
   publish = "dist"
 
-[build.environment]
-  NODE_VERSION = "18"
-  API_KEY = "AIzaSyCWwrqGX3uOwW5UeA5P3G0zfqA2pq5jcDQ"
-  NETLIFY_API_TOKEN = "nfp_pTcj8xGScWsGXSZugrPASgur1vJPuWJL4384"
-  NETLIFY_SITE_ID = "98b37587-6540-4302-b7cf-555e32c1be78"
+  [build.environment]
+    API_KEY = "AIzaSyCWwrqGX3uOwW5UeA5P3G0zfqA2pq5jcDQ"
+    NETLIFY_API_TOKEN = "nfp_pTcj8xGScWsGXSZugrPASgur1vJPuWJL4384"
+    NETLIFY_SITE_ID = "98b37587-6540-4302-b7cf-555e32c1be78"
 
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
 
 [functions."*"]
   external_node_modules = ["@netlify/blobs"]
+  node_bundler = "esbuild"
 
 [[redirects]]
   from = "/api/*"
