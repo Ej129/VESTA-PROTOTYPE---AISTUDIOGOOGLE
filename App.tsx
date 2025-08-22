@@ -29,7 +29,7 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
                 <p className="font-mono text-sm text-vesta-red">{message}</p>
             </div>
             <p className="text-xs text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-6">
-                <strong>Action Required:</strong> Please add the `API_KEY` environment variable in your Netlify site settings under "Site configuration" &gt; "Build &amp; deploy" &gt; "Environment" and then trigger a new deploy.
+                <strong>Action Required:</strong> Please add the `API_KEY` environment variable in your Netlify site settings under "Site configuration" > "Build & deploy" > "Environment" and then trigger a new deploy.
             </p>
         </div>
     </div>

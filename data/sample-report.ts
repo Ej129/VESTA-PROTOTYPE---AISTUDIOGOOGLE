@@ -1,4 +1,5 @@
 
+
 import { AnalysisReport } from '../types';
 
 export const sampleReportForTour: AnalysisReport = {

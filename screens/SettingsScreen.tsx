@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, DismissalRule, ScreenLayoutProps, CustomRegulation } from '../types';
 import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon, MoonIcon, SunIcon, TrashIcon, BrainCircuitIcon, PlusIcon } from '../components/Icons';

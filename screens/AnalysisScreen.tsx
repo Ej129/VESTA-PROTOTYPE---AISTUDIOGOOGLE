@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, AnalysisReport, Finding, FindingStatus, AuditLogAction, FeedbackReason, KnowledgeSource, DismissalRule, ScreenLayoutProps, UserRole, CustomRegulation } from '../types';
 import { SparklesIcon, DownloadIcon, EditIcon, ChevronsLeftIcon, ChevronsRightIcon } from '../components/Icons';

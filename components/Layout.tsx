@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, createContext, useContext, ReactNode, useRef } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace, WorkspaceInvitation } from '../types';
 import { VestaLogo, DashboardIcon, HistoryIcon, SettingsIcon, LogoutIcon, UsersIcon, ChevronsLeftIcon, BellIcon, SearchIcon, PlusIcon, EditIcon, MessageSquareIcon } from './Icons';

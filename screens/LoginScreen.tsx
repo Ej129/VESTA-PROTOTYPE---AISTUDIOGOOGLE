@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { VestaLogo } from '../components/Icons';
 import { useAuth } from '../contexts/AuthContext';
