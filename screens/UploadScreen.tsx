@@ -1,7 +1,7 @@
 
 
 import React, { useState, useCallback } from 'react';
-import { BrainCircuitIcon } from '../components/Icons';
+import { UploadCloudIcon } from '../components/Icons';
 import UploadZone from '../components/UploadZone';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 
@@ -36,7 +36,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({ onUpload, isAnalyzing }) =>
             className="absolute inset-0 bg-gradient-to-br from-vesta-red/5 to-vesta-gold/5 dark:from-vesta-red/10 dark:to-vesta-gold/10 -z-10" 
             style={{ clipPath: 'polygon(0 0, 100% 0, 100% 80%, 0 100%)' }}
           />
-          <BrainCircuitIcon className="w-48 h-48 text-gray-200 dark:text-gray-700" />
+          <UploadCloudIcon className="w-48 h-48 text-gray-200 dark:text-gray-700" />
           <button
               onClick={() => fileInputRef.current?.click()}
               className="mt-8 bg-vesta-gold text-vesta-red font-bold py-4 px-10 rounded-2xl text-lg shadow-lg hover:shadow-xl hover:bg-yellow-500 transition-all duration-200 transform hover:-translate-y-1"
