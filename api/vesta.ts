@@ -135,7 +135,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
             resilienceScore: parsedReport.scores.project,
             scores: parsedReport.scores,
             findings: parsedReport.findings.map((f: any, index: number): Finding => ({
-                id: `finding-${index}`, // This will be replaced by a real ID in the backend/API layer
+                id: `finding-${Date.now()}-${index}`,
                 title: f.title,
                 severity: f.severity,
                 sourceSnippet: f.sourceSnippet,
@@ -183,7 +183,25 @@ export async function improvePlan(planContent: string, report: AnalysisReport): 
     try {
         const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `The following project plan has been analyzed and several issues were found. Please rewrite the entire document to incorporate the recommendations and fix the issues. Apply professional compliance formatting, and improve the overall clarity, conciseness, and structure of the plan.\n\nORIGINAL PLAN:\n---\n${planContent}\n---\n\nISSUES AND RECOMMENDATIONS:\n---\n${findingsSummary}\n---\n\nReturn only the full, revised text of the improved project plan. Do not include any introductory text like "Here is the revised plan." or any other commentary.`,
+            contents: `The following project plan has been analyzed and several issues were found. Your task is to rewrite the entire document to incorporate the recommendations and fix the issues.
+RULES:
+1. Return ONLY the full, revised text of the project plan.
+2. DO NOT include any introductory text like "Here is the revised plan." or any other commentary.
+3. Compare your revised version to the original line-by-line.
+4. For every line that is NEW or MODIFIED, prefix it with "++ ".
+5. For every line that is REMOVED, prefix it with "-- ".
+6. For every line that is UNCHANGED, do NOT add any prefix.
+
+ORIGINAL PLAN:
+---
+${planContent}
+---
+
+ISSUES AND RECOMMENDATIONS:
+---
+${findingsSummary}
+---
+`,
             config: {
                 systemInstruction: "You are an expert technical writer and project manager specializing in compliance documentation. Your task is to revise a project plan to resolve issues identified in an analysis report. You must integrate the given recommendations seamlessly, apply appropriate compliance formatting, improve clarity, and ensure the document is professional and well-structured.",
             },
@@ -193,7 +211,7 @@ export async function improvePlan(planContent: string, report: AnalysisReport): 
     } catch (error) {
         console.error("Error improving plan with Gemini:", error);
         // Fallback to original content on error
-        return planContent; 
+        return `Error: Could not enhance document.\n\n${planContent}`; 
     }
 }
 

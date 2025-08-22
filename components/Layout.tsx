@@ -1,8 +1,10 @@
 
 
 import React, { useState, useRef, useEffect } from 'react';
-import { NavigateTo, Screen, User, UserRole, Workspace } from '../types';
-import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, SettingsIcon, HistoryIcon, LogoutIcon, BriefcaseIcon, EditIcon, MoreVerticalIcon } from './Icons';
+import { NavigateTo, Screen, User, UserRole, Workspace, WorkspaceInvitation } from '../types';
+import { VestaLogo, SearchIcon, PlusIcon, ChevronsLeftIcon, LibraryIcon, SettingsIcon, HistoryIcon, LogoutIcon, BriefcaseIcon, EditIcon, MoreVerticalIcon, UsersIcon, BellIcon } from './Icons';
+import InvitationDropdown from './InvitationDropdown';
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,6 +22,8 @@ interface LayoutProps {
   onNewAnalysis: () => void;
   onUpdateWorkspaceStatus: (workspaceId: string, status: 'active' | 'archived') => void;
   onDeleteWorkspace: (workspace: Workspace) => void;
+  invitations: WorkspaceInvitation[];
+  onRespondToInvitation: (workspaceId: string, response: 'accept' | 'decline') => void;
 }
 
 const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => void; onManageMembers: () => void }> = ({ navigateTo, onLogout, onManageMembers }) => (
@@ -28,7 +32,7 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
             <SettingsIcon className="w-4 h-4 mr-3" /> Profile Settings
         </button>
         <button onClick={onManageMembers} className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-            <BriefcaseIcon className="w-4 h-4 mr-3" /> Manage Members
+            <UsersIcon className="w-4 h-4 mr-3" /> Manage Members
         </button>
         <button onClick={() => navigateTo(Screen.AuditTrail)} className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
             <HistoryIcon className="w-4 h-4 mr-3" /> Audit Trail
@@ -226,14 +230,72 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     );
 };
 
-const TopNavbar: React.FC = () => {
+const TopNavbar: React.FC<Pick<LayoutProps, 'currentWorkspace' | 'onManageMembers' | 'onNewAnalysis' | 'invitations' | 'onRespondToInvitation'>> = 
+({ currentWorkspace, onManageMembers, onNewAnalysis, invitations, onRespondToInvitation }) => {
+    const [isInvitationsOpen, setInvitationsOpen] = useState(false);
+    const invitationRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (invitationRef.current && !invitationRef.current.contains(event.target as Node)) {
+                setInvitationsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    if (!currentWorkspace) {
+        return <header className="bg-white dark:bg-neutral-900 h-[73px] px-6 border-b border-gray-200 dark:border-neutral-700 flex-shrink-0 z-10" />;
+    }
+
     return (
-        <header className="bg-white dark:bg-neutral-900 h-16 px-6 border-b border-gray-200 dark:border-neutral-700 flex justify-between items-center flex-shrink-0 z-10">
-            <div></div>
-            <div></div>
+        <header className="bg-white dark:bg-neutral-900 px-6 border-b border-gray-200 dark:border-neutral-700 flex justify-between items-center flex-shrink-0 z-10 h-[73px]">
+            <div>
+                <p className="text-sm text-gray-500 dark:text-neutral-400">Current Workspace</p>
+                <h1 className="text-lg font-bold text-gray-800 dark:text-neutral-200">{currentWorkspace.name}</h1>
+            </div>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+                <button 
+                    onClick={onManageMembers} 
+                    className="hidden sm:flex items-center bg-gray-100 dark:bg-neutral-800 text-gray-800 dark:text-neutral-200 font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:bg-gray-200 dark:hover:bg-neutral-700"
+                >
+                    <UsersIcon className="w-5 h-5 mr-2" />
+                    Manage Members
+                </button>
+                <button 
+                    onClick={onNewAnalysis} 
+                    className="flex items-center bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:bg-red-800"
+                >
+                    <PlusIcon className="w-5 h-5 mr-0 sm:mr-2" />
+                    <span className="hidden sm:inline">New Analysis</span>
+                </button>
+                <div ref={invitationRef} className="relative">
+                    <button 
+                        onClick={() => setInvitationsOpen(o => !o)} 
+                        className="p-3 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 relative"
+                        aria-label="View invitations"
+                    >
+                        <BellIcon className="w-5 h-5 text-gray-800 dark:text-neutral-200" />
+                        {invitations.length > 0 && (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-neutral-900">
+                                {invitations.length}
+                            </span>
+                        )}
+                    </button>
+                    {isInvitationsOpen && (
+                        <InvitationDropdown 
+                            invitations={invitations} 
+                            onRespond={onRespondToInvitation} 
+                            onClose={() => setInvitationsOpen(false)} 
+                        />
+                    )}
+                </div>
+            </div>
         </header>
     );
 };
+
 
 export const Layout: React.FC<LayoutProps> = (props) => {
     const { children } = props;
@@ -248,9 +310,12 @@ export const Layout: React.FC<LayoutProps> = (props) => {
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-neutral-950 overflow-hidden">
             <WorkspaceSidebar {...props} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleCollapse} />
-            <main className="flex-1 overflow-y-auto">
-                {children}
-            </main>
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <TopNavbar {...props} />
+                <main className="flex-1 overflow-y-auto">
+                    {children}
+                </main>
+            </div>
         </div>
     );
 };

@@ -1,11 +1,10 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import UploadScreen from './screens/UploadScreen';
-import AnalysisScreen from './screens/AnalysisScreen';
+import { AnalysisScreen } from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
@@ -240,11 +239,12 @@ const App: React.FC = () => {
     if (!selectedWorkspace) return;
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
     setIsAnalyzing(true);
+    setUploadModalOpen(false); // Close modal immediately
+    navigateTo(Screen.Dashboard); // Navigate to dashboard while analyzing
     const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
     const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
     await handleAnalysisComplete(report as AnalysisReport);
     setIsAnalyzing(false);
-    setUploadModalOpen(false);
     navigateTo(Screen.Analysis);
   };
   
@@ -264,23 +264,13 @@ const App: React.FC = () => {
       }
   };
 
-  const handleAutoEnhance = async (report: AnalysisReport) => {
-      if (!report) return;
+  const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
+      if (!report) return '';
       setIsAnalyzing(true);
-      const improvedContent = await vestaApi.improvePlan(report.documentContent, report);
-      const updatedReportData = { ...report, documentContent: improvedContent };
-      // Re-run analysis on the improved content
-      const newAnalysisData = await vestaApi.analyzePlan(improvedContent, knowledgeBaseSources, dismissalRules, customRegulations);
-      const enhancedReport = {
-          ...updatedReportData,
-          ...newAnalysisData,
-          title: report.title, // Keep original title
-      };
-      
-      const finalReport = await handleAnalysisComplete(enhancedReport as AnalysisReport);
-      addAuditLog('Auto-Fix', `Auto-Enhanced document: ${report.title}`);
+      const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report);
+      addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
       setIsAnalyzing(false);
-      return finalReport;
+      return improvedContentWithDiff;
   };
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
@@ -475,7 +465,7 @@ const App: React.FC = () => {
       case Screen.Dashboard:
         return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
       case Screen.Analysis:
-        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} />;
+        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} onNewAnalysis={handleFileUpload} />;
       case Screen.AuditTrail:
         return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
       case Screen.Settings:
@@ -554,6 +544,8 @@ const App: React.FC = () => {
             onNewAnalysis={() => setUploadModalOpen(true)}
             onUpdateWorkspaceStatus={handleUpdateWorkspaceStatus}
             onDeleteWorkspace={handleDeleteWorkspace}
+            invitations={invitations}
+            onRespondToInvitation={handleRespondToInvitation}
         >
             {renderScreenComponent()}
         </Layout>

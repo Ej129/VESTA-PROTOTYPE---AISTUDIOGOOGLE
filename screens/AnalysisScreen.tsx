@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisReport, Finding, ScreenLayoutProps, FindingStatus, FeedbackReason, ChatMessage } from '../types';
 import { StarIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon } from '../components/Icons';
@@ -15,6 +14,11 @@ const enhancementSteps = [
     "Generating revised document...",
 ];
 
+// Helper function to escape regex special characters
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
 const DocumentEditor: React.FC<{
   report: AnalysisReport;
   isEditing: boolean;
@@ -23,27 +27,94 @@ const DocumentEditor: React.FC<{
   onSaveChanges: () => void;
   onToggleEdit: () => void;
   onDownload: () => void;
-}> = ({ report, isEditing, onContentChange, isEnhancing, onSaveChanges, onToggleEdit, onDownload }) => (
-    <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700 flex flex-col h-full">
-        <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
-            <div>
-                <p className="text-xs text-gray-500 dark:text-neutral-400">{report.workspaceId.replace('-', ' ').toUpperCase()}</p>
-                <h2 className="font-bold text-lg text-gray-800 dark:text-neutral-200 truncate pr-4">{report.title}</h2>
+  hoveredFindingId: string | null;
+  selectedFindingId: string | null;
+  isDiffing: boolean;
+  onAcceptChanges: () => void;
+  onDiscardChanges: () => void;
+}> = ({ report, isEditing, onContentChange, isEnhancing, onSaveChanges, onToggleEdit, onDownload, hoveredFindingId, selectedFindingId, isDiffing, onAcceptChanges, onDiscardChanges }) => {
+    
+    const getHighlightedContent = () => {
+        if (!report) return '';
+        let content = report.documentContent;
+        
+        const escapeHtml = (unsafe: string) => 
+            unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+
+        content = escapeHtml(content);
+
+        // Sort findings by length of snippet descending to replace longer snippets first
+        const sortedFindings = [...report.findings].sort((a, b) => b.sourceSnippet.length - a.sourceSnippet.length);
+
+        sortedFindings.forEach(finding => {
+            const isHovered = finding.id === hoveredFindingId;
+            const isSelected = finding.id === selectedFindingId;
+            
+            let highlightClass = finding.severity === 'critical' ? 'highlight-critical' : 'highlight-warning';
+            
+            if (isSelected) {
+                highlightClass += ' ring-2 ring-offset-1 dark:ring-offset-neutral-950 ring-red-500 dark:ring-yellow-400';
+            } else if (isHovered) {
+                 highlightClass += ' ring-2 ring-offset-1 dark:ring-offset-neutral-950 ring-blue-400';
+            }
+
+            const replacement = `<mark id="snippet-${finding.id}" class="${highlightClass}">${escapeHtml(finding.sourceSnippet)}</mark>`;
+            
+            content = content.replace(
+                new RegExp(escapeRegExp(escapeHtml(finding.sourceSnippet)), 'g'),
+                replacement
+            );
+        });
+        
+        return content;
+    };
+
+    return (
+        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700 flex flex-col h-full">
+            <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
+                <div>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400">{isDiffing ? "REVIEWING CHANGES" : report.workspaceId.replace('-', ' ').toUpperCase()}</p>
+                    <h2 className="font-bold text-lg text-gray-800 dark:text-neutral-200 truncate pr-4">{report.title}</h2>
+                </div>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                    {isDiffing ? (
+                        <>
+                            <button onClick={onDiscardChanges} className="px-4 py-1.5 border border-gray-300 dark:border-neutral-600 rounded-lg text-sm font-bold text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">Discard</button>
+                            <button onClick={onAcceptChanges} className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800">Accept Changes</button>
+                        </>
+                    ) : (
+                        <>
+                            <button onClick={onDownload} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Download as PDF"><DownloadIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/></button>
+                            {isEditing ? (
+                                <button onClick={onSaveChanges} className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800">Save Draft</button>
+                            ) : (
+                                <button onClick={onToggleEdit} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Edit Document"><EditIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/></button>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
-            <div className="flex items-center space-x-2 flex-shrink-0">
-                <button onClick={onDownload} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Download as PDF"><DownloadIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/></button>
-                {isEditing ? (
-                    <button onClick={onSaveChanges} className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800">Save Draft</button>
-                ) : (
-                    <button onClick={onToggleEdit} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Edit Document"><EditIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/></button>
-                )}
-            </div>
-        </div>
-        <div className={`p-6 bg-gray-50 dark:bg-neutral-950 rounded-b-xl flex-1 overflow-y-auto ${isEnhancing ? 'flex items-center justify-center' : ''}`}>
-            {isEnhancing ? (
-                <AnimatedChecklist steps={enhancementSteps} />
-            ) : (
-                isEditing ? (
+            <div className={`p-6 bg-gray-50 dark:bg-neutral-950 rounded-b-xl flex-1 overflow-y-auto ${isEnhancing ? 'flex items-center justify-center' : ''}`}>
+                {isEnhancing ? (
+                    <AnimatedChecklist steps={enhancementSteps} />
+                ) : isDiffing ? (
+                     <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap font-mono">
+                        {report.documentContent.split('\n').map((line, index) => {
+                            if (line.startsWith('++ ')) {
+                                return <div key={index} className="highlight-added w-full block rounded px-2"><span className="select-none text-green-600 mr-2">+</span><span>{line.substring(3)}</span></div>;
+                            }
+                            if (line.startsWith('-- ')) {
+                                return <div key={index} className="highlight-removed w-full block rounded px-2"><span className="select-none text-red-600 mr-2">-</span><del>{line.substring(3)}</del></div>;
+                            }
+                            return <div key={index} className="px-2"><span className="select-none text-gray-400 mr-2"> </span><span>{line}</span></div>;
+                        })}
+                    </div>
+                ) : isEditing ? (
                     <textarea
                         value={report.documentContent}
                         onChange={(e) => onContentChange(e.target.value)}
@@ -51,12 +122,7 @@ const DocumentEditor: React.FC<{
                         autoFocus
                     />
                 ) : (
-                    <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap" dangerouslySetInnerHTML={{
-                        __html: report.documentContent.replace(
-                            /\[\[(.*?)\]\]/g,
-                            '<mark class="bg-yellow-400/30 px-1 rounded">$1</mark>'
-                        ),
-                    }}></div>
+                    <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}></div>
                 )
             )}
         </div>
@@ -90,7 +156,9 @@ const AnalysisPanel: React.FC<{
   isEnhancing: boolean;
   onStatusChange: (findingId: string, status: FindingStatus) => void;
   onDismiss: (finding: Finding) => void;
-}> = ({ report, onEnhance, isEnhancing, onStatusChange, onDismiss }) => {
+  setHoveredFindingId: (id: string | null) => void;
+  onFindingClick: (id: string) => void;
+}> = ({ report, onEnhance, isEnhancing, onStatusChange, onDismiss, setHoveredFindingId, onFindingClick }) => {
     const activeFindings = report.findings.filter(f => f.status === 'active');
     return (
         <div className="space-y-6">
@@ -133,7 +201,13 @@ const AnalysisPanel: React.FC<{
                 {activeFindings.length > 0 ? (
                     <div className="space-y-4">
                     {activeFindings.map(finding => (
-                        <div key={finding.id} className="bg-white dark:bg-neutral-900 rounded-lg shadow-sm border border-gray-200 dark:border-neutral-700">
+                        <div 
+                            key={finding.id} 
+                            className="bg-white dark:bg-neutral-900 rounded-lg shadow-sm border border-gray-200 dark:border-neutral-700 cursor-pointer"
+                            onMouseEnter={() => setHoveredFindingId(finding.id)}
+                            onMouseLeave={() => setHoveredFindingId(null)}
+                            onClick={() => onFindingClick(finding.id)}
+                        >
                           <div className={`p-3 flex items-start rounded-t-lg ${finding.severity === 'critical' ? 'bg-red-700 text-white' : 'bg-yellow-400 text-yellow-900'}`}>
                               <div className="flex-shrink-0 mt-0.5">{finding.severity === 'critical' ? <AlertTriangleIcon className="w-5 h-5"/> : <AlertCircleIcon className="w-5 h-5"/>}</div>
                               <h4 className="ml-2 font-bold text-sm">{finding.title}</h4>
@@ -143,8 +217,8 @@ const AnalysisPanel: React.FC<{
                             <p className="text-sm text-gray-800 dark:text-neutral-200">{finding.recommendation}</p>
                           </div>
                            <div className="px-3 py-2 bg-gray-50 dark:bg-neutral-800/50 border-t border-gray-200 dark:border-neutral-700 flex justify-end space-x-2 rounded-b-lg">
-                              <button onClick={() => onDismiss(finding)} className="flex items-center px-2 py-1 text-xs font-semibold text-gray-500 dark:text-neutral-400 bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 rounded-md transition-colors duration-200"><XCircleIcon className="w-4 h-4 mr-1" /> Dismiss</button>
-                              <button onClick={() => onStatusChange(finding.id, 'resolved')} className="flex items-center px-2 py-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-200"><CheckCircleIcon className="w-4 h-4 mr-1" /> Resolved</button>
+                              <button onClick={(e) => { e.stopPropagation(); onDismiss(finding); }} className="flex items-center px-2 py-1 text-xs font-semibold text-gray-500 dark:text-neutral-400 bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 rounded-md transition-colors duration-200"><XCircleIcon className="w-4 h-4 mr-1" /> Dismiss</button>
+                              <button onClick={(e) => { e.stopPropagation(); onStatusChange(finding.id, 'resolved'); }} className="flex items-center px-2 py-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-200"><CheckCircleIcon className="w-4 h-4 mr-1" /> Resolved</button>
                           </div>
                         </div>
                     ))}
@@ -175,15 +249,24 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
         e?.preventDefault();
         if (!input.trim() || isLoading) return;
         
-        const userMessage: ChatMessage = { role: 'user', content: input };
+        const currentInput = input;
+        const userMessage: ChatMessage = { role: 'user', content: currentInput };
+        const historyForApi = messages;
+
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
 
-        const response = await vestaApi.getChatResponse(documentContent, [...messages, userMessage], input);
-        
-        setMessages(prev => [...prev, { role: 'model', content: response }]);
-        setIsLoading(false);
+        try {
+            const response = await vestaApi.getChatResponse(documentContent, historyForApi, currentInput);
+            setMessages(prev => [...prev, { role: 'model', content: response }]);
+        } catch (error) {
+            console.error("Chat API error:", error);
+            const errorMessage: ChatMessage = { role: 'model', content: "I'm sorry, I couldn't get a response. Please try again later." };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -234,18 +317,28 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
 interface AnalysisScreenProps extends ScreenLayoutProps {
   activeReport: AnalysisReport | null;
   onUpdateReport: (report: AnalysisReport) => void;
-  onAutoEnhance: (report: AnalysisReport) => Promise<AnalysisReport>;
+  onAutoEnhance: (report: AnalysisReport) => Promise<string>;
   isEnhancing: boolean;
+  onNewAnalysis: (content: string, fileName: string) => void;
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing: isGloballyEnhancing, currentWorkspace }) => {
+export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing: isGloballyEnhancing, currentWorkspace, onNewAnalysis }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [isEditing, setIsEditing] = useState(false);
   const [isLocallyEnhancing, setLocallyEnhancing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
+  
+  // State for interactive highlighting
+  const [hoveredFindingId, setHoveredFindingId] = useState<string | null>(null);
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  
+  // State for diff view
+  const [isDiffing, setIsDiffing] = useState(false);
+  const [originalContent, setOriginalContent] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentReport(activeReport);
+    setIsDiffing(false); // Reset diff view when report changes
   }, [activeReport]);
   
   const isEnhancing = isGloballyEnhancing || isLocallyEnhancing;
@@ -270,11 +363,31 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
   };
   
   const handleEnhanceClick = async () => {
-    if (!currentReport) return;
+    if (!currentReport || isDiffing) return;
+    setOriginalContent(currentReport.documentContent);
     setLocallyEnhancing(true);
-    const updatedReport = await onAutoEnhance(currentReport);
-    setCurrentReport(updatedReport); // The parent's `activeReport` will also update, causing a re-render.
+    const diffContent = await onAutoEnhance(currentReport);
+    setCurrentReport({ ...currentReport, documentContent: diffContent });
+    setIsDiffing(true);
     setLocallyEnhancing(false);
+  };
+  
+  const handleAcceptChanges = () => {
+    if (!currentReport) return;
+    const diffContent = currentReport.documentContent;
+    const cleanContent = diffContent.split('\n')
+        .filter(line => !line.startsWith('-- '))
+        .map(line => line.startsWith('++ ') ? line.substring(3) : line)
+        .join('\n');
+    setIsDiffing(false);
+    onNewAnalysis(cleanContent, `${currentReport.title} (Enhanced)`);
+  };
+
+  const handleDiscardChanges = () => {
+    if (!currentReport || originalContent === null) return;
+    setCurrentReport({ ...currentReport, documentContent: originalContent });
+    setIsDiffing(false);
+    setOriginalContent(null);
   };
 
   const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
@@ -290,6 +403,16 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
       await workspaceApi.addDismissalRule(currentWorkspace.id, { findingTitle: feedbackFinding.title, reason });
       handleFindingStatusChange(feedbackFinding.id, 'dismissed');
       setFeedbackFinding(null);
+  };
+  
+  const handleFindingClick = (findingId: string) => {
+    setSelectedFindingId(findingId);
+    const element = document.getElementById(`snippet-${findingId}`);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('mark-flash');
+        setTimeout(() => element.classList.remove('mark-flash'), 1200);
+    }
   };
 
   if (!currentReport) {
@@ -313,6 +436,11 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
                 onSaveChanges={handleSaveChanges}
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 onDownload={handleDownload}
+                hoveredFindingId={hoveredFindingId}
+                selectedFindingId={selectedFindingId}
+                isDiffing={isDiffing}
+                onAcceptChanges={handleAcceptChanges}
+                onDiscardChanges={handleDiscardChanges}
             />
         </div>
         
@@ -323,6 +451,8 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
               isEnhancing={isEnhancing}
               onStatusChange={handleFindingStatusChange}
               onDismiss={(f) => setFeedbackFinding(f)}
+              setHoveredFindingId={setHoveredFindingId}
+              onFindingClick={handleFindingClick}
             />
             <div className="h-[500px]">
               <ChatPanel documentContent={currentReport.documentContent} />
@@ -332,4 +462,4 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
   );
 };
 
-export default AnalysisScreen;
+// Removed default export
