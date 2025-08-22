@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation } from '../types';
 
@@ -22,9 +23,28 @@ function getGenAIClient(): GoogleGenAI {
 const reportSchema = {
     type: Type.OBJECT,
     properties: {
-        resilienceScore: {
-            type: Type.INTEGER,
-            description: "A score from 0-100 representing the plan's resilience. A lower score indicates more critical issues. Base the score on the number and severity of findings.",
+        scores: {
+          type: Type.OBJECT,
+          description: "A breakdown of scores in different categories from 0-100.",
+          properties: {
+            project: {
+              type: Type.INTEGER,
+              description: "Overall project score based on clarity, completeness, feasibility, and number of findings. A high score is good."
+            },
+            strategicGoals: {
+              type: Type.INTEGER,
+              description: "Score indicating alignment with provided strategic goals and in-house documents. A high score is good."
+            },
+            regulations: {
+              type: Type.INTEGER,
+              description: "Score for compliance with provided government regulations. A high score is good."
+            },
+            risk: {
+              type: Type.INTEGER,
+              description: "Score representing how well risks are identified and mitigated. A high score indicates low unmitigated risk."
+            }
+          },
+          required: ["project", "strategicGoals", "regulations", "risk"]
         },
         findings: {
             type: Type.ARRAY,
@@ -53,7 +73,7 @@ const reportSchema = {
             },
         },
     },
-    required: ["resilienceScore", "findings"],
+    required: ["scores", "findings"],
 };
 
 export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
@@ -61,6 +81,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
         return {
             title: "Analysis Failed",
             resilienceScore: 0,
+            scores: { project: 0, strategicGoals: 0, regulations: 0, risk: 0 },
             findings: [{
                 id: 'error-empty',
                 title: 'Empty Document',
@@ -111,7 +132,8 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
 
         return {
             title: "Project Plan Analysis",
-            resilienceScore: parsedReport.resilienceScore,
+            resilienceScore: parsedReport.scores.project,
+            scores: parsedReport.scores,
             findings: parsedReport.findings.map((f: any, index: number): Finding => ({
                 id: `finding-${index}`, // This will be replaced by a real ID in the backend/API layer
                 title: f.title,
@@ -132,6 +154,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
         return {
             title: "Analysis Error",
             resilienceScore: 0,
+            scores: { project: 0, strategicGoals: 0, regulations: 0, risk: 0 },
             findings: [{
                 id: 'error-1',
                 title: 'Failed to analyze the document.',

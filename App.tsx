@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -436,7 +437,7 @@ const App: React.FC = () => {
         screenComponent = <DashboardScreen {...layoutProps} reports={reports} onSelectReport={handleSelectReport} onStartNewAnalysis={handleStartNewAnalysis} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
         break;
       case Screen.Analysis:
-        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} dismissalRules={dismissalRules} onAddDismissalRule={addDismissalRule} customRegulations={customRegulations} />;
+        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} customRegulations={customRegulations} />;
         break;
       case Screen.AuditTrail:
         screenComponent = <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
@@ -448,7 +449,7 @@ const App: React.FC = () => {
         screenComponent = <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
         break;
       default:
-        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} dismissalRules={dismissalRules} onAddDismissalRule={addDismissalRule} customRegulations={customRegulations} />;
+        screenComponent = <AnalysisScreen {...layoutProps} activeReport={activeReport} onAnalysisComplete={handleAnalysisComplete} onUpdateReport={handleUpdateReport} addAuditLog={addAuditLog} knowledgeBaseSources={knowledgeBaseSources} customRegulations={customRegulations} />;
     }
 
     return (

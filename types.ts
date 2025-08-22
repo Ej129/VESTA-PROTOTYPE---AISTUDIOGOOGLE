@@ -1,4 +1,5 @@
 
+
 export enum Screen {
   Login,
   WorkspaceDashboard,
@@ -29,6 +30,12 @@ export interface AnalysisReport {
   workspaceId: string;
   title: string;
   resilienceScore: number;
+  scores?: {
+    project: number;
+    strategicGoals: number;
+    regulations: number;
+    risk: number;
+  };
   findings: Finding[];
   summary: {
     critical: number;

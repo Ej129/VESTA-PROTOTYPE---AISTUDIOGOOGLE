@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, createContext, useContext, ReactNode, useRef } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace, WorkspaceInvitation } from '../types';
-import { VestaLogo, DashboardIcon, HistoryIcon, LibraryIcon, SettingsIcon, LogoutIcon, UsersIcon, ChevronsLeftIcon, ChevronsRightIcon, BellIcon, SearchIcon, PlusIcon, EditIcon } from './Icons';
+import { VestaLogo, DashboardIcon, HistoryIcon, SettingsIcon, LogoutIcon, UsersIcon, ChevronsLeftIcon, BellIcon, SearchIcon, PlusIcon, EditIcon, MessageSquareIcon } from './Icons';
 import InvitationDropdown from './InvitationDropdown';
 
 // --- Header Context for Customization ---
@@ -9,7 +9,7 @@ interface HeaderContextType {
   setTitleContent: (node: ReactNode | null) => void;
   setActions: (node: ReactNode | null) => void;
 }
-const HeaderContext = createContext<HeaderContextType | null>({ setTitleContent: () => {}, setActions: () => {} });
+const HeaderContext = createContext<HeaderContextType>({ setTitleContent: () => {}, setActions: () => {} });
 export const useHeader = () => useContext(HeaderContext);
 // --- End Header Context ---
 
@@ -25,14 +25,18 @@ interface WorkspaceSidebarProps {
   onSelectWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
   onUpdateWorkspaceName: (workspaceId: string, newName: string) => void;
+  invitations: WorkspaceInvitation[];
+  onRespondToInvitation: (workspaceId: string, response: 'accept' | 'decline') => void;
 }
 
 const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = (props) => {
-  const { navigateTo, currentUser, onLogout, isSidebarCollapsed, toggleSidebar, currentWorkspace, workspaces, onSelectWorkspace, onCreateWorkspace, onUpdateWorkspaceName } = props;
+  const { navigateTo, currentUser, onLogout, isSidebarCollapsed, toggleSidebar, currentWorkspace, workspaces, onSelectWorkspace, onCreateWorkspace, onUpdateWorkspaceName, invitations, onRespondToInvitation } = props;
   const [searchTerm, setSearchTerm] = useState('');
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
   const [editedName, setEditedName] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (editingWorkspace && editInputRef.current) {
@@ -40,6 +44,14 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = (props) => {
       editInputRef.current.select();
     }
   }, [editingWorkspace]);
+
+  useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+          if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setDropdownOpen(false);
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   const handleEdit = (workspace: Workspace) => {
     setEditingWorkspace(workspace);
@@ -65,13 +77,21 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = (props) => {
         <div className="flex items-center gap-2">
             <VestaLogo className="w-8 h-8 flex-shrink-0" />
             <button onClick={() => currentWorkspace && navigateTo(Screen.KnowledgeBase)} disabled={!currentWorkspace} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark disabled:opacity-50 disabled:cursor-not-allowed">
-                <LibraryIcon className="w-5 h-5"/>
+                <MessageSquareIcon className="w-5 h-5"/>
                 <span className={tooltipClasses}>Knowledge Base</span>
             </button>
              <button onClick={() => currentWorkspace && handleEdit(currentWorkspace)} disabled={!currentWorkspace} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark disabled:opacity-50 disabled:cursor-not-allowed">
                 <EditIcon className="w-5 h-5"/>
                  <span className={tooltipClasses}>Rename Workspace</span>
             </button>
+             <div ref={dropdownRef} className="relative">
+                <button onClick={() => setDropdownOpen(o => !o)} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark">
+                    <BellIcon className="w-5 h-5"/>
+                    {invitations.length > 0 && <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-vesta-red ring-1 ring-white dark:ring-vesta-card-light dark:ring-vesta-card-dark"></span>}
+                    <span className={tooltipClasses}>Notifications</span>
+                </button>
+                {isDropdownOpen && <InvitationDropdown invitations={invitations} onRespond={onRespondToInvitation} onClose={() => setDropdownOpen(false)} />}
+            </div>
         </div>
         <button onClick={toggleSidebar} className="relative group p-2 rounded-md hover:bg-gray-200 dark:hover:bg-vesta-bg-dark">
             <ChevronsLeftIcon className="w-5 h-5"/>
@@ -174,7 +194,7 @@ const ContentHeader: React.FC<ContentHeaderProps> = (props) => {
       { text: 'Analysis', icon: <DashboardIcon />, screen: Screen.Analysis }, // Main view is now Analysis
       { text: 'Dashboard', icon: <DashboardIcon />, screen: Screen.Dashboard },
       { text: 'Audit Trail', icon: <HistoryIcon />, screen: Screen.AuditTrail },
-      { text: 'Knowledge Base', icon: <LibraryIcon />, screen: Screen.KnowledgeBase },
+      { text: 'Knowledge Base', icon: <MessageSquareIcon />, screen: Screen.KnowledgeBase },
       { text: 'Settings', icon: <SettingsIcon />, screen: Screen.Settings },
     ];
 
