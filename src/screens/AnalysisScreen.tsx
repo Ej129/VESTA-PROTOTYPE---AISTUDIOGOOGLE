@@ -128,6 +128,7 @@ const DocumentEditor: React.FC<{
         </div>
     </div>
 );
+};
 
 const ScoreMeter: React.FC<{ label: string; score: number }> = ({ label, score }) => (
     <div>
