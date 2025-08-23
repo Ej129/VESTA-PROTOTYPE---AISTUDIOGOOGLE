@@ -1,12 +1,13 @@
 
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import UploadScreen from './screens/UploadScreen';
-import AnalysisScreen from './screens/AnalysisScreen';
+import { AnalysisScreen } from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
