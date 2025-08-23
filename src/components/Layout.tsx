@@ -49,6 +49,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
 
 // src/components/Layout.tsx
 
+// src/components/Layout.tsx
+
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' | 'invitations' | 'onRespondToInvitation' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName, invitations, onRespondToInvitation }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -60,8 +62,6 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     const profileRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    
-    // --- MOVED FROM TopNavbar ---
     const [isInvitationsOpen, setInvitationsOpen] = useState(false);
     const invitationRef = useRef<HTMLDivElement>(null);
 
@@ -74,7 +74,6 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [profileRef, menuRef, invitationRef]);
-    // --- END MOVED SECTION ---
 
      useEffect(() => {
         if (editingWorkspace && inputRef.current) {
@@ -125,21 +124,22 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     return (
         <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
             <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
-                <div className={`flex items-center h-9 ${isCollapsed ? 'justify-center' : ''}`}>
-                    {isCollapsed ? (
-                        // When collapsed, show the simple shield icon
-                        <VestaLogo className="w-9 h-9" />
-                    ) : (
-                        // When expanded, show your new logo image
-                        <img src="/vesta-logo-full.png" alt="Vesta Logo" className="h-9" />
-                    )}
+                {/* RE-ADDED: The logo with the "VESTA" text */}
+                <div className={`flex items-center overflow-hidden ${isCollapsed ? 'w-full justify-center' : ''}`}>
+                    <VestaLogo className="w-9 h-9 flex-shrink-0" />
+                    <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+                        VESTA
+                    </span>
                 </div>
                 
                 <div className={`flex items-center ${isCollapsed ? 'flex-col space-y-2' : 'space-x-1'}`}>
                     <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
                         <LibraryIcon className="w-6 h-6" />
                     </button>
-                    {/* --- NOTIFICATION BELL MOVED HERE --- */}
+                    {/* RE-ADDED: The New Analysis button */}
+                    <button onClick={onNewAnalysis} title="New Analysis" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
+                        <EditIcon className="w-6 h-6" />
+                    </button>
                     <div ref={invitationRef} className="relative">
                         <button 
                             onClick={() => setInvitationsOpen(o => !o)} 
@@ -166,7 +166,6 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                 </button>
             </div>
 
-            {/* The rest of the component remains the same... */}
             <div className={`p-4 flex-shrink-0`}>
                  <div className={`relative`}>
                      <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-neutral-500 transition-all duration-300`} />
