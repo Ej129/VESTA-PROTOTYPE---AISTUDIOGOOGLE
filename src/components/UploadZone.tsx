@@ -1,40 +1,61 @@
+// src/components/UploadZone.tsx
 
-
-
-import React, { useState, useCallback, ReactNode } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
+import { UploadIcon, AlertTriangleIcon } from './Icons'; // Assuming you have these icons
 
-// Set worker path for pdfjs
+// Set worker path for pdfjs - this is correct!
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs`;
 
 interface UploadZoneProps {
-  children: ReactNode;
   onUpload: (content: string, fileName: string) => void;
+  isAnalyzing: boolean; // You can pass the global analyzing state from the parent
 }
 
-const UploadZone: React.FC<UploadZoneProps> = ({ children, onUpload }) => {
+const UploadZone: React.FC<UploadZoneProps> = ({ onUpload, isAnalyzing }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const processFile = async (file: File) => {
-    let content = '';
+    if (!file) return;
+
     const fileName = file.name;
-    if (file.type === 'application/pdf') {
+    const fileExtension = fileName.split('.').pop()?.toLowerCase();
+    
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      let content = '';
+      if (fileExtension === 'pdf') {
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let pdfText = '';
         for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            content += textContent.items.map((item: any) => item.str).join(' ');
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          pdfText += textContent.items.map((item: any) => item.str).join(' ');
         }
-    } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        content = pdfText;
+      } else if (fileExtension === 'docx') {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
         content = result.value;
-    } else { // txt
+      } else if (fileExtension === 'txt') {
         content = await file.text();
+      } else {
+        throw new Error('Unsupported file type. Please upload a .pdf, .docx, or .txt file.');
+      }
+      onUpload(content, fileName);
+    } catch (e) {
+      console.error("Error processing file:", e);
+      setError(e instanceof Error ? e.message : 'An unknown error occurred during file processing.');
+    } finally {
+      setIsProcessing(false);
     }
-    onUpload(content, fileName);
   };
   
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -65,33 +86,22 @@ const UploadZone: React.FC<UploadZoneProps> = ({ children, onUpload }) => {
   }, [onUpload]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      if(e.target.files && e.target.files.length > 0) {
-          await processFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      await processFile(e.target.files[0]);
+      // Reset input value to allow uploading the same file again
+      if(inputRef.current) {
+        inputRef.current.value = '';
       }
+    }
   };
 
-  // Clone children to inject file input for the "Select File" button
-  const childrenWithProps = React.Children.map(children, (child) => {
-    if (React.isValidElement(child)) {
-        // Find the input element within the children and attach the onChange handler.
-        // This is a bit of a hack but avoids prop drilling.
-        const recursiveClone = (el: React.ReactElement): React.ReactElement => {
-            const props = el.props as any;
-            if (el.type === 'input' && props.type === 'file') {
-                return React.cloneElement(el, { ...props, onChange: handleFileSelect });
-            }
-            if (props.children && typeof props.children !== 'string') {
-                return React.cloneElement(el, {
-                    ...props,
-                    children: React.Children.map(props.children, c => React.isValidElement(c) ? recursiveClone(c) : c)
-                });
-            }
-            return el;
-        }
-        return recursiveClone(child);
-    }
-    return child;
-  });
+  const onButtonClick = () => {
+    // Programmatically click the hidden file input
+    inputRef.current?.click();
+  };
+
+  const isLoading = isProcessing || isAnalyzing;
+  const loadingText = isProcessing ? 'Processing File...' : 'Analyzing Document...';
 
   return (
     <div
@@ -99,14 +109,45 @@ const UploadZone: React.FC<UploadZoneProps> = ({ children, onUpload }) => {
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`relative rounded-xl transition-all duration-300 ${isDragging ? 'bg-vesta-gold/20 ring-4 ring-vesta-gold' : ''}`}
+      className={`relative rounded-xl border-2 border-dashed border-gray-300 dark:border-neutral-700 p-8 text-center transition-all duration-300 ${isDragging ? 'border-amber-500 bg-amber-500/10' : 'bg-gray-50 dark:bg-neutral-800/50'}`}
     >
-        {childrenWithProps}
-        {isDragging && (
-            <div className="absolute inset-0 bg-vesta-gold/50 rounded-xl flex items-center justify-center pointer-events-none">
-                <p className="text-2xl font-bold text-vesta-red">Drop to Start Analysis!</p>
-            </div>
+      <input
+        type="file"
+        ref={inputRef}
+        onChange={handleFileSelect}
+        className="hidden"
+        accept=".pdf,.docx,.doc,.txt"
+      />
+      
+      <div className="flex flex-col items-center justify-center space-y-4">
+        {isLoading ? (
+          <>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-red-700"></div>
+            <p className="text-lg font-semibold text-gray-500 dark:text-neutral-400">{loadingText}</p>
+          </>
+        ) : error ? (
+          <>
+            <AlertTriangleIcon className="w-12 h-12 text-red-500" />
+            <p className="font-semibold text-red-500">Upload Failed</p>
+            <p className="text-sm text-gray-500 dark:text-neutral-400">{error}</p>
+            <button onClick={() => setError(null)} className="mt-2 text-sm text-blue-500 hover:underline">Try Again</button>
+          </>
+        ) : (
+          <>
+            <UploadIcon className="w-12 h-12 text-gray-400 dark:text-neutral-500" />
+            <p className="text-lg font-bold text-gray-800 dark:text-neutral-200">Drag & Drop Your File Here</p>
+            <p className="text-gray-500 dark:text-neutral-400">or</p>
+            <button
+              onClick={onButtonClick}
+              disabled={isLoading}
+              className="px-6 py-2 bg-amber-500 text-white font-bold rounded-lg shadow-sm hover:bg-amber-600 transition-colors disabled:opacity-50"
+            >
+              Select File to Upload
+            </button>
+            <p className="text-xs text-gray-400 dark:text-neutral-500 pt-2">Supports .pdf, .docx, .txt</p>
+          </>
         )}
+      </div>
     </div>
   );
 };
