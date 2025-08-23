@@ -127,9 +127,11 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
             <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
                 <div className={`flex items-center h-9 ${isCollapsed ? 'justify-center' : ''}`}>
                     {isCollapsed ? (
+                        // When collapsed, show the simple shield icon
                         <VestaLogo className="w-9 h-9" />
                     ) : (
-                        <VestaLogoFull className="h-9 w-auto" />
+                        // When expanded, show your new logo image
+                        <img src="/vesta-logo-full.png" alt="Vesta Logo" className="h-9" />
                     )}
                 </div>
                 
