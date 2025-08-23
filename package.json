@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "An AI-powered collaborative platform for analyzing project plans.",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "vite build"
   },
