@@ -129,7 +129,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                     {isCollapsed ? (
                         <VestaLogo className="w-9 h-9" />
                     ) : (
-                        <img src="/vesta-logo-full.png" alt="Vesta Logo" className="h-9" />
+                        <VestaLogoFull className="h-9 w-auto" />
                     )}
                 </div>
                 
