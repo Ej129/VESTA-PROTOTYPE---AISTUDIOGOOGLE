@@ -63,8 +63,8 @@ const NoWorkspaceSelectedScreen: React.FC<{ onCreate: () => void }> = ({ onCreat
 
 const App: React.FC = () => {
   // --- FAIL-FAST CHECK ---
-  if (!process.env.API_KEY) {
-    return <ErrorScreen message="The 'API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
+  if (!import.meta.env.VITE_API_KEY) {
+    return <ErrorScreen message="The 'VITE_API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
   }
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
