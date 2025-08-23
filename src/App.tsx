@@ -8,16 +8,16 @@ import UploadScreen from './screens/UploadScreen';
 import { AnalysisScreen } from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
 import SettingsScreen from './screens/SettingsScreen';
-import CreateWorkspaceModal from './components/CreateWorkspaceModal';
-import ManageMembersModal from './components/ManageMembersModal';
-import KnowledgeBaseModal from './components/KnowledgeBaseModal';
-import UploadModal from './components/UploadModal';
+import CreateWorkspaceModal from '../components/CreateWorkspaceModal';
+import ManageMembersModal from '../components/ManageMembersModal';
+import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
+import UploadModal from '../components/UploadModal';
 import * as workspaceApi from './api/workspace';
-import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
-import { NotificationToast } from './components/NotificationToast';
-import { Layout } from './components/Layout';
+import { AlertTriangleIcon, BriefcaseIcon } from '../components/Icons';
+import { NotificationToast } from '../components/NotificationToast';
+import { Layout } from '../components/Layout';
 import * as vestaApi from './api/vesta';
-import ConfirmationModal from './components/ConfirmationModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4 text-center">
