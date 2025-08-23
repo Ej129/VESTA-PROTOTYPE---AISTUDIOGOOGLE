@@ -49,8 +49,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
 
 // src/components/Layout.tsx
 
-const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
-  ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName }) => {
+const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' | 'invitations' | 'onRespondToInvitation' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
+  ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName, invitations, onRespondToInvitation }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setProfileOpen] = useState(false);
     const [showArchived, setShowArchived] = useState(false);
@@ -60,15 +60,21 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     const profileRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    
+    // --- MOVED FROM TopNavbar ---
+    const [isInvitationsOpen, setInvitationsOpen] = useState(false);
+    const invitationRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false);
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) setActiveMenu(null);
+            if (invitationRef.current && !invitationRef.current.contains(event.target as Node)) setInvitationsOpen(false);
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [profileRef, menuRef]);
+    }, [profileRef, menuRef, invitationRef]);
+    // --- END MOVED SECTION ---
 
      useEffect(() => {
         if (editingWorkspace && inputRef.current) {
@@ -119,21 +125,38 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     return (
         <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
             <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
-                {/* This div groups the logo and text, handles alignment, and hides the text when collapsed */}
-                <div className={`flex items-center overflow-hidden ${isCollapsed ? 'w-full justify-center' : ''}`}>
-                    <VestaLogo className="w-9 h-9 flex-shrink-0" />
-                    <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
-                        VESTA
-                    </span>
+                <div className={`flex items-center h-9 ${isCollapsed ? 'justify-center' : ''}`}>
+                    {isCollapsed ? (
+                        <VestaLogo className="w-9 h-9" />
+                    ) : (
+                        <img src="/vesta-logo-full.png" alt="Vesta Logo" className="h-9" />
+                    )}
                 </div>
                 
                 <div className={`flex items-center ${isCollapsed ? 'flex-col space-y-2' : 'space-x-1'}`}>
                     <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
                         <LibraryIcon className="w-6 h-6" />
                     </button>
-                    <button onClick={onNewAnalysis} title="New Analysis" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-                        <EditIcon className="w-6 h-6" />
-                    </button>
+                    {/* --- NOTIFICATION BELL MOVED HERE --- */}
+                    <div ref={invitationRef} className="relative">
+                        <button 
+                            onClick={() => setInvitationsOpen(o => !o)} 
+                            className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 relative"
+                            aria-label="View invitations"
+                        >
+                            <BellIcon className="w-6 h-6" />
+                            {invitations.length > 0 && (
+                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white dark:border-neutral-900"></span>
+                            )}
+                        </button>
+                        {isInvitationsOpen && (
+                            <InvitationDropdown 
+                                invitations={invitations} 
+                                onRespond={onRespondToInvitation} 
+                                onClose={() => setInvitationsOpen(false)} 
+                            />
+                        )}
+                    </div>
                 </div>
 
                 <button onClick={onToggleCollapse} title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
@@ -141,17 +164,18 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                 </button>
             </div>
 
+            {/* The rest of the component remains the same... */}
             <div className={`p-4 flex-shrink-0`}>
-                <div className={`relative`}>
-                    <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-neutral-500 transition-all duration-300`} />
-                    <input
-                        type="text"
-                        placeholder={isCollapsed ? '' : "Search..."}
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className={`w-full bg-gray-100 dark:bg-neutral-800 border border-transparent rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-red-700 text-gray-800 dark:text-neutral-200 placeholder:text-gray-400 dark:placeholder:text-neutral-500 transition-all duration-300 ${isCollapsed ? 'pl-10 cursor-pointer' : 'pl-10 pr-4'}`}
-                    />
-                </div>
+                 <div className={`relative`}>
+                     <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-neutral-500 transition-all duration-300`} />
+                     <input
+                         type="text"
+                         placeholder={isCollapsed ? '' : "Search..."}
+                         value={searchTerm}
+                         onChange={e => setSearchTerm(e.target.value)}
+                         className={`w-full bg-gray-100 dark:bg-neutral-800 border border-transparent rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-red-700 text-gray-800 dark:text-neutral-200 placeholder:text-gray-400 dark:placeholder:text-neutral-500 transition-all duration-300 ${isCollapsed ? 'pl-10 cursor-pointer' : 'pl-10 pr-4'}`}
+                     />
+                 </div>
             </div>
 
             <nav className="flex-1 px-4 pt-2 overflow-y-auto">
@@ -236,22 +260,10 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     );
 };
 
-const TopNavbar: React.FC<Pick<LayoutProps, 'currentWorkspace' | 'onManageMembers' | 'onNewAnalysis' | 'invitations' | 'onRespondToInvitation'>> = 
-({ currentWorkspace, onManageMembers, onNewAnalysis, invitations, onRespondToInvitation }) => {
-    const [isInvitationsOpen, setInvitationsOpen] = useState(false);
-    const invitationRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (invitationRef.current && !invitationRef.current.contains(event.target as Node)) {
-                setInvitationsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
+const TopNavbar: React.FC<Pick<LayoutProps, 'currentWorkspace'>> = 
+({ currentWorkspace }) => {
     if (!currentWorkspace) {
+        // Render a placeholder or an empty header if no workspace is selected
         return <header className="bg-white dark:bg-neutral-900 h-[73px] px-6 border-b border-gray-200 dark:border-neutral-700 flex-shrink-0 z-10" />;
     }
 
@@ -261,43 +273,7 @@ const TopNavbar: React.FC<Pick<LayoutProps, 'currentWorkspace' | 'onManageMember
                 <p className="text-sm text-gray-500 dark:text-neutral-400">Current Workspace</p>
                 <h1 className="text-lg font-bold text-gray-800 dark:text-neutral-200">{currentWorkspace.name}</h1>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
-                <button 
-                    onClick={onManageMembers} 
-                    className="hidden sm:flex items-center bg-gray-100 dark:bg-neutral-800 text-gray-800 dark:text-neutral-200 font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:bg-gray-200 dark:hover:bg-neutral-700"
-                >
-                    <UsersIcon className="w-5 h-5 mr-2" />
-                    Manage Members
-                </button>
-                <button 
-                    onClick={onNewAnalysis} 
-                    className="flex items-center bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:bg-red-800"
-                >
-                    <PlusIcon className="w-5 h-5 mr-0 sm:mr-2" />
-                    <span className="hidden sm:inline">New Analysis</span>
-                </button>
-                <div ref={invitationRef} className="relative">
-                    <button 
-                        onClick={() => setInvitationsOpen(o => !o)} 
-                        className="p-3 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 relative"
-                        aria-label="View invitations"
-                    >
-                        <BellIcon className="w-5 h-5 text-gray-800 dark:text-neutral-200" />
-                        {invitations.length > 0 && (
-                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-700 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-neutral-900">
-                                {invitations.length}
-                            </span>
-                        )}
-                    </button>
-                    {isInvitationsOpen && (
-                        <InvitationDropdown 
-                            invitations={invitations} 
-                            onRespond={onRespondToInvitation} 
-                            onClose={() => setInvitationsOpen(false)} 
-                        />
-                    )}
-                </div>
-            </div>
+            {/* The buttons have been removed from here. */}
         </header>
     );
 };
