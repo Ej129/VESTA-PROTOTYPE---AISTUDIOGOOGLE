@@ -19,7 +19,6 @@ function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
-// -------------------- DocumentEditor Component --------------------
 const DocumentEditor: React.FC<{
   report: AnalysisReport;
   isEditing: boolean;
@@ -49,6 +48,7 @@ const DocumentEditor: React.FC<{
 
         content = escapeHtml(content);
 
+        // Sort findings by length of snippet descending to replace longer snippets first
         const sortedFindings = [...report.findings].sort((a, b) => b.sourceSnippet.length - a.sourceSnippet.length);
 
         sortedFindings.forEach(finding => {
@@ -129,7 +129,6 @@ const DocumentEditor: React.FC<{
     </div>
 );
 
-// -------------------- ScoreMeter Component --------------------
 const ScoreMeter: React.FC<{ label: string; score: number }> = ({ label, score }) => (
     <div>
         <div className="flex justify-between items-center mb-1">
@@ -150,7 +149,7 @@ const ScoreMeter: React.FC<{ label: string; score: number }> = ({ label, score }
     </div>
 );
 
-// -------------------- AnalysisPanel Component --------------------
+
 const AnalysisPanel: React.FC<{
   report: AnalysisReport;
   onEnhance: () => void;
@@ -236,7 +235,6 @@ const AnalysisPanel: React.FC<{
     );
 };
 
-// -------------------- ChatPanel Component --------------------
 const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
@@ -285,4 +283,185 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
                     </div>
                 ))}
                 {isLoading && (
-                    <div className
+                    <div className="flex justify-start">
+                        <div className="px-4 py-2 rounded-2xl bg-gray-200 dark:bg-neutral-800 rounded-bl-none">
+                            <div className="flex items-center space-x-1">
+                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></span>
+                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></span>
+                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+            <form onSubmit={handleSend} className="p-4 border-t border-gray-200 dark:border-neutral-700">
+                <div className="relative">
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Summarize risk factors..."
+                        className="w-full pl-4 pr-12 py-2 border border-gray-200 dark:border-neutral-700 rounded-full focus:outline-none focus:ring-2 focus:ring-red-700 bg-gray-50 dark:bg-neutral-800"
+                    />
+                    <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-red-700 text-white hover:bg-red-800 disabled:opacity-50" disabled={!input.trim() || isLoading}>
+                        <SendIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+
+interface AnalysisScreenProps extends ScreenLayoutProps {
+  activeReport: AnalysisReport | null;
+  onUpdateReport: (report: AnalysisReport) => void;
+  onAutoEnhance: (report: AnalysisReport) => Promise<string>;
+  isEnhancing: boolean;
+  onNewAnalysis: (content: string, fileName: string) => void;
+}
+
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing, currentWorkspace, onNewAnalysis }) => {
+  const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLocallyEnhancing, setLocallyEnhancing] = useState(false);
+  const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
+  
+  // State for interactive highlighting
+  const [hoveredFindingId, setHoveredFindingId] = useState<string | null>(null);
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  
+  // State for diff view
+  const [isDiffing, setIsDiffing] = useState(false);
+  const [originalContent, setOriginalContent] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentReport(activeReport);
+    setIsDiffing(false); // Reset diff view when report changes
+  }, [activeReport]);
+  
+  const isCurrentlyEnhancing = isEnhancing || isLocallyEnhancing;
+
+  const handleDownload = () => {
+      if (!currentReport) return;
+      const title = currentReport.title.replace(/\.[^/.]+$/, "") || 'document';
+      const doc = new jsPDF();
+      doc.setFont('times', 'normal');
+      doc.setFontSize(18);
+      doc.text(title, 20, 20);
+      doc.setFontSize(12);
+      const lines = doc.splitTextToSize(currentReport.documentContent, doc.internal.pageSize.width - 40);
+      doc.text(lines, 20, 35);
+      doc.save(`${title}.pdf`);
+  };
+
+  const handleSaveChanges = () => {
+    setIsEditing(false);
+    if (!currentReport) return;
+    onUpdateReport(currentReport);
+  };
+  
+  const handleEnhanceClick = async () => {
+    if (!currentReport || isDiffing) return;
+    setOriginalContent(currentReport.documentContent);
+    setLocallyEnhancing(true);
+    const diffContent = await onAutoEnhance(currentReport);
+    setCurrentReport({ ...currentReport, documentContent: diffContent });
+    setIsDiffing(true);
+    setLocallyEnhancing(false);
+  };
+  
+  const handleAcceptChanges = () => {
+    if (!currentReport) return;
+    const diffContent = currentReport.documentContent;
+    const cleanContent = diffContent.split('\n')
+        .filter(line => !line.startsWith('-- '))
+        .map(line => line.startsWith('++ ') ? line.substring(3) : line)
+        .join('\n');
+    setIsDiffing(false);
+    onNewAnalysis(cleanContent, `${currentReport.title} (Enhanced)`);
+  };
+
+  const handleDiscardChanges = () => {
+    if (!currentReport || originalContent === null) return;
+    setCurrentReport({ ...currentReport, documentContent: originalContent });
+    setIsDiffing(false);
+    setOriginalContent(null);
+  };
+
+  const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
+    if (!currentReport) return;
+    const updatedFindings = currentReport.findings.map(f => f.id === findingId ? { ...f, status } : f);
+    const updatedReport = { ...currentReport, findings: updatedFindings };
+    setCurrentReport(updatedReport);
+    onUpdateReport(updatedReport);
+  };
+  
+  const handleDismiss = async (reason: FeedbackReason) => {
+      if (!feedbackFinding || !currentReport) return;
+      await workspaceApi.addDismissalRule(currentWorkspace.id, { findingTitle: feedbackFinding.title, reason });
+      handleFindingStatusChange(feedbackFinding.id, 'dismissed');
+      setFeedbackFinding(null);
+  };
+  
+  const handleFindingClick = (findingId: string) => {
+    setSelectedFindingId(findingId);
+    const element = document.getElementById(`snippet-${findingId}`);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('mark-flash');
+        setTimeout(() => element.classList.remove('mark-flash'), 1200);
+    }
+  };
+
+  if (!currentReport) {
+      return (
+        <div className="flex items-center justify-center h-full">
+            <p>No active report. Please select an analysis from the dashboard.</p>
+        </div>
+      );
+  }
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 h-full overflow-hidden">
+        {feedbackFinding && <FeedbackModal finding={feedbackFinding} onClose={() => setFeedbackFinding(null)} onSubmit={handleDismiss} />}
+        
+        <div className="xl:col-span-2 h-full min-h-[80vh]">
+            <DocumentEditor 
+                report={currentReport} 
+                isEditing={isEditing} 
+                onContentChange={(content) => setCurrentReport({ ...currentReport, documentContent: content })}
+                isEnhancing={isCurrentlyEnhancing}
+                onSaveChanges={handleSaveChanges}
+                onToggleEdit={() => setIsEditing(!isEditing)}
+                onDownload={handleDownload}
+                hoveredFindingId={hoveredFindingId}
+                selectedFindingId={selectedFindingId}
+                isDiffing={isDiffing}
+                onAcceptChanges={handleAcceptChanges}
+                onDiscardChanges={handleDiscardChanges}
+            />
+        </div>
+        
+        <div className="xl:col-span-1 h-full overflow-y-auto space-y-6">
+            <AnalysisPanel 
+              report={currentReport} 
+              onEnhance={handleEnhanceClick} 
+              isEnhancing={isCurrentlyEnhancing}
+              onStatusChange={handleFindingStatusChange}
+              onDismiss={(f) => setFeedbackFinding(f)}
+              setHoveredFindingId={setHoveredFindingId}
+              onFindingClick={handleFindingClick}
+            />
+            <div className="h-[500px]">
+              <ChatPanel documentContent={currentReport.documentContent} />
+            </div>
+        </div>
+    </div>
+  );
+};
+
+export { AnalysisScreen };
+
+export default AnalysisScreen;
