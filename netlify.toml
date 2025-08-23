@@ -1,0 +1,7 @@
+[build]
+  # Use the build script from your package.json
+  command = "vite build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
