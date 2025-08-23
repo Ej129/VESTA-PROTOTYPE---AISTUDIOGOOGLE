@@ -3,7 +3,7 @@ import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, Kno
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import UploadScreen from './screens/UploadScreen';
-import AnalysisScreen from './screens/AnalysisScreen';
+import { AnalysisScreen } from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
