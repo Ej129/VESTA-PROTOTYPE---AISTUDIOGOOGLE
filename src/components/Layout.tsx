@@ -55,6 +55,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
 
 // src/components/Layout.tsx
 
+// src/components/Layout.tsx
+
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' | 'invitations' | 'onRespondToInvitation' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName, invitations, onRespondToInvitation }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -126,44 +128,54 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     };
 
     return (
-        <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
+        // --- CHANGE 1: Increased expanded width from w-72 to w-80 ---
+        <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-80'}`}>
             <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
-                {/* --- FIX: Added flex-shrink-0 to prevent this group from being squished --- */}
-                <div className={`flex items-center flex-shrink-0`}>
-                    <VestaLogo className="w-9 h-9 flex-shrink-0" />
-                    <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-                        VESTA
-                    </span>
+                {/* --- CHANGE 2: Fixed centering for collapsed logo --- */}
+                <div className={`flex items-center flex-shrink-0 ${isCollapsed ? 'w-full justify-center' : ''}`}>
+                    {isCollapsed ? (
+                        <VestaLogo className="w-9 h-9" />
+                    ) : (
+                        <>
+                          <VestaLogo className="w-9 h-9 flex-shrink-0" />
+                          <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
+                              VESTA
+                          </span>
+                        </>
+                    )}
                 </div>
                 
-                <div className={`flex items-center ${isCollapsed ? 'flex-col-reverse space-y-2 space-y-reverse' : 'space-x-1'}`}>
+                {/* --- CHANGE 3: Moved collapse button out and created a separate group for other icons --- */}
+                <div className={`flex items-center ${isCollapsed ? 'flex-col-reverse space-y-2 space-y-reverse mt-auto' : 'space-x-1'}`}>
+                    <div className="flex items-center space-x-1">
+                        <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
+                            <LibraryIcon className="w-6 h-6" />
+                        </button>
+                        <button onClick={onNewAnalysis} title="New Analysis" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
+                            <EditIcon className="w-6 h-6" />
+                        </button>
+                        <div ref={invitationRef} className="relative">
+                            <button 
+                                onClick={() => setInvitationsOpen(o => !o)} 
+                                className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 relative"
+                                aria-label="View invitations"
+                            >
+                                <BellIcon className="w-6 h-6" />
+                                {invitations.length > 0 && (
+                                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white dark:border-neutral-900"></span>
+                                )}
+                            </button>
+                            {isInvitationsOpen && (
+                                <InvitationDropdown 
+                                    invitations={invitations} 
+                                    onRespond={onRespondToInvitation} 
+                                    onClose={() => setInvitationsOpen(false)} 
+                                />
+                            )}
+                        </div>
+                    </div>
                     <button onClick={onToggleCollapse} title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
                         <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
-                    </button>
-                    <div ref={invitationRef} className="relative">
-                        <button 
-                            onClick={() => setInvitationsOpen(o => !o)} 
-                            className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 relative"
-                            aria-label="View invitations"
-                        >
-                            <BellIcon className="w-6 h-6" />
-                            {invitations.length > 0 && (
-                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white dark:border-neutral-900"></span>
-                            )}
-                        </button>
-                        {isInvitationsOpen && (
-                            <InvitationDropdown 
-                                invitations={invitations} 
-                                onRespond={onRespondToInvitation} 
-                                onClose={() => setInvitationsOpen(false)} 
-                            />
-                        )}
-                    </div>
-                    <button onClick={onNewAnalysis} title="New Analysis" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-                        <EditIcon className="w-6 h-6" />
-                    </button>
-                    <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-                        <LibraryIcon className="w-6 h-6" />
                     </button>
                 </div>
             </div>
