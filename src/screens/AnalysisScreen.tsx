@@ -459,5 +459,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
             </div>
         </div>
     </div>
+    export default AnalysisScreen;
   );
 };
