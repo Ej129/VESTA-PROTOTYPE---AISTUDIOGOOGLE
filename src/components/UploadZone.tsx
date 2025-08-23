@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, ReactNode } from 'react';
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
@@ -77,7 +78,7 @@ const UploadZone: React.FC<UploadZoneProps> = ({ children, onUpload }) => {
         const recursiveClone = (el: React.ReactElement): React.ReactElement => {
             const props = el.props as any;
             if (el.type === 'input' && props.type === 'file') {
-                return React.cloneElement(el, { onChange: handleFileSelect });
+                return React.cloneElement(el, { ...props, onChange: handleFileSelect });
             }
             if (props.children && typeof props.children !== 'string') {
                 return React.cloneElement(el, {

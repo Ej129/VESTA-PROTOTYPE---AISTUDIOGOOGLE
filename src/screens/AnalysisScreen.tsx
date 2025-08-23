@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisReport, Finding, ScreenLayoutProps, FindingStatus, FeedbackReason, ChatMessage } from '../types';
 import { StarIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon } from '../components/Icons';
@@ -324,7 +325,7 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   onNewAnalysis: (content: string, fileName: string) => void;
 }
 
-export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing: isGloballyEnhancing, currentWorkspace, onNewAnalysis }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing: isGloballyEnhancing, currentWorkspace, onNewAnalysis }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [isEditing, setIsEditing] = useState(false);
   const [isLocallyEnhancing, setLocallyEnhancing] = useState(false);
@@ -464,3 +465,4 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, on
   );
 };
 
+export default AnalysisScreen;
