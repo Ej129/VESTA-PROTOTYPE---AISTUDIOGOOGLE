@@ -7,7 +7,7 @@
     "build": "vite build"
   },
   "engines": {
-    "node": ">=20"
+    "node": "20"
   },
   "dependencies": {
     "@netlify/blobs": "^7.0.0",
@@ -17,8 +17,10 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.4.5",
-    "vite": "^5.3.1",
-    "@vitejs/plugin-react": "^4.3.1"
+    "vite": "^5.3.1"
   }
 }
