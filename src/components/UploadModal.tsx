@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UploadCloudIcon } from './Icons';
-import UploadZone from './UploadZone.tsx';
+import UploadZone from './UploadZone';
 import { AnimatedChecklist } from './AnimatedChecklist';
 
 interface UploadModalProps {
