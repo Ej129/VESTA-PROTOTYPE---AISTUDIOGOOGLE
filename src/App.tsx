@@ -1,15 +1,9 @@
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginScreen from './screens/LoginScreen';
 import UploadScreen from './screens/UploadScreen';
-import AnalysisScreen from './screens/AnalysisScreen';
+import { AnalysisScreen } from './screens/AnalysisScreen';
 import AuditTrailScreen from './screens/AuditTrailScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateWorkspaceModal from './components/CreateWorkspaceModal';
@@ -35,7 +29,7 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
                 <p className="font-mono text-sm text-red-700">{message}</p>
             </div>
             <p className="text-xs text-gray-500 dark:text-neutral-400 mt-6">
-                <strong>Action Required:</strong> Please add the `API_KEY` environment variable in your Netlify site settings under "Site configuration" {'>'} "Build & deploy" {'>'} "Environment" and then trigger a new deploy.
+                <strong>Action Required:</strong> Please add the `VITE_API_KEY` environment variable in your Netlify site settings under "Site configuration" {'>'} "Build & deploy" {'>'} "Environment" and then trigger a new deploy.
             </p>
         </div>
     </div>
@@ -69,8 +63,8 @@ const NoWorkspaceSelectedScreen: React.FC<{ onCreate: () => void }> = ({ onCreat
 
 const App: React.FC = () => {
   // --- FAIL-FAST CHECK ---
-  if (!process.env.API_KEY) {
-    return <ErrorScreen message="The 'API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
+  if (!import.meta.env.VITE_API_KEY) {
+    return <ErrorScreen message="The 'VITE_API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
   }
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
