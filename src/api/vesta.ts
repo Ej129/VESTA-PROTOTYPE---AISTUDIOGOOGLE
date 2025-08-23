@@ -10,12 +10,15 @@ let ai: GoogleGenAI | null = null;
  * Throws an error if the API key is not available.
  */
 function getGenAIClient(): GoogleGenAI {
-    if (!process.env.API_KEY) {
+    // Use Vite's special way to access environment variables
+    const apiKey = import.meta.env.VITE_API_KEY;
+
+    if (!apiKey) {
         // This is a safeguard. The main App component should catch this earlier.
-        throw new Error("API_KEY environment variable is not set. Please configure it in your deployment settings.");
+        throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your deployment settings.");
     }
     if (!ai) {
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        ai = new GoogleGenAI({ apiKey: apiKey });
     }
     return ai;
 }
