@@ -1,5 +1,6 @@
+// src/components/KnowledgeBaseModal.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { KnowledgeSource, KnowledgeCategory, UserRole } from '../types';
 import { PlusIcon, TrashIcon, GlobeIcon, ShieldIcon, BrainCircuitIcon } from './Icons';
 
@@ -12,13 +13,74 @@ interface KnowledgeBaseModalProps {
   userRole: UserRole;
 }
 
+// A more granular permission check
+const canUserEditSource = (source: KnowledgeSource, userRole: UserRole): boolean => {
+    if (!source.isEditable) return false; // Uneditable sources can never be edited.
+    
+    switch (source.category) {
+        case KnowledgeCategory.Risk:
+            return userRole === 'Administrator' || userRole === 'Risk Management Officer';
+        case KnowledgeCategory.Strategy:
+            return userRole === 'Administrator' || userRole === 'Strategy Officer';
+        default:
+            return false;
+    }
+};
+
+const CategorySection: React.FC<{
+    category: KnowledgeCategory;
+    sources: KnowledgeSource[];
+    userRole: UserRole;
+    onDeleteSource: (id: string) => void;
+}> = ({ category, sources, userRole, onDeleteSource }) => {
+    
+    const getCategoryIcon = (cat: KnowledgeCategory) => {
+        switch (cat) {
+            case KnowledgeCategory.Government: return <GlobeIcon className="w-6 h-6 text-blue-500" />;
+            case KnowledgeCategory.Risk: return <ShieldIcon className="w-6 h-6 text-yellow-500" />;
+            case KnowledgeCategory.Strategy: return <BrainCircuitIcon className="w-6 h-6 text-green-500" />;
+            default: return null;
+        }
+    };
+
+    if (sources.length === 0) return null;
+
+    return (
+        <div>
+            <div className="flex items-center space-x-3 mb-3">
+                {getCategoryIcon(category)}
+                <h3 className="text-lg font-bold text-gray-800 dark:text-neutral-200">{category}</h3>
+            </div>
+            <div className="space-y-3">
+                {sources.map(source => (
+                    <div key={source.id} className="bg-gray-50 dark:bg-neutral-800/50 p-4 rounded-lg border border-gray-200 dark:border-neutral-700">
+                        <div className="flex justify-between items-start">
+                            <h4 className="font-bold text-gray-900 dark:text-neutral-100 pr-4">{source.title}</h4>
+                            {/* Use the new granular permission check for the delete button */}
+                            {canUserEditSource(source, userRole) && (
+                                <button onClick={() => onDeleteSource(source.id)} className="p-1 text-gray-400 hover:text-red-600 flex-shrink-0">
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-neutral-400 mt-2 line-clamp-2">{source.content}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
 const KnowledgeBaseModal: React.FC<KnowledgeBaseModalProps> = ({ onClose, sources, onAddSource, onDeleteSource, userRole }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [category, setCategory] = useState<KnowledgeCategory>(KnowledgeCategory.Government);
+    // Default to 'Risk' as it's the first editable option
+    const [category, setCategory] = useState<KnowledgeCategory>(KnowledgeCategory.Risk);
     const [showAddForm, setShowAddForm] = useState(false);
 
-    const canEdit = userRole === 'Administrator' || userRole === 'Risk Management Officer' || userRole === 'Strategy Officer';
+    // Determine which roles are allowed to add any new source
+    const canAddSource = userRole === 'Administrator' || userRole === 'Risk Management Officer' || userRole === 'Strategy Officer';
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,72 +88,59 @@ const KnowledgeBaseModal: React.FC<KnowledgeBaseModalProps> = ({ onClose, source
         onAddSource(title, content, category);
         setTitle('');
         setContent('');
-        setCategory(KnowledgeCategory.Government);
+        setCategory(KnowledgeCategory.Risk);
         setShowAddForm(false);
     };
+
+    // Memoize the categorized sources to prevent re-filtering on every render
+    const categorizedSources = useMemo(() => {
+        const government = sources.filter(s => s.category === KnowledgeCategory.Government);
+        const risk = sources.filter(s => s.category === KnowledgeCategory.Risk);
+        const strategy = sources.filter(s => s.category === KnowledgeCategory.Strategy);
+        return { government, risk, strategy };
+    }, [sources]);
     
-    const getCategoryIcon = (category: KnowledgeCategory) => {
-        switch (category) {
-            case KnowledgeCategory.Government: return <GlobeIcon className="w-5 h-5 text-blue-500" />;
-            case KnowledgeCategory.Risk: return <ShieldIcon className="w-5 h-5 text-yellow-500" />;
-            case KnowledgeCategory.Strategy: return <BrainCircuitIcon className="w-5 h-5 text-green-500" />;
-            default: return null;
-        }
-    };
+    // Define which categories a user can add to
+    const editableCategories = [KnowledgeCategory.Risk, KnowledgeCategory.Strategy];
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-vesta-card-light dark:bg-vesta-card-dark rounded-xl shadow-2xl p-8 max-w-3xl w-full transform transition-all animate-fade-in-up flex flex-col h-[90vh]" onClick={e => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-vesta-text-light dark:text-vesta-text-dark mb-2">Knowledge Base</h2>
-                <p className="text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mb-6">Manage the contextual documents Vesta uses for analysis.</p>
+            <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-6 sm:p-8 max-w-3xl w-full transform transition-all animate-fade-in-up flex flex-col h-[90vh]" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-neutral-100 mb-2">Knowledge Base</h2>
+                <p className="text-gray-600 dark:text-neutral-400 mb-6">Manage the contextual documents Vesta uses for analysis.</p>
 
-                <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                    {sources.map(source => (
-                        <div key={source.id} className="bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 rounded-lg border border-vesta-border-light dark:border-vesta-border-dark">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <div className="flex items-center mb-1">
-                                        {getCategoryIcon(source.category)}
-                                        <p className="ml-2 text-xs font-semibold text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark">{source.category}</p>
-                                    </div>
-                                    <h4 className="font-bold text-vesta-text-light dark:text-vesta-text-dark">{source.title}</h4>
-                                </div>
-                                {canEdit && source.isEditable && (
-                                    <button onClick={() => onDeleteSource(source.id)} className="p-1 text-gray-400 hover:text-accent-critical">
-                                        <TrashIcon className="w-5 h-5" />
-                                    </button>
-                                )}
-                            </div>
-                            <p className="text-sm text-vesta-text-secondary-light dark:text-vesta-text-secondary-dark mt-2 line-clamp-2">{source.content}</p>
-                        </div>
-                    ))}
+                <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+                    <CategorySection category={KnowledgeCategory.Government} sources={categorizedSources.government} userRole={userRole} onDeleteSource={onDeleteSource} />
+                    <CategorySection category={KnowledgeCategory.Risk} sources={categorizedSources.risk} userRole={userRole} onDeleteSource={onDeleteSource} />
+                    <CategorySection category={KnowledgeCategory.Strategy} sources={categorizedSources.strategy} userRole={userRole} onDeleteSource={onDeleteSource} />
                 </div>
 
-                {canEdit && (
+                {canAddSource && (
                     <div className="mt-6 flex-shrink-0">
                         {showAddForm ? (
-                            <form onSubmit={handleSubmit} className="bg-vesta-bg-light dark:bg-vesta-bg-dark p-4 rounded-lg border border-vesta-border-light dark:border-vesta-border-dark space-y-4">
+                            <form onSubmit={handleSubmit} className="bg-gray-100 dark:bg-neutral-800/50 p-4 rounded-lg border border-gray-200 dark:border-neutral-700 space-y-4">
                                 <div>
-                                    <label htmlFor="source-title" className="block text-sm font-medium text-vesta-text-light dark:text-vesta-text-dark mb-1">Title</label>
-                                    <input id="source-title" value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg bg-vesta-card-light dark:bg-vesta-card-dark" required />
+                                    <label htmlFor="source-title" className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">Title</label>
+                                    <input id="source-title" value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-900" required />
                                 </div>
                                  <div>
-                                    <label htmlFor="source-category" className="block text-sm font-medium text-vesta-text-light dark:text-vesta-text-dark mb-1">Category</label>
-                                    <select id="source-category" value={category} onChange={e => setCategory(e.target.value as KnowledgeCategory)} className="w-full px-3 py-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg bg-vesta-card-light dark:bg-vesta-card-dark" required>
-                                        {Object.values(KnowledgeCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                    <label htmlFor="source-category" className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">Category</label>
+                                    <select id="source-category" value={category} onChange={e => setCategory(e.target.value as KnowledgeCategory)} className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-900" required>
+                                        {/* Only show editable categories in the dropdown */}
+                                        {editableCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label htmlFor="source-content" className="block text-sm font-medium text-vesta-text-light dark:text-vesta-text-dark mb-1">Content</label>
-                                    <textarea id="source-content" value={content} onChange={e => setContent(e.target.value)} rows={4} className="w-full px-3 py-2 border border-vesta-border-light dark:border-vesta-border-dark rounded-lg bg-vesta-card-light dark:bg-vesta-card-dark" required />
+                                    <label htmlFor="source-content" className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1">Content</label>
+                                    <textarea id="source-content" value={content} onChange={e => setContent(e.target.value)} rows={4} className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-900" required />
                                 </div>
                                 <div className="flex justify-end space-x-2">
-                                    <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 font-semibold rounded-lg">Cancel</button>
-                                    <button type="submit" className="px-4 py-2 bg-vesta-red text-white font-semibold rounded-lg">Add Source</button>
+                                    <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 bg-gray-200 dark:bg-neutral-700 font-semibold rounded-lg">Cancel</button>
+                                    <button type="submit" className="px-4 py-2 bg-red-700 text-white font-semibold rounded-lg">Add Source</button>
                                 </div>
                             </form>
                         ) : (
-                            <button onClick={() => setShowAddForm(true)} className="w-full flex items-center justify-center py-3 bg-vesta-red text-white font-bold rounded-lg hover:bg-vesta-red-dark">
+                            <button onClick={() => setShowAddForm(true)} className="w-full flex items-center justify-center py-3 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800">
                                 <PlusIcon className="w-5 h-5 mr-2" /> Add New Knowledge Source
                             </button>
                         )}
@@ -99,7 +148,7 @@ const KnowledgeBaseModal: React.FC<KnowledgeBaseModalProps> = ({ onClose, source
                 )}
                 
                 <div className="flex justify-end pt-6 flex-shrink-0">
-                    <button type="button" onClick={onClose} className="bg-gray-200 dark:bg-gray-700 text-vesta-text-secondary-light dark:text-gray-300 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all">
+                    <button type="button" onClick={onClose} className="bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-600 transition-all">
                         Done
                     </button>
                 </div>
