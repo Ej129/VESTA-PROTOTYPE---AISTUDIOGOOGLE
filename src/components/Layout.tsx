@@ -117,8 +117,13 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
             {/* === START OF CHANGES === */}
             {/* Sidebar Header */}
             <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
-                {/* Logo is always visible */}
-                <VestaLogo className={`w-9 h-9 flex-shrink-0`} />
+    {/* We've wrapped the logo and text in a div to group them */}
+    <div className="flex items-center overflow-hidden">
+        <VestaLogo className="w-9 h-9 flex-shrink-0" />
+        <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
+            VESTA
+        </span>
+    </div>
 
                 {/* This container wraps the action icons and toggle button */}
                 <div className={`flex items-center ${isCollapsed ? 'flex-col space-y-2' : 'space-x-1'}`}>
