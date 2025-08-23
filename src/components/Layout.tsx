@@ -47,6 +47,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
 
 // src/components/Layout.tsx
 
+// src/components/Layout.tsx
+
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -115,15 +117,14 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     };
 
     return (
-        // --- CHANGE 1: Added shadow-lg for the shadow effect ---
         <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
             <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
-                <div className={`flex items-center h-9 ${isCollapsed ? 'justify-center' : ''}`}>
-                    {isCollapsed ? (
-                        <VestaLogo className="w-9 h-9" />
-                    ) : (
-                        <img src="/vesta-logo-full.png" alt="Vesta Logo" className="h-9" />
-                    )}
+                {/* This div groups the logo and text, handles alignment, and hides the text when collapsed */}
+                <div className={`flex items-center overflow-hidden ${isCollapsed ? 'w-full justify-center' : ''}`}>
+                    <VestaLogo className="w-9 h-9 flex-shrink-0" />
+                    <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+                        VESTA
+                    </span>
                 </div>
                 
                 <div className={`flex items-center ${isCollapsed ? 'flex-col space-y-2' : 'space-x-1'}`}>
@@ -171,7 +172,6 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                                 </form>
                             ) : (
                                 <>
-                                {/* --- CHANGE 2: Updated text colors for active/inactive states --- */}
                                 <button
                                     title={ws.name}
                                     onClick={() => onSelectWorkspace(ws)}
