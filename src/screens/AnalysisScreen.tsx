@@ -322,7 +322,7 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   onNewAnalysis: (content: string, fileName: string) => void;
 }
 
-export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing: isGloballyEnhancing, currentWorkspace, onNewAnalysis }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing, currentWorkspace, onNewAnalysis }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [isEditing, setIsEditing] = useState(false);
   const [isLocallyEnhancing, setLocallyEnhancing] = useState(false);
@@ -341,7 +341,7 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, on
     setIsDiffing(false); // Reset diff view when report changes
   }, [activeReport]);
   
-  const isEnhancing = isGloballyEnhancing || isLocallyEnhancing;
+  const isCurrentlyEnhancing = isEnhancing || isLocallyEnhancing;
 
   const handleDownload = () => {
       if (!currentReport) return;
@@ -432,7 +432,7 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, on
                 report={currentReport} 
                 isEditing={isEditing} 
                 onContentChange={(content) => setCurrentReport({ ...currentReport, documentContent: content })}
-                isEnhancing={isEnhancing}
+                isEnhancing={isCurrentlyEnhancing}
                 onSaveChanges={handleSaveChanges}
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 onDownload={handleDownload}
@@ -448,7 +448,7 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, on
             <AnalysisPanel 
               report={currentReport} 
               onEnhance={handleEnhanceClick} 
-              isEnhancing={isEnhancing}
+              isEnhancing={isCurrentlyEnhancing}
               onStatusChange={handleFindingStatusChange}
               onDismiss={(f) => setFeedbackFinding(f)}
               setHoveredFindingId={setHoveredFindingId}
@@ -461,3 +461,7 @@ export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, on
     </div>
   );
 };
+
+export { AnalysisScreen };
+
+export default AnalysisScreen;
