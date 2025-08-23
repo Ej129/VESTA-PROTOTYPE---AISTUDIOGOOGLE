@@ -5,8 +5,11 @@ import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
 import { UploadIcon, AlertTriangleIcon } from './Icons'; // Assuming you have these icons
 
-// Set worker path for pdfjs - this is correct!
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.5.136/build/pdf.worker.mjs`;
+// Set worker path for pdfjs using a modern approach for Vite
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
 
 interface UploadZoneProps {
   onUpload: (content: string, fileName: string) => void;
