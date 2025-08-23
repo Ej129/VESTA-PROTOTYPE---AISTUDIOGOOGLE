@@ -15,8 +15,8 @@ const enhancementSteps = [
 ];
 
 // Helper function to escape regex special characters
-function escapeRegExp(string: string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
 const DocumentEditor: React.FC<{
@@ -322,7 +322,7 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   onNewAnalysis: (content: string, fileName: string) => void;
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing: isGloballyEnhancing, currentWorkspace, onNewAnalysis }) => {
+export const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing: isGloballyEnhancing, currentWorkspace, onNewAnalysis }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [isEditing, setIsEditing] = useState(false);
   const [isLocallyEnhancing, setLocallyEnhancing] = useState(false);
@@ -461,4 +461,3 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     </div>
   );
 };
-export default AnalysisScreen;
