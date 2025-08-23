@@ -1,9 +1,12 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    'process.env': process.env
-  }
-})
+  build: {
+    rollupOptions: {
+      // Tell Vite to not bundle 'some-library'
+      external: ['some-library'],
+    },
+  },
+});
