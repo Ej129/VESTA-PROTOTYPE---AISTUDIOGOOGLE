@@ -43,6 +43,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
     </div>
 );
 
+// src/components/Layout.tsx
+
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -112,26 +114,28 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
 
     return (
         <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-700 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
+            {/* === START OF CHANGES === */}
             {/* Sidebar Header */}
-            <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-                <VestaLogo className={`w-9 h-9 transition-all duration-300 ${isCollapsed ? '' : 'mr-2'}`} />
-                 <div className={`flex items-center space-x-1 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+            <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
+                {/* Logo is always visible */}
+                <VestaLogo className={`w-9 h-9 flex-shrink-0`} />
+
+                {/* This container wraps the action icons and toggle button */}
+                <div className={`flex items-center ${isCollapsed ? 'flex-col space-y-2' : 'space-x-1'}`}>
                     <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-                        <LibraryIcon className="w-5 h-5" />
+                        <LibraryIcon className="w-6 h-6" />
                     </button>
                     <button onClick={onNewAnalysis} title="New Analysis" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-                        <EditIcon className="w-5 h-5" />
-                    </button>
-                    <button onClick={onToggleCollapse} title="Collapse Sidebar" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-                        <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+                        <EditIcon className="w-6 h-6" />
                     </button>
                 </div>
-                 {isCollapsed && (
-                     <button onClick={onToggleCollapse} title="Expand Sidebar" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
-                        <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
-                    </button>
-                 )}
+
+                {/* The expand/collapse button is separate to be positioned correctly in both states */}
+                <button onClick={onToggleCollapse} title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
+                    <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+                </button>
             </div>
+            {/* === END OF CHANGES === */}
 
              {/* Search */}
             <div className={`p-4 flex-shrink-0`}>
@@ -148,7 +152,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
             </div>
 
             <nav className="flex-1 px-4 pt-2 overflow-y-auto">
-                <p className={`text-sm font-semibold tracking-wider text-gray-500 dark:text-neutral-400 mb-2 px-3 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 h-0' : 'opacity-100'}`}>Workspaces</p>
+                <p className={`text-sm font-semibold tracking-wider text-gray-500 dark:text-neutral-400 mb-2 px-3 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 h-0 pointer-events-none' : 'opacity-100'}`}>Workspaces</p>
                 <ul className="space-y-1">
                     {filteredWorkspaces.map(ws => (
                         <li key={ws.id} className="group relative">
