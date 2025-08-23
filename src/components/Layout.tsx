@@ -45,6 +45,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
 
 // src/components/Layout.tsx
 
+// src/components/Layout.tsx
+
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -113,19 +115,17 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     };
 
     return (
-        <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-700 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
-            {/* === START OF CHANGES === */}
-            {/* Sidebar Header */}
+        // --- CHANGE 1: Added shadow-lg for the shadow effect ---
+        <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-72'}`}>
             <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
-    {/* We've wrapped the logo and text in a div to group them */}
-    <div className="flex items-center overflow-hidden">
-        <VestaLogo className="w-9 h-9 flex-shrink-0" />
-        <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-            VESTA
-        </span>
-    </div>
-
-                {/* This container wraps the action icons and toggle button */}
+                <div className={`flex items-center h-9 ${isCollapsed ? 'justify-center' : ''}`}>
+                    {isCollapsed ? (
+                        <VestaLogo className="w-9 h-9" />
+                    ) : (
+                        <img src="/vesta-logo-full.png" alt="Vesta Logo" className="h-9" />
+                    )}
+                </div>
+                
                 <div className={`flex items-center ${isCollapsed ? 'flex-col space-y-2' : 'space-x-1'}`}>
                     <button onClick={onKnowledgeBase} title="Knowledge Base" className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
                         <LibraryIcon className="w-6 h-6" />
@@ -135,14 +135,11 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                     </button>
                 </div>
 
-                {/* The expand/collapse button is separate to be positioned correctly in both states */}
                 <button onClick={onToggleCollapse} title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
                     <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
                 </button>
             </div>
-            {/* === END OF CHANGES === */}
 
-             {/* Search */}
             <div className={`p-4 flex-shrink-0`}>
                 <div className={`relative`}>
                     <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-neutral-500 transition-all duration-300`} />
@@ -174,14 +171,15 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                                 </form>
                             ) : (
                                 <>
+                                {/* --- CHANGE 2: Updated text colors for active/inactive states --- */}
                                 <button
                                     title={ws.name}
                                     onClick={() => onSelectWorkspace(ws)}
-                                    className={`w-full text-left pl-3 pr-10 py-2.5 rounded-lg text-sm transition-colors duration-200 flex items-center relative ${currentWorkspace?.id === ws.id ? 'bg-gray-100 dark:bg-neutral-800' : 'hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-800 dark:text-neutral-200'} ${ws.status === 'archived' ? 'opacity-60' : ''}`}
+                                    className={`w-full text-left pl-3 pr-10 py-2.5 rounded-lg text-sm transition-colors duration-200 flex items-center relative ${currentWorkspace?.id === ws.id ? 'bg-red-700/10 dark:bg-red-500/10' : 'hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-neutral-300'} ${ws.status === 'archived' ? 'opacity-60' : ''}`}
                                 >
                                     {currentWorkspace?.id === ws.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-700 rounded-r-full"></div>}
-                                    <BriefcaseIcon className={`w-5 h-5 flex-shrink-0 ${currentWorkspace?.id === ws.id ? 'text-red-700' : 'text-gray-500 dark:text-neutral-400'}`} />
-                                    <span className={`ml-3 truncate transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'} ${currentWorkspace?.id === ws.id ? 'font-semibold text-gray-800 dark:text-neutral-200' : ''}`}>{highlightMatch(ws.name)}</span>
+                                    <BriefcaseIcon className={`w-5 h-5 flex-shrink-0 ${currentWorkspace?.id === ws.id ? 'text-red-700 dark:text-red-500' : 'text-gray-500 dark:text-neutral-400'}`} />
+                                    <span className={`ml-3 truncate transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'} ${currentWorkspace?.id === ws.id ? 'font-semibold text-red-700 dark:text-red-500' : ''}`}>{highlightMatch(ws.name)}</span>
                                 </button>
                                 {!isCollapsed && (
                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
