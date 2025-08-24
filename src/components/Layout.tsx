@@ -44,6 +44,8 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
 );
 
 
+// src/components/Layout.tsx
+
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' | 'invitations' | 'onRespondToInvitation' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName, invitations, onRespondToInvitation }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -57,8 +59,6 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     const inputRef = useRef<HTMLInputElement>(null);
     const [isInvitationsOpen, setInvitationsOpen] = useState(false);
     const invitationRef = useRef<HTMLDivElement>(null);
-    
-    // --- NEW: Add a ref for the search input ---
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -101,7 +101,6 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
         setEditingWorkspace(null);
     };
 
-    // --- NEW: Add a handler for clicking the search area ---
     const handleSearchClick = () => {
         if (isCollapsed) {
             onToggleCollapse();
@@ -179,10 +178,10 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
             <div className={`p-4 flex-shrink-0`}>
                  <div className={`relative`}>
                      <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-neutral-500 transition-all duration-300`} />
-                     {/* --- MODIFIED: Added ref and onClick to the input --- */}
                      <input
                          ref={searchInputRef}
                          onClick={handleSearchClick}
+                         readOnly={isCollapsed} // --- THE FIX IS HERE ---
                          type="text"
                          placeholder={isCollapsed ? '' : "Search..."}
                          value={searchTerm}
