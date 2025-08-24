@@ -81,6 +81,7 @@ const reportSchema = {
 
 export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
     if (!planContent.trim()) {
+        // ... (this part remains the same)
         return {
             title: "Analysis Failed",
             resilienceScore: 0,
@@ -99,17 +100,14 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
     }
 
     let contextPrompt = '';
-
     if (knowledgeSources.length > 0) {
         const sourcesText = knowledgeSources.map(s => `--- KNOWLEDGE SOURCE: ${s.title} ---\n${s.content}`).join('\n\n');
         contextPrompt += `\n\nCONTEXTUAL KNOWLEDGE BASE (Use this to inform your analysis):\n${sourcesText}`;
     }
-
     if (dismissalRules.length > 0) {
         const rulesText = dismissalRules.map(r => `- "${r.findingTitle}" (Reason: ${r.reason})`).join('\n');
         contextPrompt += `\n\nLEARNED DISMISSAL RULES (Do NOT report findings with these titles):\n${rulesText}`;
     }
-
     if (customRegulations && customRegulations.length > 0) {
         const rulesText = customRegulations.map(r => `- ${r.ruleText}`).join('\n');
         contextPrompt += `\n\nWORKSPACE-SPECIFIC CUSTOM REGULATIONS:\nThese are mandatory requirements for this workspace. For each rule below that is NOT followed by the project plan, you MUST generate a 'critical' finding. The finding's title should clearly state which custom rule was violated, for example: "Custom Rule Violation: [Rule Text]".\n${rulesText}`;
@@ -120,23 +118,26 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
             model: "gemini-2.5-flash",
             contents: `Analyze the following project plan:\n\n---\n\n${planContent}\n\n---\n\nPlease provide your analysis in the requested JSON format.`,
             config: {
-                systemInstruction: `You are Vesta, an AI assistant specializing in digital resilience for the financial sector. Your task is to analyze project plans against financial regulations (like those from BSP) and best practices (like the Data Privacy Act of the Philippines). You must identify critical issues, warnings, and compliance gaps. For each finding, you must provide a title, severity, the exact source text snippet from the plan, and a detailed, actionable recommendation. Ensure the source snippet is a direct quote from the provided text.${contextPrompt}`,
+                // --- NEW, ENHANCED SYSTEM INSTRUCTION ---
+                systemInstruction: `You are Vesta, an AI assistant specializing in digital resilience for the financial sector. Your task is to analyze project plans against financial regulations (like those from BSP) and best practices (like the Data Privacy Act of the Philippines). Your analysis must be meticulous and structured. Follow these steps:
+1. Read the entire document and all contextual knowledge to fully understand the project's goals and constraints.
+2. For each potential issue you identify, you MUST find the single, most relevant and specific sentence or phrase from the original document to use as the \`sourceSnippet\`. Avoid using generic section headers as snippets for multiple, unrelated findings. The snippet must be an exact, verbatim quote.
+3. Provide a concise, impactful \`title\` for the finding that clearly summarizes the core problem.
+4. Assign a \`severity\` of 'critical' for major compliance/security gaps, or 'warning' for recommendations and best-practice improvements.
+5. Write a detailed, actionable \`recommendation\` to fix the issue, citing specific regulations from the knowledge base where applicable.
+6. Critically evaluate ALL aspects of the plan, including its stated Objectives, Scope, Timeline, Budget, and Risk Management sections, for potential weaknesses, gaps, or inconsistencies.`,
                 responseMimeType: "application/json",
                 responseSchema: reportSchema,
                 temperature: 0.2,
             },
         });
 
-        // --- THE FIX: Add a safety check for the response ---
         const jsonText = response.text;
         if (!jsonText || typeof jsonText !== 'string') {
-            // If the response is empty or not a string, throw a clear error.
-            // This is often due to content safety filters or other API issues.
             console.error("Gemini API returned an empty or invalid response:", response);
             throw new Error("The AI model returned an empty or invalid response, possibly due to content safety filters. Please try modifying the document or try again.");
         }
-        // --- END FIX ---
-
+        
         const parsedReport = JSON.parse(jsonText.trim());
 
         const criticalCount = parsedReport.findings.filter((f: any) => f.severity === 'critical').length;
@@ -164,6 +165,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
         };
     } catch (error) {
         console.error("Error analyzing plan with Gemini:", error);
+        // ... (your existing catch block)
         return {
             title: "Analysis Error",
             resilienceScore: 0,
@@ -173,7 +175,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
                 title: 'Failed to analyze the document.',
                 severity: 'critical',
                 sourceSnippet: 'N/A',
-                recommendation: `The AI model could not process the document. This might be due to a connection issue or an internal error. Please check your network and try again. If the problem persists, the content might be unsuitable for analysis. Error: ${error}`,
+                recommendation: `The AI model could not process the document. This might be due to a connection issue or an internal error. Error: ${error}`,
                 status: 'active',
             }],
             summary: { critical: 1, warning: 0, checks: 0 },
