@@ -234,17 +234,33 @@ const App: React.FC = () => {
     return addedReport;
   };
 
+
   const handleFileUpload = async (content: string, fileName: string) => {
     if (!selectedWorkspace) return;
+
+    // 1. Set analyzing to true, but KEEP the modal open.
+    // The modal will now show the "Analyzing..." checklist.
+    setIsAnalyzing(true); 
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
-    setIsAnalyzing(true);
-    setUploadModalOpen(false); // Close modal immediately
-    navigateTo(Screen.Dashboard); // Navigate to dashboard while analyzing
-    const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
-    const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
-    await handleAnalysisComplete(report as AnalysisReport);
-    setIsAnalyzing(false);
-    navigateTo(Screen.Analysis);
+    
+    try {
+      // 2. Perform the analysis while the modal shows the checklist.
+      const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
+      const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
+      await handleAnalysisComplete(report as AnalysisReport);
+      
+      // 3. After the analysis is successful, NOW we close the modal and navigate.
+      setUploadModalOpen(false);
+      navigateTo(Screen.Analysis);
+
+    } catch (error) {
+      console.error("Analysis failed:", error);
+      // Optional: You could add a notification here to inform the user of the failure.
+      setUploadModalOpen(false); // Close the modal on failure too.
+    } finally {
+      // 4. No matter what, always reset the analyzing state when the process is over.
+      setIsAnalyzing(false);
+    }
   };
   
   const handleSelectReport = (report: AnalysisReport) => {
