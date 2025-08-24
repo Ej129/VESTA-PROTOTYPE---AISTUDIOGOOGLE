@@ -419,14 +419,15 @@ const App: React.FC = () => {
         onConfirm: async () => {
             try {
                 if (currentUser) {
-                     // The delete function will remove all data, so log first. The function itself cannot log to a store that's about to be deleted.
                     await workspaceApi.addAuditLog(workspace.id, currentUser.email, 'Workspace Deleted', `Workspace "${workspace.name}" was permanently deleted.`);
                 }
                 await workspaceApi.deleteWorkspace(workspace.id);
                 await refreshWorkspaces();
+                setConfirmation(null); // --- FIX: Close the modal on success ---
             } catch (error) {
                 console.error("Failed to delete workspace:", error);
                 alert((error as Error).message);
+                setConfirmation(null); // --- FIX: Close the modal on failure too ---
             }
         }
     });
@@ -461,9 +462,11 @@ const App: React.FC = () => {
                     navigateTo(Screen.Dashboard);
                 }
                 await loadWorkspaceData(selectedWorkspace.id);
+                setConfirmation(null); // --- FIX: Close the modal on success ---
             } catch (error) {
                 console.error("Failed to delete report:", error);
                 alert((error as Error).message);
+                setConfirmation(null); // --- FIX: Close the modal on failure too ---
             }
         }
     });
