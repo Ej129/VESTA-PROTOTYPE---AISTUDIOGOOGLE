@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -90,6 +88,8 @@ const App: React.FC = () => {
   const knownWorkspaceIds = useRef(new Set<string>());
   const [isSyncingSources, setIsSyncingSources] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatusText, setAnalysisStatusText] = useState('Analyzing...');
+
 
   useEffect(() => {
     const handleThemeChange = () => {
@@ -220,6 +220,7 @@ const App: React.FC = () => {
 
   const handleFileUpload = async (content: string, fileName: string, diffContent?: string) => {
     if (!selectedWorkspace) return;
+    setAnalysisStatusText('Analyzing document...');
     setIsAnalyzing(true); 
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
     try {
@@ -234,6 +235,7 @@ const App: React.FC = () => {
       navigateTo(Screen.Analysis);
     } catch (error) {
       console.error("Analysis failed:", error);
+      alert((error as Error).message || 'An unknown error occurred during analysis.');
       setUploadModalOpen(false);
     } finally {
       setIsAnalyzing(false);
@@ -258,22 +260,19 @@ const App: React.FC = () => {
 
 
   const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
-    alert("RUNNING THE NEW V2 ENHANCE FUNCTION!"); // <-- ADD THIS TEST LINE
-
     if (!report) return '';
-
+    setAnalysisStatusText('Step 1 of 2: Rewriting with AI...');
     setIsAnalyzing(true);
-
     try {
       const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report, knowledgeBaseSources);
       await addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
+      setAnalysisStatusText('Step 2 of 2: Re-analyzing result...');
       return improvedContentWithDiff;
     } catch (error) {
       console.error("Enhancement failed:", error);
       alert("The document could not be enhanced at this time. Please try again later.");
-      return report.documentContent;
-    } finally {
-      setIsAnalyzing(false);
+      setIsAnalyzing(false); // Make sure to turn off loading on failure
+      throw error;
     }
   };
 
@@ -392,7 +391,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- UPDATED handleDeleteWorkspace function ---
   const handleDeleteWorkspace = (workspace: Workspace) => {
     setConfirmation({
         title: "Delete Workspace",
@@ -405,11 +403,11 @@ const App: React.FC = () => {
                 }
                 await workspaceApi.deleteWorkspace(workspace.id);
                 await refreshWorkspaces();
-                setConfirmation(null); // FIX: Close modal on success
+                setConfirmation(null);
             } catch (error) {
                 console.error("Failed to delete workspace:", error);
                 alert((error as Error).message);
-                setConfirmation(null); // FIX: Close modal on failure
+                setConfirmation(null);
                 throw error;
             }
         }
@@ -430,7 +428,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- UPDATED handleDeleteReport function ---
   const handleDeleteReport = (report: AnalysisReport) => {
     if (!selectedWorkspace) return;
     setConfirmation({
@@ -446,11 +443,11 @@ const App: React.FC = () => {
                     navigateTo(Screen.Dashboard);
                 }
                 await loadWorkspaceData(selectedWorkspace.id);
-                setConfirmation(null); // FIX: Close modal on success
+                setConfirmation(null);
             } catch (error) {
                 console.error("Failed to delete report:", error);
                 alert((error as Error).message);
-                setConfirmation(null); // FIX: Close modal on failure
+                setConfirmation(null);
                 throw error;
             }
         }
@@ -478,7 +475,7 @@ const renderScreenComponent = () => {
         if (!activeReport) {
           return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
         }
-        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} onNewAnalysis={handleFileUpload} />;
+        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} analysisStatusText={analysisStatusText} onNewAnalysis={handleFileUpload} />;
       
       case Screen.AuditTrail:
         return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
@@ -545,6 +542,7 @@ const renderScreenComponent = () => {
                 onClose={() => setUploadModalOpen(false)}
                 onUpload={handleFileUpload}
                 isAnalyzing={isAnalyzing}
+                analysisStatusText={analysisStatusText}
             />
         )}
         <Layout

@@ -10,6 +10,13 @@ import * as vestaApi from '../api/vesta';
 import FeedbackModal from '../components/FeedbackModal';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 
+const enhancementSteps = [
+    "Re-analyzing improved content...",
+    "Applying compliance formatting...",
+    "Improving clarity and structure...",
+    "Generating revised document...",
+];
+
 // Helper function to escape regex special characters
 function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -93,6 +100,7 @@ const DocumentEditor: React.FC<{
 
     const getHighlightedChangesContent = () => {
         if (!report?.diffContent) return getHighlightedContent();
+
         return report.diffContent.split('\n').map(line => {
             if (line.startsWith('++ ')) {
                 return `<mark class="highlight-added">${escapeHtml(line.substring(3))}</mark>`;
@@ -101,7 +109,7 @@ const DocumentEditor: React.FC<{
                 return ''; // Don't show removed lines
             }
             return escapeHtml(line);
-        }).join('<br />'); // Use <br /> for newlines in HTML
+        }).join('<br />');
     };
 
     const isEnhancedReport = !!report.diffContent;
@@ -155,11 +163,12 @@ const AnalysisPanel: React.FC<{
   report: AnalysisReport;
   onEnhance: () => void;
   isEnhancing: boolean;
+  analysisStatusText: string;
   onStatusChange: (findingId: string, status: FindingStatus) => void;
   onDismiss: (finding: Finding) => void;
   setHoveredFindingId: (id: string | null) => void;
   onFindingClick: (id: string) => void;
-}> = ({ report, onEnhance, isEnhancing, onStatusChange, onDismiss, setHoveredFindingId, onFindingClick }) => {
+}> = ({ report, onEnhance, isEnhancing, analysisStatusText, onStatusChange, onDismiss, setHoveredFindingId, onFindingClick }) => {
     const activeFindings = report.findings.filter(f => f.status === 'active');
     
     return (
@@ -177,7 +186,7 @@ const AnalysisPanel: React.FC<{
                         {isEnhancing ? (
                             <>
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                                Enhancing...
+                                {analysisStatusText}
                             </>
                         ) : (
                             <>
@@ -341,10 +350,11 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   onUpdateReport: (report: AnalysisReport) => void;
   onAutoEnhance: (report: AnalysisReport) => Promise<string>;
   isEnhancing: boolean;
+  analysisStatusText: string;
   onNewAnalysis: (content: string, fileName: string, diffContent?: string) => void;
 }
 
-const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing, currentWorkspace, onNewAnalysis }) => {
+const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing, analysisStatusText, currentWorkspace, onNewAnalysis }) => {
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
@@ -358,14 +368,17 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
   const handleEnhanceClick = async () => {
     if (!currentReport || isEnhancing) return;
 
-    const diffContent = await onAutoEnhance(currentReport);
-
-    const cleanContent = diffContent.split('\n')
-        .filter(line => !line.startsWith('-- '))
-        .map(line => line.startsWith('++ ') ? line.substring(3) : line)
-        .join('\n');
-    
-    onNewAnalysis(cleanContent, `${currentReport.title} (Enhanced)`, diffContent);
+    try {
+        const diffContent = await onAutoEnhance(currentReport);
+        const cleanContent = diffContent.split('\n')
+            .filter(line => !line.startsWith('-- '))
+            .map(line => line.startsWith('++ ') ? line.substring(3) : line)
+            .join('\n');
+        
+        onNewAnalysis(cleanContent, `${currentReport.title} (Enhanced)`, diffContent);
+    } catch (error) {
+        console.error("Enhancement process failed and was caught in AnalysisScreen.");
+    }
   };
   
   const handleFindingStatusChange = (findingId: string, status: FindingStatus) => {
@@ -494,6 +507,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
               report={currentReport} 
               onEnhance={handleEnhanceClick} 
               isEnhancing={isEnhancing}
+              analysisStatusText={analysisStatusText}
               onStatusChange={handleFindingStatusChange}
               onDismiss={(f) => setFeedbackFinding(f)}
               setHoveredFindingId={setHoveredFindingId}

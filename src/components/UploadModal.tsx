@@ -8,31 +8,20 @@ interface UploadModalProps {
   onClose: () => void;
   onUpload: (content: string, fileName: string) => void;
   isAnalyzing: boolean;
+  analysisStatusText: string; // <-- Accept new prop
 }
 
-const analysisSteps = [
-    "Parsing document structure...",
-    "Cross-referencing with knowledge base...",
-    "Evaluating against compliance rules...",
-    "Generating actionable recommendations...",
-];
-
-const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzing }) => {
-  // The fileInputRef is no longer needed here, as UploadZone handles it internally.
-
+const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzing, analysisStatusText }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all animate-fade-in-up" onClick={e => e.stopPropagation()}>
         {isAnalyzing ? (
           <div className="p-8 h-[28rem] flex items-center justify-center">
-            <AnimatedChecklist steps={analysisSteps} title="Analyzing Your Document..." />
+            {/* Display the dynamic status text as the title */}
+            <AnimatedChecklist steps={[]} title={analysisStatusText} />
           </div>
         ) : (
           <div className="p-8">
-            {/* This is the main change. 
-              We are now just rendering the self-contained UploadZone component.
-              All the messy UI code that was here before is gone.
-            */}
             <UploadZone onUpload={onUpload} isAnalyzing={isAnalyzing} />
           </div>
         )}
