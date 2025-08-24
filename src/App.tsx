@@ -501,15 +501,20 @@ const App: React.FC = () => {
 
   return (
     <div className="font-sans bg-gray-50 dark:bg-neutral-950 min-h-screen text-gray-800 dark:text-neutral-200">
-        {confirmation && (
-            <ConfirmationModal
-                title={confirmation.title}
-                message={confirmation.message}
-                confirmText={confirmation.confirmText}
-                onConfirm={confirmation.onConfirm}
-                onCancel={() => setConfirmation(null)}
-            />
-        )}
+      {confirmation && (
+        // --- THIS IS THE FIX ---
+        // This new div creates a semi-transparent black overlay that covers the whole screen
+        // and centers the confirmation modal inside it.
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <ConfirmationModal
+            title={confirmation.title}
+            message={confirmation.message}
+            confirmText={confirmation.confirmText}
+            onConfirm={confirmation.onConfirm}
+            onCancel={() => setConfirmation(null)}
+          />
+        </div>
+      )}
         {notification && (
             <NotificationToast 
                 message={notification.message}
