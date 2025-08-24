@@ -5,8 +5,8 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      // Tell Vite to not bundle 'some-library'
-      external: ['some-library'],
+      // Tell Vite to not bundle '@google/generative-ai'
+      external: ['@google/generative-ai'],
     },
   },
 });
