@@ -13,8 +13,6 @@ interface DashboardScreenProps {
 }
 
 const KPITile: React.FC<{ title: string; value: string | number; icon: React.ReactNode }> = ({ title, value, icon }) => (
-    // UPDATED: Border color changed from dark:border-neutral-700 to dark:border-neutral-800
-    // UPDATED: Secondary text color changed from dark:text-neutral-400 to dark:text-neutral-500
     <div className="bg-white dark:bg-neutral-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-800 flex items-center space-x-4">
         <div className="bg-red-700/10 p-3 rounded-full">
             {icon}
@@ -51,7 +49,6 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
     return (
         <div className="p-8 space-y-8">
             <div className="flex justify-between items-center">
-                {/* UPDATED: Title color changed for higher contrast */}
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-neutral-50">Dashboard</h1>
                 <button 
                     onClick={onNewAnalysisClick}
@@ -70,16 +67,14 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
 
             <div>
                 <div className="flex justify-between items-center mb-4">
-                    {/* UPDATED: Title color changed for higher contrast */}
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-neutral-50">Recent Analyses</h2>
                      <label className="flex items-center space-x-2 cursor-pointer">
                          <input type="checkbox" checked={showArchived} onChange={() => setShowArchived(!showArchived)} className="h-4 w-4 rounded border-gray-300 dark:border-neutral-600 text-red-700 focus:ring-red-700 bg-gray-100 dark:bg-neutral-800"/>
                          <span className="text-sm text-gray-500 dark:text-neutral-400">Show archived</span>
                      </label>
                 </div>
-                {/* UPDATED: Border color changed from dark:border-neutral-700 to dark:border-neutral-800 */}
                 <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-800">
-                    <div>
+                    <div className="overflow-x-auto">
                         {reports.length > 0 ? (
                              <table className="w-full text-left">
                                  <thead className="border-b border-gray-200 dark:border-neutral-700">
@@ -117,13 +112,15 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                                                         </button>
                                                         {activeMenu === report.id && (
                                                             <div className="absolute z-10 right-0 mt-2 w-40 bg-white dark:bg-neutral-950 rounded-md shadow-lg border border-gray-200 dark:border-neutral-700 py-1">
-                                                                <button onClick={() => { onSelectReport(report); setActiveMenu(null); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">View</button>
+                                                                <button onClick={() => { setActiveMenu(null); onSelectReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">View</button>
                                                                 <div className="my-1 h-px bg-gray-200 dark:bg-neutral-700" />
                                                                 {report.status === 'archived' ? (
                                                                     <button onClick={() => { setActiveMenu(null); onUpdateReportStatus(report.id, 'active'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Unarchive</button>
                                                                 ) : (
                                                                     <button onClick={() => { setActiveMenu(null); onUpdateReportStatus(report.id, 'archived'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Archive</button>
                                                                 )}
+                                                                {/* --- THE FIX --- */}
+                                                                {/* This closes the menu BEFORE showing the confirmation, preventing the bug. */}
                                                                 <button onClick={() => { setActiveMenu(null); onDeleteReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm text-red-700 hover:bg-gray-100 dark:hover:bg-neutral-800">Delete</button>
                                                             </div>
                                                         )}
