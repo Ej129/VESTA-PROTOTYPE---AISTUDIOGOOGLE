@@ -216,8 +216,12 @@ const App: React.FC = () => {
     }
   };
 
+
   const handleSelectWorkspace = async (workspace: Workspace) => {
-    if(selectedWorkspace?.id === workspace.id && screen !== Screen.Analysis) return;
+    // This new condition allows navigating back to the dashboard from other screens
+    if (selectedWorkspace?.id === workspace.id && screen === Screen.Dashboard) {
+      return; // Already on the correct dashboard, do nothing.
+    }
     setSelectedWorkspace(workspace);
     setActiveReport(null); // Clear active report when switching workspace
     await loadWorkspaceData(workspace.id);
