@@ -258,14 +258,25 @@ const App: React.FC = () => {
 
 
   const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
-      if (!report) return '';
-      setIsAnalyzing(true);
+    if (!report) return '';
+    
+    setIsAnalyzing(true);
+    
+    try {
       const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report, knowledgeBaseSources);
-      addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
-      setIsAnalyzing(false);
+      await addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
       return improvedContentWithDiff;
+    } catch (error) {
+      console.error("Enhancement failed:", error);
+      alert("The document could not be enhanced at this time. Please try again later.");
+      // Return the original content on failure so the app doesn't break
+      return report.documentContent;
+    } finally {
+      // This will ALWAYS run, whether the try block succeeds or fails.
+      setIsAnalyzing(false);
+    }
   };
-
+  
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
     if (!selectedWorkspace) return;
     await workspaceApi.addKnowledgeSource(selectedWorkspace.id, { title, content, category, isEditable: true });
