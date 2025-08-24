@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisReport, Finding, ScreenLayoutProps, FindingStatus, FeedbackReason, ChatMessage } from '../types';
 import { StarIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon, ChevronDownIcon } from '../components/Icons';
 import jsPDF from 'jspdf';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 import * as workspaceApi from '../api/workspace';
 import * as vestaApi from '../api/vesta';
 import FeedbackModal from '../components/FeedbackModal';
@@ -18,8 +19,49 @@ const enhancementSteps = [
 
 // Helper function to escape regex special characters
 function escapeRegExp(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+const DownloadDropdown: React.FC<{ onDownloadPdf: () => void; onDownloadTxt: () => void; onDownloadDocx: () => void; }> = ({ onDownloadPdf, onDownloadTxt, onDownloadDocx }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div ref={dropdownRef} className="relative">
+            <button 
+                onClick={() => setIsOpen(o => !o)} 
+                className="flex items-center space-x-1 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" 
+                title="Download Options"
+            >
+                <DownloadIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/>
+                <ChevronDownIcon className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
+            </button>
+            {isOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-neutral-900 rounded-md shadow-lg z-20 border border-gray-200 dark:border-neutral-700 py-1">
+                    <button onClick={() => { onDownloadPdf(); setIsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
+                        Download as PDF
+                    </button>
+                    <button onClick={() => { onDownloadDocx(); setIsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
+                        Download as DOCX
+                    </button>
+                    <button onClick={() => { onDownloadTxt(); setIsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
+                        Download as TXT
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const DocumentEditor: React.FC<{
   report: AnalysisReport;
@@ -30,12 +72,13 @@ const DocumentEditor: React.FC<{
   onToggleEdit: () => void;
   onDownloadPdf: () => void;
   onDownloadTxt: () => void;
+  onDownloadDocx: () => void;
   hoveredFindingId: string | null;
   selectedFindingId: string | null;
   isDiffing: boolean;
   onAcceptChanges: () => void;
   onDiscardChanges: () => void;
-}> = ({ report, isEditing, onContentChange, isEnhancing, onSaveChanges, onToggleEdit, onDownloadPdf, onDownloadTxt, hoveredFindingId, selectedFindingId, isDiffing, onAcceptChanges, onDiscardChanges }) => {
+}> = ({ report, isEditing, onContentChange, isEnhancing, onSaveChanges, onToggleEdit, onDownloadPdf, onDownloadTxt, onDownloadDocx, hoveredFindingId, selectedFindingId, isDiffing, onAcceptChanges, onDiscardChanges }) => {
     
     const getHighlightedContent = () => {
         if (!report) return '';
@@ -73,7 +116,7 @@ const DocumentEditor: React.FC<{
                         </>
                     ) : (
                         <>
-                            <DownloadDropdown onDownloadPdf={onDownloadPdf} onDownloadTxt={onDownloadTxt} />
+                            <DownloadDropdown onDownloadPdf={onDownloadPdf} onDownloadTxt={onDownloadTxt} onDownloadDocx={onDownloadDocx} />
                             {isEditing ? (
                                 <button onClick={onSaveChanges} className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800">Save Draft</button>
                             ) : (
@@ -84,7 +127,7 @@ const DocumentEditor: React.FC<{
                 </div>
             </div>
             <div className={`p-6 bg-gray-50 dark:bg-neutral-950 rounded-b-xl flex-1 overflow-y-auto ${isEnhancing ? 'flex items-center justify-center' : ''}`}>
-                {isEnhancing ? (
+                 {isEnhancing ? (
                     <AnimatedChecklist steps={enhancementSteps} />
                 ) : isDiffing ? (
                      <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap font-mono">
@@ -102,14 +145,12 @@ const DocumentEditor: React.FC<{
                     <textarea value={report.documentContent} onChange={(e) => onContentChange(e.target.value)} className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans text-gray-800 dark:text-neutral-200" autoFocus />
                 ) : (
                     <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}></div>
-                )
-            }
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
 };
 
-// --- NEW: A component for the 2x2 score grid ---
 const ScoreCard: React.FC<{ label: string; score: number }> = ({ label, score }) => {
     const getScoreColor = (s: number) => {
         if (s >= 90) return 'text-green-600 dark:text-green-500';
@@ -365,6 +406,30 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadDocx = () => {
+    if (!currentReport) return;
+    const title = currentReport.title.replace(/\.[^/.]+$/, "") || 'document';
+    const doc = new Document({
+        sections: [{
+            children: currentReport.documentContent.split('\n').map(textLine => 
+                new Paragraph({
+                    children: [new TextRun(textLine)],
+                })
+            ),
+        }],
+    });
+    Packer.toBlob(doc).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${title}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    });
+  };
+  
   const handleSaveChanges = () => {
     setIsEditing(false);
     if (!currentReport) return;
@@ -445,6 +510,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 onDownloadPdf={handleDownloadPdf}
                 onDownloadTxt={handleDownloadTxt}
+                onDownloadDocx={handleDownloadDocx}
                 hoveredFindingId={hoveredFindingId}
                 selectedFindingId={selectedFindingId}
                 isDiffing={isDiffing}
@@ -470,45 +536,5 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     </div>
   );
 };
-
-// --- NEW: Download Dropdown Component ---
-const DownloadDropdown: React.FC<{ onDownloadPdf: () => void; onDownloadTxt: () => void }> = ({ onDownloadPdf, onDownloadTxt }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    return (
-        <div ref={dropdownRef} className="relative">
-            <button 
-                onClick={() => setIsOpen(o => !o)} 
-                className="flex items-center space-x-1 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" 
-                title="Download Options"
-            >
-                <DownloadIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/>
-                <ChevronDownIcon className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
-            </button>
-            {isOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-neutral-900 rounded-md shadow-lg z-20 border border-gray-200 dark:border-neutral-700 py-1">
-                    <button onClick={() => { onDownloadPdf(); setIsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
-                        Download as PDF
-                    </button>
-                    <button onClick={() => { onDownloadTxt(); setIsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
-                        Download as TXT
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-};
-
 
 export default AnalysisScreen;
