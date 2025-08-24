@@ -26,34 +26,30 @@ const KPITile: React.FC<{ title: string; value: string | number; icon: React.Rea
 
 const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport, onNewAnalysisClick, onUpdateReportStatus, onDeleteReport }) => {
     const [showArchived, setShowArchived] = useState(false);
-    
-    // --- NEW: State now holds both the ID and the desired position ('up' or 'down') ---
-    const [activeMenu, setActiveMenu] = useState<{ id: string | null; position: 'up' | 'down' }>({ id: null, position: 'down' });
+    const [activeMenu, setactiveMenu] = useState<{ id: string | null; position: 'up' | 'down' }>({ id: null, position: 'down' });
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // This handler now calculates the best position for the dropdown
     const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>, reportId: string) => {
         event.stopPropagation();
         if (activeMenu.id === reportId) {
-            setActiveMenu({ id: null, position: 'down' }); // Close if already open
+            setactiveMenu({ id: null, position: 'down' }); // Close if already open
             return;
         }
 
         const buttonRect = event.currentTarget.getBoundingClientRect();
         const screenHeight = window.innerHeight;
 
-        // If the button is in the bottom half of the screen, open the menu upwards
         if (buttonRect.top > screenHeight / 2) {
-            setActiveMenu({ id: reportId, position: 'up' });
+            setactiveMenu({ id: reportId, position: 'up' });
         } else {
-            setActiveMenu({ id: reportId, position: 'down' });
+            setactiveMenu({ id: reportId, position: 'down' });
         }
     };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setActiveMenu({ id: null, position: 'down' });
+                setactiveMenu({ id: null, position: 'down' });
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -95,69 +91,68 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                      </label>
                 </div>
                 <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-800">
-                    <div className="overflow-x-auto">
-                        {reports.length > 0 ? (
-                             <table className="w-full text-left">
-                                 <thead className="border-b border-gray-200 dark:border-neutral-700">
-                                     <tr>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Document Title</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Date</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Score</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Status</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm text-right whitespace-nowrap">Actions</th>
-                                     </tr>
-                                 </thead>
-                                 <tbody>
-                                     {displayedReports.map(report => {
-                                         const hasActiveFindings = report.findings.some(f => f.status === 'active');
-                                         return (
-                                             <tr key={report.id} className={`border-b border-gray-200 dark:border-neutral-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-neutral-800/ ৫০ transition-colors ${report.status === 'archived' ? 'opacity-60' : ''}`}>
-                                                 <td onClick={() => onSelectReport(report)} className="p-4 font-semibold text-gray-800 dark:text-neutral-200 cursor-pointer">{report.title}</td>
-                                                 <td className="p-4 text-gray-500 dark:text-neutral-400 whitespace-nowrap">{new Date(report.createdAt).toLocaleDateString()}</td>
-                                                 <td className="p-4 font-bold text-red-700">{report.scores?.project || report.resilienceScore}%</td>
-                                                 <td className="p-4">
-                                                     {report.status === 'archived' ? (
-                                                         <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200">
-                                                             Archived
-                                                         </span>
-                                                     ) : (
-                                                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${hasActiveFindings ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800'}`}>
-                                                             {hasActiveFindings ? 'Review Needed' : 'Completed'}
-                                                         </span>
-                                                     )}
-                                                 </td>
-                                                 <td className="p-4 text-right">
-                                                     <div className="relative inline-block" ref={activeMenu.id === report.id ? menuRef : null}>
-                                                        <button onClick={(e) => handleMenuClick(e, report.id)} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-neutral-700">
-                                                            <MoreVerticalIcon className="w-5 h-5 text-gray-500"/>
-                                                        </button>
-                                                        {activeMenu.id === report.id && (
-                                                            <div className={`absolute z-10 right-0 w-40 bg-white dark:bg-neutral-950 rounded-md shadow-lg border border-gray-200 dark:border-neutral-700 py-1 ${activeMenu.position === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
-                                                                <button onClick={() => { setActiveMenu({id: null, position: 'down'}); onSelectReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">View</button>
-                                                                <div className="my-1 h-px bg-gray-200 dark:bg-neutral-700" />
-                                                                {report.status === 'archived' ? (
-                                                                    <button onClick={() => { setActiveMenu({id: null, position: 'down'}); onUpdateReportStatus(report.id, 'active'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Unarchive</button>
-                                                                ) : (
-                                                                    <button onClick={() => { setActiveMenu({id: null, position: 'down'}); onUpdateReportStatus(report.id, 'archived'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Archive</button>
-                                                                )}
-                                                                <button onClick={() => { setActiveMenu({id: null, position: 'down'}); onDeleteReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm text-red-700 hover:bg-gray-100 dark:hover:bg-neutral-800">Delete</button>
-                                                            </div>
-                                                        )}
-                                                     </div>
-                                                 </td>
-                                             </tr>
-                                         );
-                                     })}
-                                 </tbody>
-                             </table>
-                        ) : (
-                            <div className="p-12 text-center">
-                                <BriefcaseIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-neutral-600" />
-                                <h3 className="text-lg font-semibold text-gray-800 dark:text-neutral-200 mt-4">No Analyses Yet</h3>
-                                <p className="mt-1 text-gray-500 dark:text-neutral-400">Click "New Analysis" to get started.</p>
-                            </div>
-                        )}
-                    </div>
+                    {/* --- THE FIX: I have removed the problematic `overflow-x-auto` div that was wrapping the table --- */}
+                    {reports.length > 0 ? (
+                         <table className="w-full text-left">
+                             <thead className="border-b border-gray-200 dark:border-neutral-700">
+                                 <tr>
+                                     <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Document Title</th>
+                                     <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Date</th>
+                                     <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Score</th>
+                                     <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Status</th>
+                                     <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm text-right whitespace-nowrap">Actions</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 {displayedReports.map(report => {
+                                     const hasActiveFindings = report.findings.some(f => f.status === 'active');
+                                     return (
+                                         <tr key={report.id} className={`border-b border-gray-200 dark:border-neutral-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors ${report.status === 'archived' ? 'opacity-60' : ''}`}>
+                                             <td onClick={() => onSelectReport(report)} className="p-4 font-semibold text-gray-800 dark:text-neutral-200 cursor-pointer">{report.title}</td>
+                                             <td className="p-4 text-gray-500 dark:text-neutral-400 whitespace-nowrap">{new Date(report.createdAt).toLocaleDateString()}</td>
+                                             <td className="p-4 font-bold text-red-700">{report.scores?.project || report.resilienceScore}%</td>
+                                             <td className="p-4">
+                                                 {report.status === 'archived' ? (
+                                                     <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200">
+                                                         Archived
+                                                     </span>
+                                                 ) : (
+                                                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${hasActiveFindings ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800'}`}>
+                                                         {hasActiveFindings ? 'Review Needed' : 'Completed'}
+                                                     </span>
+                                                 )}
+                                             </td>
+                                             <td className="p-4 text-right">
+                                                 <div className="relative inline-block" ref={activeMenu.id === report.id ? menuRef : null}>
+                                                    <button onClick={(e) => handleMenuClick(e, report.id)} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-neutral-700">
+                                                        <MoreVerticalIcon className="w-5 h-5 text-gray-500"/>
+                                                    </button>
+                                                    {activeMenu.id === report.id && (
+                                                        <div className={`absolute z-10 right-0 w-40 bg-white dark:bg-neutral-950 rounded-md shadow-lg border border-gray-200 dark:border-neutral-700 py-1 ${activeMenu.position === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
+                                                            <button onClick={() => { setactiveMenu({id: null, position: 'down'}); onSelectReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">View</button>
+                                                            <div className="my-1 h-px bg-gray-200 dark:bg-neutral-700" />
+                                                            {report.status === 'archived' ? (
+                                                                <button onClick={() => { setactiveMenu({id: null, position: 'down'}); onUpdateReportStatus(report.id, 'active'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Unarchive</button>
+                                                            ) : (
+                                                                <button onClick={() => { setactiveMenu({id: null, position: 'down'}); onUpdateReportStatus(report.id, 'archived'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Archive</button>
+                                                            )}
+                                                            <button onClick={() => { setactiveMenu({id: null, position: 'down'}); onDeleteReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm text-red-700 hover:bg-gray-100 dark:hover:bg-neutral-800">Delete</button>
+                                                        </div>
+                                                    )}
+                                                 </div>
+                                             </td>
+                                         </tr>
+                                     );
+                                 })}
+                             </tbody>
+                         </table>
+                    ) : (
+                        <div className="p-12 text-center">
+                            <BriefcaseIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-neutral-600" />
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-neutral-200 mt-4">No Analyses Yet</h3>
+                            <p className="mt-1 text-gray-500 dark:text-neutral-400">Click "New Analysis" to get started.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
