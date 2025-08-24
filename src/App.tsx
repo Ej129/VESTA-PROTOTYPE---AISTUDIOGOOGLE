@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -62,48 +64,33 @@ const NoWorkspaceSelectedScreen: React.FC<{ onCreate: () => void }> = ({ onCreat
 );
 
 const App: React.FC = () => {
-  // --- FAIL-FAST CHECK ---
   if (!import.meta.env.VITE_API_KEY) {
     return <ErrorScreen message="The 'VITE_API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
   }
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
-
   const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
-  
-  // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('Member');
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
-  
-  // Data scoped to the selected workspace
   const [reports, setReports] = useState<AnalysisReport[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [knowledgeBaseSources, setKnowledgeBaseSources] = useState<KnowledgeSource[]>([]);
   const [dismissalRules, setDismissalRules] = useState<DismissalRule[]>([]);
   const [customRegulations, setCustomRegulations] = useState<CustomRegulation[]>([]);
-  
   const [activeReport, setActiveReport] = useState<AnalysisReport | null>(null);
-  
-  // Modal State
   const [isCreateWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [isManageMembersModalOpen, setManageMembersModalOpen] = useState(false);
   const [isKnowledgeBaseModalOpen, setKnowledgeBaseModalOpen] = useState(false);
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   const [confirmation, setConfirmation] = useState<{ title: string; message: string; onConfirm: () => Promise<void>; confirmText?: string; } | null>(null);
-
-  
-  // Notification State
   const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
   const knownWorkspaceIds = useRef(new Set<string>());
-
-  // Loading State
   const [isSyncingSources, setIsSyncingSources] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Global Theme Persistence Fix
   useEffect(() => {
     const handleThemeChange = () => {
       if (localStorage.getItem('vesta-theme') === 'dark' || (!('vesta-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -112,10 +99,8 @@ const App: React.FC = () => {
         document.documentElement.classList.remove('dark');
       }
     };
-    
     window.addEventListener('storage', handleThemeChange);
     handleThemeChange();
-
     return () => {
       window.removeEventListener('storage', handleThemeChange);
     };
@@ -133,7 +118,6 @@ const App: React.FC = () => {
     setKnowledgeBaseSources(data.knowledgeBaseSources);
     setDismissalRules(data.dismissalRules);
     setCustomRegulations(data.customRegulations);
-    
     const members = await workspaceApi.getWorkspaceMembers(workspaceId);
     setWorkspaceMembers(members);
     const member = members.find(m => m.email === currentUser.email);
@@ -145,7 +129,6 @@ const App: React.FC = () => {
     const userWorkspaces = await workspaceApi.getWorkspacesForUser();
     setWorkspaces(userWorkspaces);
     knownWorkspaceIds.current = new Set(userWorkspaces.map(ws => ws.id));
-    // If no workspace is selected, or the selected one is no longer available, select the first one.
     if ((!selectedWorkspace || !userWorkspaces.some(ws => ws.id === selectedWorkspace.id)) && userWorkspaces.length > 0) {
       handleSelectWorkspace(userWorkspaces[0]);
     } else if (userWorkspaces.length === 0) {
@@ -164,7 +147,6 @@ const App: React.FC = () => {
       refreshWorkspaces();
       refreshInvitations();
     } else {
-      // Clear all state when user logs out
       setWorkspaces([]);
       setSelectedWorkspace(null);
       setReports([]);
@@ -178,7 +160,6 @@ const App: React.FC = () => {
     }
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
 
-  // Poll for new workspaces (from invitations being accepted)
   useEffect(() => {
       if (!currentUser) return;
       const intervalId = setInterval(async () => {
@@ -218,14 +199,13 @@ const App: React.FC = () => {
 
 
   const handleSelectWorkspace = async (workspace: Workspace) => {
-    // This new condition allows navigating back to the dashboard from other screens
     if (selectedWorkspace?.id === workspace.id && screen === Screen.Dashboard) {
-      return; // Already on the correct dashboard, do nothing.
+      return;
     }
     setSelectedWorkspace(workspace);
-    setActiveReport(null); // Clear active report when switching workspace
+    setActiveReport(null);
     await loadWorkspaceData(workspace.id);
-    navigateTo(Screen.Dashboard); // Always go to Dashboard on workspace select
+    navigateTo(Screen.Dashboard);
   };
 
   const handleAnalysisComplete = async (report: Omit<AnalysisReport, 'id' | 'createdAt'>) => {
@@ -240,22 +220,18 @@ const App: React.FC = () => {
 
   const handleFileUpload = async (content: string, fileName: string, diffContent?: string) => {
     if (!selectedWorkspace) return;
-
     setIsAnalyzing(true); 
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
-    
     try {
       const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
       const report = { 
         ...reportData, 
         title: fileName || "Pasted Text Analysis",
-        diffContent: diffContent // Pass the diff content through
+        diffContent: diffContent
       };
       await handleAnalysisComplete(report);
-      
       setUploadModalOpen(false);
       navigateTo(Screen.Analysis);
-
     } catch (error) {
       console.error("Analysis failed:", error);
       setUploadModalOpen(false);
@@ -284,7 +260,6 @@ const App: React.FC = () => {
   const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
       if (!report) return '';
       setIsAnalyzing(true);
-      // We are now passing `knowledgeBaseSources` to the API call
       const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report, knowledgeBaseSources);
       addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
       setIsAnalyzing(false);
@@ -341,7 +316,7 @@ const App: React.FC = () => {
       try {
           await workspaceApi.inviteUser(selectedWorkspace.id, email, role);
           await addAuditLog('User Invited', `Invited ${email} as ${role}.`);
-          await loadWorkspaceData(selectedWorkspace.id); // Refresh member list
+          await loadWorkspaceData(selectedWorkspace.id);
       } catch (error) {
           alert((error as Error).message);
       }
@@ -391,9 +366,7 @@ const App: React.FC = () => {
   const handleUpdateWorkspaceStatus = async (workspaceId: string, status: 'active' | 'archived') => {
     try {
         await workspaceApi.updateWorkspaceStatus(workspaceId, status);
-        // The serverless function now handles audit logging, so we just refresh.
         await refreshWorkspaces();
-        // If the currently selected workspace was archived, navigate away
         if (selectedWorkspace?.id === workspaceId && status === 'archived') {
             const firstActive = workspaces.find(ws => ws.status !== 'archived' && ws.id !== workspaceId);
             if (firstActive) {
@@ -408,24 +381,24 @@ const App: React.FC = () => {
     }
   };
 
+  // --- UPDATED handleDeleteWorkspace function ---
   const handleDeleteWorkspace = (workspace: Workspace) => {
     setConfirmation({
         title: "Delete Workspace",
         message: `Are you sure you want to permanently delete the "${workspace.name}" workspace? This will also delete all associated analyses and data. This action cannot be undone.`,
         confirmText: "Delete Workspace",
         onConfirm: async () => {
-            // The onConfirm function now ONLY contains the logic for the action itself.
-            // The modal will handle closing itself.
             try {
                 if (currentUser) {
                     await workspaceApi.addAuditLog(workspace.id, currentUser.email, 'Workspace Deleted', `Workspace "${workspace.name}" was permanently deleted.`);
                 }
                 await workspaceApi.deleteWorkspace(workspace.id);
                 await refreshWorkspaces();
+                setConfirmation(null); // FIX: Close modal on success
             } catch (error) {
                 console.error("Failed to delete workspace:", error);
                 alert((error as Error).message);
-                // We re-throw the error so the modal knows the operation failed.
+                setConfirmation(null); // FIX: Close modal on failure
                 throw error;
             }
         }
@@ -446,6 +419,7 @@ const App: React.FC = () => {
     }
   };
 
+  // --- UPDATED handleDeleteReport function ---
   const handleDeleteReport = (report: AnalysisReport) => {
     if (!selectedWorkspace) return;
     setConfirmation({
@@ -453,7 +427,6 @@ const App: React.FC = () => {
         message: `Are you sure you want to permanently delete the analysis for "${report.title}"? This action cannot be undone.`,
         confirmText: "Delete Analysis",
         onConfirm: async () => {
-            // The onConfirm function now ONLY contains the logic for the action itself.
             try {
                 await addAuditLog('Analysis Deleted', `Analysis "${report.title}" was permanently deleted.`);
                 await workspaceApi.deleteReport(report.id);
@@ -462,10 +435,11 @@ const App: React.FC = () => {
                     navigateTo(Screen.Dashboard);
                 }
                 await loadWorkspaceData(selectedWorkspace.id);
+                setConfirmation(null); // FIX: Close modal on success
             } catch (error) {
                 console.error("Failed to delete report:", error);
                 alert((error as Error).message);
-                // We re-throw the error so the modal knows the operation failed.
+                setConfirmation(null); // FIX: Close modal on failure
                 throw error;
             }
         }
@@ -490,10 +464,7 @@ const renderScreenComponent = () => {
         return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
       
       case Screen.Analysis:
-        // --- THE FIX: Add this safety check ---
         if (!activeReport) {
-          // If we navigated here but the report isn't ready yet,
-          // just show the main Dashboard to prevent a blank screen.
           return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
         }
         return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} onNewAnalysis={handleFileUpload} />;
@@ -508,19 +479,6 @@ const renderScreenComponent = () => {
         return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
     }
   };
-    switch (screen) {
-      case Screen.Dashboard:
-        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
-      case Screen.Analysis:
-        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} onNewAnalysis={handleFileUpload} />;
-      case Screen.AuditTrail:
-        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
-      case Screen.Settings:
-        return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
-      default:
-        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
-    }
-  };
 
   if (loading) return <InitializingScreen />;
   if (!currentUser) return <LoginScreen />;
@@ -528,9 +486,6 @@ const renderScreenComponent = () => {
   return (
     <div className="font-sans bg-gray-50 dark:bg-neutral-950 min-h-screen text-gray-800 dark:text-neutral-200">
       {confirmation && (
-        // --- THIS IS THE FIX ---
-        // This new div creates a semi-transparent black overlay that covers the whole screen
-        // and centers the confirmation modal inside it.
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <ConfirmationModal
             title={confirmation.title}
