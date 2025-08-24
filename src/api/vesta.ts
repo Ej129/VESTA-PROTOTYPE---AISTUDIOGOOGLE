@@ -1,6 +1,7 @@
+// src/api/vesta.ts
+
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage, EnhancedAnalysisResponse } from '../types';
 import { GoogleGenAI, Type, GenerateContentResponse, HarmCategory, HarmBlockThreshold } from "@google/genai";
-
 
 let ai: GoogleGenAI | null = null;
 
@@ -44,7 +45,6 @@ const reportSchema = {
     required: ["scores", "findings"],
 };
 
-// --- THIS FUNCTION IS NOW RESTORED ---
 export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt' | 'documentContent'>> {
     if (!planContent.trim()) {
         throw new Error("The document content is empty. Please provide a plan to analyze.");
@@ -96,10 +96,6 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
         }
         
         const parsedReport = JSON.parse(jsonText.trim());
-        const criticalCount = parsedReport.findings.filter((f: any) => f.severity === 'critical').length;
-        const warningCount = parsedReport.findings.filter((f: any) => f.severity === 'warning').length;
-        const checksPerformed = Math.floor(1000 + Math.random() * 500);
-
         return {
             title: "Project Plan Analysis",
             resilienceScore: parsedReport.scores.project,
@@ -113,14 +109,14 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
                 status: 'active',
             })),
             summary: {
-                critical: criticalCount,
-                warning: warningCount,
-                checks: checksPerformed,
+                critical: parsedReport.findings.filter((f: any) => f.severity === 'critical').length,
+                warning: parsedReport.findings.filter((f: any) => f.severity === 'warning').length,
+                checks: Math.floor(1000 + Math.random() * 500)
             },
         };
     } catch (error) {
         console.error("Error analyzing plan with Gemini:", error);
-        throw error; // Re-throw the error to be handled by the calling function in App.tsx
+        throw error;
     }
 }
 
@@ -135,7 +131,10 @@ export async function enhanceAndAnalyzePlan(planContent: string, report: Analysi
     const newSchema = {
         type: Type.OBJECT,
         properties: {
-            improvedDocumentContent: { type: Type.STRING },
+            improvedDocumentContent: {
+                type: Type.STRING,
+                description: "The full, final, and clean rewritten text of the project plan. It must not contain any diff markers like '++' or '--'."
+            },
             newAnalysis: {
                 type: Type.OBJECT,
                 properties: {
@@ -172,10 +171,11 @@ export async function enhanceAndAnalyzePlan(planContent: string, report: Analysi
         model: "gemini-2.5-flash",
         contents: `ORIGINAL PLAN:\n---\n${planContent}\n---\n\nISSUES & RECOMMENDATIONS:\n---\n${findingsSummary}\n---${contextPrompt}`,
         config: {
-            systemInstruction: `You are an expert compliance officer. Your task is to perform two steps in order:
-1.  FIRST, rewrite the entire ORIGINAL PLAN to meticulously incorporate all the given recommendations. The rewritten document MUST be formatted with diff markers: prefix new or changed lines with "++ ", removed lines with "-- ", and leave unchanged lines with no prefix.
-2.  SECOND, perform a brand new, thorough analysis on YOUR OWN REWRITTEN DOCUMENT.
-You must return a single JSON object containing both the rewritten document (with diff markers) and the new analysis.`,
+            // --- NEW, FINAL SYSTEM INSTRUCTION ---
+            systemInstruction: `You are an expert corporate editor and compliance officer. Your task is to perform two steps in order:
+1.  **FIRST, rewrite the entire ORIGINAL PLAN** to meticulously incorporate all the given recommendations. The final output must be a clean, professional, and well-formatted business document. **DO NOT use any diff markers like '++' or '--'.** Use formatting like headings, bullet points, and bold text appropriately to improve readability.
+2.  **SECOND, perform a brand new, thorough analysis** on YOUR OWN professionally formatted, rewritten document.
+You must return a single JSON object containing both the final, clean rewritten document and the new analysis.`,
             responseMimeType: "application/json",
             responseSchema: newSchema,
             temperature: 0.2,
@@ -188,6 +188,7 @@ You must return a single JSON object containing both the rewritten document (wit
     }
     return JSON.parse(jsonText.trim());
 }
+
 
 export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
     const contents = [
