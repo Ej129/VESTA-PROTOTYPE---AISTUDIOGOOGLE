@@ -126,7 +126,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
 
     return (
         <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-800 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-80'}`}>
-            <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-800 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
+            <div className={`relative p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
                 <div className={`flex items-center flex-shrink-0 ${isCollapsed ? 'w-full justify-center' : ''}`}>
                     {isCollapsed ? (
                         <VestaLogo className="w-9 h-9" />
@@ -144,7 +144,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                     <button onClick={onToggleCollapse} title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
                         <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
                     </button>
-                    <div ref={invitationRef} className="relative flex">
+                    <div ref={invitationRef}>
                         <button 
                             onClick={() => setInvitationsOpen(o => !o)} 
                             className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 relative"

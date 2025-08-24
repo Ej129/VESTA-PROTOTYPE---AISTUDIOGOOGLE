@@ -7,17 +7,14 @@ interface InvitationDropdownProps {
   invitations: WorkspaceInvitation[];
   onRespond: (workspaceId: string, response: 'accept' | 'decline') => void;
   onClose: () => void;
-  isCollapsed?: boolean; // Accept the new prop
+  isCollapsed?: boolean;
 }
 
 const InvitationDropdown: React.FC<InvitationDropdownProps> = ({ invitations, onRespond, onClose, isCollapsed }) => {
-  // --- THE FIX ---
-  // We now have smarter positioning.
-  // When collapsed, it appears to the right.
-  // When expanded, it appears below and aligned to the right edge.
+  // This logic correctly switches between the two positions we need
   const positionClasses = isCollapsed
-    ? 'top-0 left-full ml-2' 
-    : 'top-full right-0 mt-2';
+    ? 'top-0 left-full ml-2' // When collapsed, position to the right of the sidebar
+    : 'top-full right-4 mt-2'; // When expanded, position below and slightly from the right edge of the header
 
   return (
     <div className={`absolute ${positionClasses} w-72 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl z-20 border border-gray-200 dark:border-neutral-700`}>
