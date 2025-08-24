@@ -472,7 +472,7 @@ const App: React.FC = () => {
     });
   };
 
-  const renderScreenComponent = () => {
+const renderScreenComponent = () => {
     if (!selectedWorkspace) {
         return <NoWorkspaceSelectedScreen onCreate={() => setCreateWorkspaceModalOpen(true)} />;
     }
@@ -485,6 +485,29 @@ const App: React.FC = () => {
         userRole,
     };
 
+    switch (screen) {
+      case Screen.Dashboard:
+        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
+      
+      case Screen.Analysis:
+        // --- THE FIX: Add this safety check ---
+        if (!activeReport) {
+          // If we navigated here but the report isn't ready yet,
+          // just show the main Dashboard to prevent a blank screen.
+          return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
+        }
+        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} onNewAnalysis={handleFileUpload} />;
+      
+      case Screen.AuditTrail:
+        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
+      
+      case Screen.Settings:
+        return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
+      
+      default:
+        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
+    }
+  };
     switch (screen) {
       case Screen.Dashboard:
         return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
