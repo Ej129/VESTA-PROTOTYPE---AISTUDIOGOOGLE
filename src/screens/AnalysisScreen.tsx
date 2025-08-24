@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisReport, Finding, ScreenLayoutProps, FindingStatus, FeedbackReason, ChatMessage } from '../types';
-import { StarIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon } from '../components/Icons';
+import { StarIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon, ChevronDownIcon } from '../components/Icons';
 import jsPDF from 'jspdf';
 import * as workspaceApi from '../api/workspace';
 import * as vestaApi from '../api/vesta';
@@ -28,59 +28,42 @@ const DocumentEditor: React.FC<{
   isEnhancing: boolean;
   onSaveChanges: () => void;
   onToggleEdit: () => void;
-  onDownload: () => void;
+  onDownloadPdf: () => void;
+  onDownloadTxt: () => void;
   hoveredFindingId: string | null;
   selectedFindingId: string | null;
   isDiffing: boolean;
   onAcceptChanges: () => void;
   onDiscardChanges: () => void;
-}> = ({ report, isEditing, onContentChange, isEnhancing, onSaveChanges, onToggleEdit, onDownload, hoveredFindingId, selectedFindingId, isDiffing, onAcceptChanges, onDiscardChanges }) => {
+}> = ({ report, isEditing, onContentChange, isEnhancing, onSaveChanges, onToggleEdit, onDownloadPdf, onDownloadTxt, hoveredFindingId, selectedFindingId, isDiffing, onAcceptChanges, onDiscardChanges }) => {
     
     const getHighlightedContent = () => {
         if (!report) return '';
         let content = report.documentContent;
-        
-        const escapeHtml = (unsafe: string) => 
-            unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-
+        const escapeHtml = (unsafe: string) => unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         content = escapeHtml(content);
-
         const sortedFindings = [...report.findings].sort((a, b) => b.sourceSnippet.length - a.sourceSnippet.length);
-
         sortedFindings.forEach(finding => {
             const isHovered = finding.id === hoveredFindingId;
             const isSelected = finding.id === selectedFindingId;
-            
             let highlightClass = finding.severity === 'critical' ? 'highlight-critical' : 'highlight-warning';
-            
             if (isSelected) {
                 highlightClass += ' ring-2 ring-offset-1 dark:ring-offset-neutral-950 ring-red-500 dark:ring-yellow-400';
             } else if (isHovered) {
                  highlightClass += ' ring-2 ring-offset-1 dark:ring-offset-neutral-950 ring-blue-400';
             }
-
             const replacement = `<mark id="snippet-${finding.id}" class="${highlightClass}">${escapeHtml(finding.sourceSnippet)}</mark>`;
-            
-            content = content.replace(
-                new RegExp(escapeRegExp(escapeHtml(finding.sourceSnippet)), 'g'),
-                replacement
-            );
+            content = content.replace(new RegExp(escapeRegExp(escapeHtml(finding.sourceSnippet)), 'g'), replacement);
         });
-        
         return content;
     };
 
     return (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700 flex flex-col h-full">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800 flex flex-col h-full">
             <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
                 <div>
-                    <p className="text-xs text-gray-500 dark:text-neutral-400">{isDiffing ? "REVIEWING CHANGES" : report.workspaceId.replace('-', ' ').toUpperCase()}</p>
-                    <h2 className="font-bold text-lg text-gray-800 dark:text-neutral-200 truncate pr-4">{report.title}</h2>
+                    <p className="text-xs text-gray-500 dark:text-neutral-500">{isDiffing ? "REVIEWING CHANGES" : report.workspaceId.replace('-', ' ').toUpperCase()}</p>
+                    <h2 className="font-bold text-lg text-gray-800 dark:text-neutral-50 truncate pr-4">{report.title}</h2>
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">
                     {isDiffing ? (
@@ -90,7 +73,7 @@ const DocumentEditor: React.FC<{
                         </>
                     ) : (
                         <>
-                            <button onClick={onDownload} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Download as PDF"><DownloadIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/></button>
+                            <DownloadDropdown onDownloadPdf={onDownloadPdf} onDownloadTxt={onDownloadTxt} />
                             {isEditing ? (
                                 <button onClick={onSaveChanges} className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800">Save Draft</button>
                             ) : (
@@ -116,14 +99,8 @@ const DocumentEditor: React.FC<{
                          })}
                      </div>
                 ) : isEditing ? (
-                    <textarea
-                        value={report.documentContent}
-                        onChange={(e) => onContentChange(e.target.value)}
-                        className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans text-gray-800 dark:text-neutral-200"
-                        autoFocus
-                    />
+                    <textarea value={report.documentContent} onChange={(e) => onContentChange(e.target.value)} className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans text-gray-800 dark:text-neutral-200" autoFocus />
                 ) : (
-                    // --- UPDATE: Added `leading-relaxed` for better readability ---
                     <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}></div>
                 )
             }
@@ -141,13 +118,12 @@ const ScoreCard: React.FC<{ label: string; score: number }> = ({ label, score })
     };
 
     return (
-        <div className="bg-gray-50 dark:bg-neutral-800/50 p-3 rounded-lg border border-gray-200 dark:border-neutral-700/50">
+        <div className="bg-gray-50 dark:bg-neutral-800/50 p-3 rounded-lg border border-gray-200 dark:border-neutral-800">
             <p className="text-xs text-gray-500 dark:text-neutral-400 truncate">{label}</p>
-            <p className={`text-2xl font-bold ${getScoreColor(score)}`}>{score}<span className="text-sm">%</span></p>
+            <p className={`text-2xl font-bold ${getScoreColor(score)}`}>{score}<span className="text-sm font-normal">%</span></p>
         </div>
     );
 };
-
 
 const AnalysisPanel: React.FC<{
   report: AnalysisReport;
@@ -162,9 +138,9 @@ const AnalysisPanel: React.FC<{
     
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700">
+            <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800">
                 <div className="p-4 border-b border-gray-200 dark:border-neutral-700">
-                    <h2 className="text-lg font-bold text-gray-800 dark:text-neutral-200 text-center">Analysis Panel</h2>
+                    <h2 className="text-lg font-bold text-gray-800 dark:text-neutral-50 text-center">Analysis Panel</h2>
                 </div>
                 <div className="p-4 sm:p-6 space-y-6">
                     <button
@@ -176,9 +152,8 @@ const AnalysisPanel: React.FC<{
                         {isEnhancing ? 'Enhancing...' : 'Auto-Enhance Document'}
                     </button>
                     
-                    {/* --- UPDATE: Replaced ScoreMeter list with a 2x2 grid of ScoreCards --- */}
                     <div className="pt-6 border-t border-gray-200 dark:border-neutral-700">
-                        <h3 className="text-sm font-semibold text-gray-500 dark:text-neutral-400 mb-3">Compliance Scores</h3>
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-neutral-500 mb-3">Compliance Scores</h3>
                         {report.scores ? (
                             <div className="grid grid-cols-2 gap-3">
                                 <ScoreCard label="Project Score" score={report.scores.project} />
@@ -187,8 +162,7 @@ const AnalysisPanel: React.FC<{
                                 <ScoreCard label="Risk Mitigation" score={report.scores.risk} />
                             </div>
                         ) : (
-                            // Fallback for older reports without detailed scores
-                            <div className="bg-gray-50 dark:bg-neutral-800/50 p-4 rounded-lg text-center">
+                           <div className="bg-gray-50 dark:bg-neutral-800/50 p-4 rounded-lg text-center border dark:border-neutral-800">
                                 <p className="text-3xl font-bold text-red-700">{report.resilienceScore}%</p>
                                 <p className="text-sm text-gray-600 dark:text-neutral-300">Overall Score</p>
                                 <p className="text-xs text-center text-gray-500 dark:text-neutral-400 pt-2">
@@ -201,7 +175,7 @@ const AnalysisPanel: React.FC<{
             </div>
 
             <div>
-                <h3 className="font-bold text-lg text-gray-800 dark:text-neutral-200 mb-4">Actionable Findings ({activeFindings.length})</h3>
+                <h3 className="font-bold text-lg text-gray-800 dark:text-neutral-50 mb-4">Actionable Findings ({activeFindings.length})</h3>
                 {activeFindings.length > 0 ? (
                     <div className="space-y-4">
                     {activeFindings.map(finding => {
@@ -211,10 +185,9 @@ const AnalysisPanel: React.FC<{
                         const IconComponent = isCritical ? AlertTriangleIcon : AlertCircleIcon;
 
                         return (
-                            // --- UPDATE: New Finding Card design ---
                             <div 
                                 key={finding.id} 
-                                className={`bg-white dark:bg-neutral-900 rounded-lg shadow-sm border border-l-4 border-gray-200 dark:border-neutral-700 ${borderColor} cursor-pointer transition-shadow hover:shadow-md`}
+                                className={`bg-white dark:bg-neutral-900 rounded-lg shadow-sm border border-l-4 border-gray-200 dark:border-neutral-800 ${borderColor} cursor-pointer transition-shadow hover:shadow-md`}
                                 onMouseEnter={() => setHoveredFindingId(finding.id)}
                                 onMouseLeave={() => setHoveredFindingId(null)}
                                 onClick={() => onFindingClick(finding.id)}
@@ -238,7 +211,6 @@ const AnalysisPanel: React.FC<{
                     })}
                     </div>
                 ) : (
-                    // --- UPDATE: Improved "Empty State" for no findings ---
                     <div className="text-center p-8 bg-white dark:bg-neutral-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-neutral-700">
                         <CheckCircleIcon className="w-12 h-12 mx-auto text-green-500" />
                         <p className="mt-4 font-semibold text-lg text-gray-800 dark:text-neutral-200">Excellent! No Active Findings</p>
@@ -285,8 +257,8 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
     };
 
     return (
-        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700 flex flex-col h-full">
-            <h3 className="text-lg font-bold p-4 border-b border-gray-200 dark:border-neutral-700 flex items-center text-gray-800 dark:text-neutral-200">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800 flex flex-col h-full">
+            <h3 className="text-lg font-bold p-4 border-b border-gray-200 dark:border-neutral-700 flex items-center text-gray-800 dark:text-neutral-50">
               <MessageSquareIcon className="w-5 h-5 mr-3 text-red-700" /> Ask Gemini
             </h3>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -342,33 +314,55 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
   const [isEditing, setIsEditing] = useState(false);
   const [isLocallyEnhancing, setLocallyEnhancing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
-  
-  // State for interactive highlighting
   const [hoveredFindingId, setHoveredFindingId] = useState<string | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
-  
-  // State for diff view
   const [isDiffing, setIsDiffing] = useState(false);
   const [originalContent, setOriginalContent] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentReport(activeReport);
-    setIsDiffing(false); // Reset diff view when report changes
+    setIsDiffing(false); 
   }, [activeReport]);
   
   const isCurrentlyEnhancing = isEnhancing || isLocallyEnhancing;
 
-  const handleDownload = () => {
-      if (!currentReport) return;
-      const title = currentReport.title.replace(/\.[^/.]+$/, "") || 'document';
-      const doc = new jsPDF();
-      doc.setFont('times', 'normal');
-      doc.setFontSize(18);
-      doc.text(title, 20, 20);
-      doc.setFontSize(12);
-      const lines = doc.splitTextToSize(currentReport.documentContent, doc.internal.pageSize.width - 40);
-      doc.text(lines, 20, 35);
-      doc.save(`${title}.pdf`);
+  const handleDownloadPdf = () => {
+    if (!currentReport) return;
+    const doc = new jsPDF();
+    const title = currentReport.title.replace(/\.[^/.]+$/, "") || 'document';
+    doc.setProperties({ title });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text(title, 15, 20);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
+    let y = 30;
+    const lines = doc.splitTextToSize(currentReport.documentContent, doc.internal.pageSize.width - (margin * 2));
+    lines.forEach((line: string) => {
+        if (y + 10 > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 7;
+    });
+    doc.save(`${title}.pdf`);
+  };
+
+  const handleDownloadTxt = () => {
+    if (!currentReport) return;
+    const title = currentReport.title.replace(/\.[^/.]+$/, "") || 'document';
+    const blob = new Blob([currentReport.documentContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${title}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleSaveChanges = () => {
@@ -381,24 +375,18 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     if (!currentReport || isDiffing) return;
     setOriginalContent(currentReport.documentContent);
     setLocallyEnhancing(true);
-
     const diffContent = await onAutoEnhance(currentReport);
-
     setTimeout(() => {
       setCurrentReport({ ...currentReport, documentContent: diffContent });
       setIsDiffing(true);
     }, 0); 
-
     setLocallyEnhancing(false);
   };
   
   const handleAcceptChanges = () => {
     if (!currentReport) return;
     const diffContent = currentReport.documentContent;
-    const cleanContent = diffContent.split('\n')
-        .filter(line => !line.startsWith('-- '))
-        .map(line => line.startsWith('++ ') ? line.substring(3) : line)
-        .join('\n');
+    const cleanContent = diffContent.split('\n').filter(line => !line.startsWith('-- ')).map(line => line.startsWith('++ ') ? line.substring(3) : line).join('\n');
     setIsDiffing(false);
     onNewAnalysis(cleanContent, `${currentReport.title} (Enhanced)`);
   };
@@ -438,7 +426,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
   if (!currentReport) {
       return (
         <div className="flex items-center justify-center h-full">
-            <p>No active report. Please select an analysis from the dashboard.</p>
+            <p className="text-gray-500">No active report. Please select an analysis from the dashboard.</p>
         </div>
       );
   }
@@ -455,7 +443,8 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
                 isEnhancing={isCurrentlyEnhancing}
                 onSaveChanges={handleSaveChanges}
                 onToggleEdit={() => setIsEditing(!isEditing)}
-                onDownload={handleDownload}
+                onDownloadPdf={handleDownloadPdf}
+                onDownloadTxt={handleDownloadTxt}
                 hoveredFindingId={hoveredFindingId}
                 selectedFindingId={selectedFindingId}
                 isDiffing={isDiffing}
@@ -481,5 +470,45 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     </div>
   );
 };
+
+// --- NEW: Download Dropdown Component ---
+const DownloadDropdown: React.FC<{ onDownloadPdf: () => void; onDownloadTxt: () => void }> = ({ onDownloadPdf, onDownloadTxt }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div ref={dropdownRef} className="relative">
+            <button 
+                onClick={() => setIsOpen(o => !o)} 
+                className="flex items-center space-x-1 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" 
+                title="Download Options"
+            >
+                <DownloadIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400"/>
+                <ChevronDownIcon className="w-4 h-4 text-gray-500 dark:text-neutral-400" />
+            </button>
+            {isOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-neutral-900 rounded-md shadow-lg z-20 border border-gray-200 dark:border-neutral-700 py-1">
+                    <button onClick={() => { onDownloadPdf(); setIsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
+                        Download as PDF
+                    </button>
+                    <button onClick={() => { onDownloadTxt(); setIsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
+                        Download as TXT
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 export default AnalysisScreen;
