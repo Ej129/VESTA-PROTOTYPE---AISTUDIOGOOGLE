@@ -1,7 +1,8 @@
 // src/api/vesta.ts
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
+
 
 let ai: GoogleGenAI | null = null;
 
@@ -81,7 +82,7 @@ const reportSchema = {
 
 export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
     if (!planContent.trim()) {
-        // ... (this part remains the same)
+        // ... (empty content handling remains the same)
         return {
             title: "Analysis Failed",
             resilienceScore: 0,
@@ -113,12 +114,35 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
         contextPrompt += `\n\nWORKSPACE-SPECIFIC CUSTOM REGULATIONS:\nThese are mandatory requirements for this workspace. For each rule below that is NOT followed by the project plan, you MUST generate a 'critical' finding. The finding's title should clearly state which custom rule was violated, for example: "Custom Rule Violation: [Rule Text]".\n${rulesText}`;
     }
 
+
+    // --- NEW: Define the safety settings ---
+    const safetySettings = [
+        {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+    ];
+
+
     try {
         const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Analyze the following project plan:\n\n---\n\n${planContent}\n\n---\n\nPlease provide your analysis in the requested JSON format.`,
+            // --- NEW: Pass the safety settings to the API call ---
+            safetySettings,
             config: {
-                // --- NEW, ENHANCED SYSTEM INSTRUCTION ---
                 systemInstruction: `You are Vesta, an AI assistant specializing in digital resilience for the financial sector. Your task is to analyze project plans against financial regulations (like those from BSP) and best practices (like the Data Privacy Act of the Philippines). Your analysis must be meticulous and structured. Follow these steps:
 1. Read the entire document and all contextual knowledge to fully understand the project's goals and constraints.
 2. For each potential issue you identify, you MUST find the single, most relevant and specific sentence or phrase from the original document to use as the \`sourceSnippet\`. Avoid using generic section headers as snippets for multiple, unrelated findings. The snippet must be an exact, verbatim quote.
@@ -132,6 +156,7 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
             },
         });
 
+        // ... (the rest of the function remains the same)
         const jsonText = response.text;
         if (!jsonText || typeof jsonText !== 'string') {
             console.error("Gemini API returned an empty or invalid response:", response);
@@ -165,7 +190,6 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
         };
     } catch (error) {
         console.error("Error analyzing plan with Gemini:", error);
-        // ... (your existing catch block)
         return {
             title: "Analysis Error",
             resilienceScore: 0,
