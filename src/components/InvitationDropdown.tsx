@@ -11,10 +11,13 @@ interface InvitationDropdownProps {
 }
 
 const InvitationDropdown: React.FC<InvitationDropdownProps> = ({ invitations, onRespond, onClose, isCollapsed }) => {
-  // Conditionally set the position classes based on the collapsed state
+  // --- THE FIX ---
+  // We now have smarter positioning.
+  // When collapsed, it appears to the right.
+  // When expanded, it appears below and aligned to the right edge.
   const positionClasses = isCollapsed
-    ? 'top-0 left-full ml-2' // When collapsed, position to the right of the icon
-    : 'top-full right-0 mt-2'; // The original position for when it's expanded
+    ? 'top-0 left-full ml-2' 
+    : 'top-full right-0 mt-2';
 
   return (
     <div className={`absolute ${positionClasses} w-80 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl z-20 border border-gray-200 dark:border-neutral-700`}>
