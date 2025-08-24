@@ -8,9 +8,3 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps"
-
-# --- ADD THIS NEW SECTION AT THE END ---
-# This targets the 'enhance' function specifically.
-[functions."enhance"]
-  # Sets the timeout to 60 seconds to prevent it from stopping early.
-  timeout = 60

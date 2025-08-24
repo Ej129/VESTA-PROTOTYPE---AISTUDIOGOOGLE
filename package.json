@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google/genai": "^0.14.1",
+    "@google/generative-ai": "^0.24.1",
     "@netlify/blobs": "^7.0.0",
     "@netlify/functions": "^2.7.0",
     "docx": "^9.5.1",
