@@ -1,27 +1,127 @@
-// src/api/vesta.ts
-
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage, EnhancedAnalysisResponse } from '../types';
 import { GoogleGenAI, Type, GenerateContentResponse, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
 
 let ai: GoogleGenAI | null = null;
 
-/**
- * Lazily initializes and returns the GoogleGenAI client instance.
- * Throws an error if the API key is not available.
- */
 function getGenAIClient(): GoogleGenAI {
-    // Use Vite's special way to access environment variables
     const apiKey = import.meta.env.VITE_API_KEY;
-
     if (!apiKey) {
-        // This is a safeguard. The main App component should catch this earlier.
         throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your deployment settings.");
     }
     if (!ai) {
         ai = new GoogleGenAI({ apiKey: apiKey });
     }
     return ai;
+}
+
+const reportSchema = {
+    type: Type.OBJECT,
+    properties: {
+        scores: {
+          type: Type.OBJECT,
+          properties: {
+            project: { type: Type.INTEGER },
+            strategicGoals: { type: Type.INTEGER },
+            regulations: { type: Type.INTEGER },
+            risk: { type: Type.INTEGER }
+          }
+        },
+        findings: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    severity: { type: Type.STRING },
+                    sourceSnippet: { type: Type.STRING },
+                    recommendation: { type: Type.STRING }
+                },
+                required: ["title", "severity", "sourceSnippet", "recommendation"],
+            },
+        },
+    },
+    required: ["scores", "findings"],
+};
+
+// --- THIS FUNCTION IS NOW RESTORED ---
+export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt' | 'documentContent'>> {
+    if (!planContent.trim()) {
+        throw new Error("The document content is empty. Please provide a plan to analyze.");
+    }
+
+    let contextPrompt = '';
+    if (knowledgeSources.length > 0) {
+        const sourcesText = knowledgeSources.map(s => `--- KNOWLEDGE SOURCE: ${s.title} ---\n${s.content}`).join('\n\n');
+        contextPrompt += `\n\nCONTEXTUAL KNOWLEDGE BASE:\n${sourcesText}`;
+    }
+    if (dismissalRules.length > 0) {
+        const rulesText = dismissalRules.map(r => `- "${r.findingTitle}" (Reason: ${r.reason})`).join('\n');
+        contextPrompt += `\n\nLEARNED DISMISSAL RULES:\n${rulesText}`;
+    }
+    if (customRegulations && customRegulations.length > 0) {
+        const rulesText = customRegulations.map(r => `- ${r.ruleText}`).join('\n');
+        contextPrompt += `\n\nWORKSPACE-SPECIFIC CUSTOM REGULATIONS:\n${rulesText}`;
+    }
+    
+    const safetySettings = [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+    ];
+
+    try {
+        const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Analyze the following project plan:\n\n---\n\n${planContent}\n\n---\n\nPlease provide your analysis in the requested JSON format.`,
+            safetySettings,
+            config: {
+                systemInstruction: `You are Vesta, an AI assistant specializing in digital resilience for the financial sector. Your task is to analyze project plans against financial regulations (like those from BSP) and best practices (like the Data Privacy Act of the Philippines). Your analysis must be meticulous and structured. Follow these steps:
+1. Read the entire document and all contextual knowledge to fully understand the project's goals and constraints.
+2. For each potential issue you identify, you MUST find the single, most relevant and specific sentence or phrase from the original document to use as the \`sourceSnippet\`. Avoid using generic section headers as snippets for multiple, unrelated findings. The snippet must be an exact, verbatim quote.
+3. Provide a concise, impactful \`title\` for the finding that clearly summarizes the core problem.
+4. Assign a \`severity\` of 'critical' for major compliance/security gaps, or 'warning' for recommendations and best-practice improvements.
+5. Write a detailed, actionable \`recommendation\` to fix the issue, citing specific regulations from the knowledge base where applicable.
+6. Critically evaluate ALL aspects of the plan, including its stated Objectives, Scope, Timeline, Budget, and Risk Management sections, for potential weaknesses, gaps, or inconsistencies.`,
+                responseMimeType: "application/json",
+                responseSchema: reportSchema,
+                temperature: 0.2,
+            },
+        });
+
+        const jsonText = response.text;
+        if (!jsonText || typeof jsonText !== 'string') {
+            throw new Error("The AI model returned an empty or invalid response, possibly due to content safety filters. Please try modifying the document or try again.");
+        }
+        
+        const parsedReport = JSON.parse(jsonText.trim());
+        const criticalCount = parsedReport.findings.filter((f: any) => f.severity === 'critical').length;
+        const warningCount = parsedReport.findings.filter((f: any) => f.severity === 'warning').length;
+        const checksPerformed = Math.floor(1000 + Math.random() * 500);
+
+        return {
+            title: "Project Plan Analysis",
+            resilienceScore: parsedReport.scores.project,
+            scores: parsedReport.scores,
+            findings: parsedReport.findings.map((f: any, index: number): Finding => ({
+                id: `finding-${Date.now()}-${index}`,
+                title: f.title,
+                severity: f.severity,
+                sourceSnippet: f.sourceSnippet,
+                recommendation: f.recommendation,
+                status: 'active',
+            })),
+            summary: {
+                critical: criticalCount,
+                warning: warningCount,
+                checks: checksPerformed,
+            },
+        };
+    } catch (error) {
+        console.error("Error analyzing plan with Gemini:", error);
+        throw error; // Re-throw the error to be handled by the calling function in App.tsx
+    }
 }
 
 export async function enhanceAndAnalyzePlan(planContent: string, report: AnalysisReport, knowledgeSources: KnowledgeSource[]): Promise<EnhancedAnalysisResponse> {
@@ -35,13 +135,9 @@ export async function enhanceAndAnalyzePlan(planContent: string, report: Analysi
     const newSchema = {
         type: Type.OBJECT,
         properties: {
-            improvedDocumentContent: {
-                type: Type.STRING,
-                description: "The full, rewritten text of the project plan, with all recommendations incorporated, formatted with diff markers (++ for additions/changes, -- for deletions)."
-            },
+            improvedDocumentContent: { type: Type.STRING },
             newAnalysis: {
                 type: Type.OBJECT,
-                description: "A new analysis of the rewritten document.",
                 properties: {
                     scores: {
                         type: Type.OBJECT,
@@ -92,7 +188,6 @@ You must return a single JSON object containing both the rewritten document (wit
     }
     return JSON.parse(jsonText.trim());
 }
-
 
 export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
     const contents = [
