@@ -355,25 +355,21 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
 }
 
 const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateReport, onAutoEnhance, isEnhancing, analysisStatusText, currentWorkspace, onNewAnalysis }) => {
-  const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
+  // SINGLE SOURCE OF TRUTH
+  const currentReport = activeReport;
+
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
   const [hoveredFindingId, setHoveredFindingId] = useState<string | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setCurrentReport(activeReport);
-  }, [activeReport]);
-  
   const handleEnhanceClick = async () => {
     if (!currentReport || isEnhancing) return;
 
     try {
-      // The onAutoEnhance prop now handles the entire process
       await onAutoEnhance(currentReport);
     } catch (error) {
       console.error("Enhancement process failed and was caught in AnalysisScreen.");
-      // Error is already alerted in the parent, just log it.
     }
   };
   
@@ -381,7 +377,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     if (!currentReport) return;
     const updatedFindings = currentReport.findings.map(f => f.id === findingId ? { ...f, status } : f);
     const updatedReport = { ...currentReport, findings: updatedFindings };
-    setCurrentReport(updatedReport);
     onUpdateReport(updatedReport);
   };
   
@@ -487,7 +482,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
             <DocumentEditor 
                 report={currentReport} 
                 isEditing={isEditing} 
-                onContentChange={(content) => setCurrentReport({ ...currentReport, documentContent: content })}
+                onContentChange={(content) => onUpdateReport({ ...currentReport, documentContent: content })}
                 onSaveChanges={handleSaveChanges}
                 onToggleEdit={() => setIsEditing(!isEditing)}
                 onDownloadPdf={handleDownloadPdf}
