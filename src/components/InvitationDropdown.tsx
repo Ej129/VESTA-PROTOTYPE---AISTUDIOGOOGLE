@@ -1,3 +1,4 @@
+// src/components/InvitationDropdown.tsx
 
 import React from 'react';
 import { WorkspaceInvitation } from '../types';
@@ -6,11 +7,17 @@ interface InvitationDropdownProps {
   invitations: WorkspaceInvitation[];
   onRespond: (workspaceId: string, response: 'accept' | 'decline') => void;
   onClose: () => void;
+  isCollapsed?: boolean; // Accept the new prop
 }
 
-const InvitationDropdown: React.FC<InvitationDropdownProps> = ({ invitations, onRespond, onClose }) => {
+const InvitationDropdown: React.FC<InvitationDropdownProps> = ({ invitations, onRespond, onClose, isCollapsed }) => {
+  // Conditionally set the position classes based on the collapsed state
+  const positionClasses = isCollapsed
+    ? 'top-0 left-full ml-2' // When collapsed, position to the right of the icon
+    : 'top-full right-0 mt-2'; // The original position for when it's expanded
+
   return (
-    <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl z-20 border border-gray-200 dark:border-neutral-700">
+    <div className={`absolute ${positionClasses} w-80 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl z-20 border border-gray-200 dark:border-neutral-700`}>
       <div className="p-4 border-b border-gray-200 dark:border-neutral-700">
         <h3 className="font-bold text-gray-800 dark:text-neutral-200">Pending Invitations</h3>
       </div>

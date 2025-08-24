@@ -163,6 +163,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                                 invitations={invitations} 
                                 onRespond={onRespondToInvitation} 
                                 onClose={() => setInvitationsOpen(false)} 
+                                isCollapsed={isCollapsed} // <-- ADD THIS LINE
                             />
                         )}
                     </div>
