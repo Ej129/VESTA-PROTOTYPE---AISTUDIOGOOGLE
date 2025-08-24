@@ -43,6 +43,7 @@ export interface AnalysisReport {
   documentContent: string;
   createdAt: string;
   status?: 'active' | 'archived';
+  diffContent?: string;
 }
 
 export interface User {

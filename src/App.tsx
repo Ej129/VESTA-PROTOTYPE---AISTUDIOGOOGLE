@@ -228,7 +228,7 @@ const App: React.FC = () => {
     navigateTo(Screen.Dashboard); // Always go to Dashboard on workspace select
   };
 
-  const handleAnalysisComplete = async (report: AnalysisReport) => {
+  const handleAnalysisComplete = async (report: Omit<AnalysisReport, 'id' | 'createdAt'>) => {
     if (!selectedWorkspace) return;
     const newReport = { ...report, workspaceId: selectedWorkspace.id };
     const addedReport = await workspaceApi.addReport(newReport);
@@ -238,31 +238,28 @@ const App: React.FC = () => {
     return addedReport;
   };
 
-
-  const handleFileUpload = async (content: string, fileName: string) => {
+  const handleFileUpload = async (content: string, fileName: string, diffContent?: string) => {
     if (!selectedWorkspace) return;
 
-    // 1. Set analyzing to true, but KEEP the modal open.
-    // The modal will now show the "Analyzing..." checklist.
     setIsAnalyzing(true); 
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
     
     try {
-      // 2. Perform the analysis while the modal shows the checklist.
       const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
-      const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
-      await handleAnalysisComplete(report as AnalysisReport);
+      const report = { 
+        ...reportData, 
+        title: fileName || "Pasted Text Analysis",
+        diffContent: diffContent // Pass the diff content through
+      };
+      await handleAnalysisComplete(report);
       
-      // 3. After the analysis is successful, NOW we close the modal and navigate.
       setUploadModalOpen(false);
       navigateTo(Screen.Analysis);
 
     } catch (error) {
       console.error("Analysis failed:", error);
-      // Optional: You could add a notification here to inform the user of the failure.
-      setUploadModalOpen(false); // Close the modal on failure too.
+      setUploadModalOpen(false);
     } finally {
-      // 4. No matter what, always reset the analyzing state when the process is over.
       setIsAnalyzing(false);
     }
   };
