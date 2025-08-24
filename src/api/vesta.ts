@@ -172,7 +172,8 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
     }
 }
 
-export async function improvePlan(planContent: string, report: AnalysisReport): Promise<string> {
+
+export async function improvePlan(planContent: string, report: AnalysisReport, knowledgeSources: KnowledgeSource[]): Promise<string> {
     if (!planContent.trim() || !report || report.findings.length === 0) {
         return planContent; // Return original if no basis for improvement
     }
@@ -182,6 +183,14 @@ export async function improvePlan(planContent: string, report: AnalysisReport): 
         `  - Source Snippet: "${f.sourceSnippet}"\n` +
         `  - Recommendation: ${f.recommendation}`
     ).join('\n\n');
+
+    // --- NEW: Build the context prompt from the Knowledge Base ---
+    let contextPrompt = '';
+    if (knowledgeSources.length > 0) {
+        const sourcesText = knowledgeSources.map(s => `--- KNOWLEDGE SOURCE: ${s.title} ---\n${s.content}`).join('\n\n');
+        contextPrompt = `\n\nCONTEXTUAL KNOWLEDGE BASE (Use this to inform your revisions):\n--- \n${sourcesText}\n---`;
+    }
+    // --- END NEW ---
 
     try {
         const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
@@ -204,9 +213,10 @@ ISSUES AND RECOMMENDATIONS:
 ---
 ${findingsSummary}
 ---
+${contextPrompt}  // <-- The Knowledge Base is added to the prompt here
 `,
             config: {
-                systemInstruction: "You are an expert technical writer and project manager specializing in compliance documentation. Your task is to revise a project plan to resolve issues identified in an analysis report. You must integrate the given recommendations seamlessly, apply appropriate compliance formatting, improve clarity, and ensure the document is professional and well-structured.",
+                systemInstruction: "You are an expert technical writer and project manager specializing in compliance documentation. Your task is to revise a project plan to resolve issues identified in an analysis report. You must integrate the given recommendations seamlessly, apply appropriate compliance formatting, improve clarity, and ensure the document is professional and well-structured. Use the provided Contextual Knowledge Base to ensure your revisions are compliant.",
             },
         });
 

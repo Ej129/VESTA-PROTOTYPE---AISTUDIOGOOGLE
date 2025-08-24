@@ -363,13 +363,24 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     onUpdateReport(currentReport);
   };
   
+// src/screens/AnalysisScreen.tsx
+
   const handleEnhanceClick = async () => {
     if (!currentReport || isDiffing) return;
     setOriginalContent(currentReport.documentContent);
     setLocallyEnhancing(true);
+
+    // This part stays the same - we wait for the AI to finish
     const diffContent = await onAutoEnhance(currentReport);
-    setCurrentReport({ ...currentReport, documentContent: diffContent });
-    setIsDiffing(true);
+
+    // --- THE FIX ---
+    // We wrap the heavy state updates in a setTimeout.
+    // This allows the UI to become responsive before rendering the large new document.
+    setTimeout(() => {
+      setCurrentReport({ ...currentReport, documentContent: diffContent });
+      setIsDiffing(true);
+    }, 0); // A 0ms delay is all that's needed.
+
     setLocallyEnhancing(false);
   };
   

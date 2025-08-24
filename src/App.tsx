@@ -283,10 +283,12 @@ const App: React.FC = () => {
       }
   };
 
+
   const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
       if (!report) return '';
       setIsAnalyzing(true);
-      const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report);
+      // We are now passing `knowledgeBaseSources` to the API call
+      const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report, knowledgeBaseSources);
       addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
       setIsAnalyzing(false);
       return improvedContentWithDiff;
