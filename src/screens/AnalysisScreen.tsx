@@ -369,15 +369,11 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     if (!currentReport || isEnhancing) return;
 
     try {
-        const diffContent = await onAutoEnhance(currentReport);
-        const cleanContent = diffContent.split('\n')
-            .filter(line => !line.startsWith('-- '))
-            .map(line => line.startsWith('++ ') ? line.substring(3) : line)
-            .join('\n');
-        
-        onNewAnalysis(cleanContent, `${currentReport.title} (Enhanced)`, diffContent);
+      // The onAutoEnhance prop now handles the entire process
+      await onAutoEnhance(currentReport);
     } catch (error) {
-        console.error("Enhancement process failed and was caught in AnalysisScreen.");
+      console.error("Enhancement process failed and was caught in AnalysisScreen.");
+      // Error is already alerted in the parent, just log it.
     }
   };
   
