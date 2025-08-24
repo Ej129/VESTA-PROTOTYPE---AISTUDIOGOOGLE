@@ -17,6 +17,7 @@ import { Layout } from './components/Layout';
 import * as vestaApi from './api/vesta';
 import ConfirmationModal from './components/ConfirmationModal';
 
+const App: React.FC = () => {
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4 text-center">
         <div className="max-w-2xl bg-white dark:bg-neutral-900 p-8 rounded-lg shadow-lg border border-red-700">
@@ -224,13 +225,16 @@ const App: React.FC = () => {
     setIsAnalyzing(true); 
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
     try {
+      // The API now returns the formatted content directly.
       const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
+      
+      // We no longer need to pass the raw `content`. The API response has everything.
       const report = { 
         ...reportData, 
         title: fileName || "Pasted Text Analysis",
-        documentContent: content, // --- THE FIX: Re-add the document content ---
         diffContent: diffContent
       };
+
       await handleAnalysisComplete(report);
       setUploadModalOpen(false);
       navigateTo(Screen.Analysis);
@@ -593,5 +597,5 @@ const renderScreenComponent = () => {
     </div>
   );
 }
-
+}
 export default App;
