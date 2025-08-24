@@ -1,4 +1,4 @@
-
+// src/api/vesta.ts
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
@@ -123,6 +123,8 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
                 systemInstruction: `You are Vesta, an AI assistant specializing in digital resilience for the financial sector. Your task is to analyze project plans against financial regulations (like those from BSP) and best practices (like the Data Privacy Act of the Philippines). You must identify critical issues, warnings, and compliance gaps. For each finding, you must provide a title, severity, the exact source text snippet from the plan, and a detailed, actionable recommendation. Ensure the source snippet is a direct quote from the provided text.${contextPrompt}`,
                 responseMimeType: "application/json",
                 responseSchema: reportSchema,
+                // --- FIX: Added temperature for consistency ---
+                temperature: 0.2,
             },
         });
 
@@ -184,13 +186,11 @@ export async function improvePlan(planContent: string, report: AnalysisReport, k
         `  - Recommendation: ${f.recommendation}`
     ).join('\n\n');
 
-    // --- NEW: Build the context prompt from the Knowledge Base ---
     let contextPrompt = '';
     if (knowledgeSources.length > 0) {
         const sourcesText = knowledgeSources.map(s => `--- KNOWLEDGE SOURCE: ${s.title} ---\n${s.content}`).join('\n\n');
         contextPrompt = `\n\nCONTEXTUAL KNOWLEDGE BASE (Use this to inform your revisions):\n--- \n${sourcesText}\n---`;
     }
-    // --- END NEW ---
 
     try {
         const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
@@ -213,17 +213,18 @@ ISSUES AND RECOMMENDATIONS:
 ---
 ${findingsSummary}
 ---
-${contextPrompt}  // <-- The Knowledge Base is added to the prompt here
+${contextPrompt}
 `,
             config: {
                 systemInstruction: "You are an expert technical writer and project manager specializing in compliance documentation. Your task is to revise a project plan to resolve issues identified in an analysis report. You must integrate the given recommendations seamlessly, apply appropriate compliance formatting, improve clarity, and ensure the document is professional and well-structured. Use the provided Contextual Knowledge Base to ensure your revisions are compliant.",
+                // --- FIX: Added temperature for consistency ---
+                temperature: 0.2,
             },
         });
 
         return response.text.trim();
     } catch (error) {
         console.error("Error improving plan with Gemini:", error);
-        // Fallback to original content on error
         return `Error: Could not enhance document.\n\n${planContent}`; 
     }
 }
@@ -246,6 +247,8 @@ export async function getChatResponse(documentContent: string, history: ChatMess
             contents: contents,
             config: {
                 systemInstruction: `You are Vesta, an AI assistant. The user is asking questions about the following document. Use the document as the primary source of truth to answer their questions. Be concise and helpful. If the question cannot be answered from the document, say so. Do not make up information.\n\nDOCUMENT CONTEXT:\n---\n${documentContent}\n---`,
+                // --- FIX: Added temperature for consistency ---
+                temperature: 0.2,
             },
         });
 
