@@ -123,13 +123,21 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
                 systemInstruction: `You are Vesta, an AI assistant specializing in digital resilience for the financial sector. Your task is to analyze project plans against financial regulations (like those from BSP) and best practices (like the Data Privacy Act of the Philippines). You must identify critical issues, warnings, and compliance gaps. For each finding, you must provide a title, severity, the exact source text snippet from the plan, and a detailed, actionable recommendation. Ensure the source snippet is a direct quote from the provided text.${contextPrompt}`,
                 responseMimeType: "application/json",
                 responseSchema: reportSchema,
-                // --- FIX: Added temperature for consistency ---
                 temperature: 0.2,
             },
         });
 
-        const jsonText = response.text.trim();
-        const parsedReport = JSON.parse(jsonText);
+        // --- THE FIX: Add a safety check for the response ---
+        const jsonText = response.text;
+        if (!jsonText || typeof jsonText !== 'string') {
+            // If the response is empty or not a string, throw a clear error.
+            // This is often due to content safety filters or other API issues.
+            console.error("Gemini API returned an empty or invalid response:", response);
+            throw new Error("The AI model returned an empty or invalid response, possibly due to content safety filters. Please try modifying the document or try again.");
+        }
+        // --- END FIX ---
+
+        const parsedReport = JSON.parse(jsonText.trim());
 
         const criticalCount = parsedReport.findings.filter((f: any) => f.severity === 'critical').length;
         const warningCount = parsedReport.findings.filter((f: any) => f.severity === 'warning').length;
