@@ -417,17 +417,19 @@ const App: React.FC = () => {
         message: `Are you sure you want to permanently delete the "${workspace.name}" workspace? This will also delete all associated analyses and data. This action cannot be undone.`,
         confirmText: "Delete Workspace",
         onConfirm: async () => {
+            // The onConfirm function now ONLY contains the logic for the action itself.
+            // The modal will handle closing itself.
             try {
                 if (currentUser) {
                     await workspaceApi.addAuditLog(workspace.id, currentUser.email, 'Workspace Deleted', `Workspace "${workspace.name}" was permanently deleted.`);
                 }
                 await workspaceApi.deleteWorkspace(workspace.id);
                 await refreshWorkspaces();
-                setConfirmation(null); // --- FIX: Close the modal on success ---
             } catch (error) {
                 console.error("Failed to delete workspace:", error);
                 alert((error as Error).message);
-                setConfirmation(null); // --- FIX: Close the modal on failure too ---
+                // We re-throw the error so the modal knows the operation failed.
+                throw error;
             }
         }
     });
@@ -454,6 +456,7 @@ const App: React.FC = () => {
         message: `Are you sure you want to permanently delete the analysis for "${report.title}"? This action cannot be undone.`,
         confirmText: "Delete Analysis",
         onConfirm: async () => {
+            // The onConfirm function now ONLY contains the logic for the action itself.
             try {
                 await addAuditLog('Analysis Deleted', `Analysis "${report.title}" was permanently deleted.`);
                 await workspaceApi.deleteReport(report.id);
@@ -462,11 +465,11 @@ const App: React.FC = () => {
                     navigateTo(Screen.Dashboard);
                 }
                 await loadWorkspaceData(selectedWorkspace.id);
-                setConfirmation(null); // --- FIX: Close the modal on success ---
             } catch (error) {
                 console.error("Failed to delete report:", error);
                 alert((error as Error).message);
-                setConfirmation(null); // --- FIX: Close the modal on failure too ---
+                // We re-throw the error so the modal knows the operation failed.
+                throw error;
             }
         }
     });
