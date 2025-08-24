@@ -13,12 +13,14 @@ interface DashboardScreenProps {
 }
 
 const KPITile: React.FC<{ title: string; value: string | number; icon: React.ReactNode }> = ({ title, value, icon }) => (
-    <div className="bg-white dark:bg-neutral-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-700 flex items-center space-x-4">
+    // UPDATED: Border color changed from dark:border-neutral-700 to dark:border-neutral-800
+    // UPDATED: Secondary text color changed from dark:text-neutral-400 to dark:text-neutral-500
+    <div className="bg-white dark:bg-neutral-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-800 flex items-center space-x-4">
         <div className="bg-red-700/10 p-3 rounded-full">
             {icon}
         </div>
         <div>
-            <p className="text-sm text-gray-500 dark:text-neutral-400">{title}</p>
+            <p className="text-sm text-gray-500 dark:text-neutral-500">{title}</p>
             <p className="text-2xl font-bold text-gray-800 dark:text-neutral-200">{value}</p>
         </div>
     </div>
@@ -49,7 +51,8 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
     return (
         <div className="p-8 space-y-8">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-neutral-200">Dashboard</h1>
+                {/* UPDATED: Title color changed for higher contrast */}
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-neutral-50">Dashboard</h1>
                 <button 
                     onClick={onNewAnalysisClick}
                     className="flex items-center bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:bg-red-800"
@@ -67,14 +70,15 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
 
             <div>
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-neutral-200">Recent Analyses</h2>
+                    {/* UPDATED: Title color changed for higher contrast */}
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-neutral-50">Recent Analyses</h2>
                      <label className="flex items-center space-x-2 cursor-pointer">
                          <input type="checkbox" checked={showArchived} onChange={() => setShowArchived(!showArchived)} className="h-4 w-4 rounded border-gray-300 dark:border-neutral-600 text-red-700 focus:ring-red-700 bg-gray-100 dark:bg-neutral-800"/>
                          <span className="text-sm text-gray-500 dark:text-neutral-400">Show archived</span>
                      </label>
                 </div>
-                {/* --- FIX #1: Removed the `overflow-x-auto` from this container div --- */}
-                <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-700">
+                {/* UPDATED: Border color changed from dark:border-neutral-700 to dark:border-neutral-800 */}
+                <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-800">
                     <div>
                         {reports.length > 0 ? (
                              <table className="w-full text-left">
@@ -91,7 +95,7 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                                      {displayedReports.map(report => {
                                          const hasActiveFindings = report.findings.some(f => f.status === 'active');
                                          return (
-                                             <tr key={report.id} className={`border-b border-gray-200 dark:border-neutral-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors ${report.status === 'archived' ? 'opacity-60' : ''}`}>
+                                             <tr key={report.id} className={`border-b border-gray-200 dark:border-neutral-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors ${report.status === 'archived' ? 'opacity-60' : ''}`}>
                                                  <td onClick={() => onSelectReport(report)} className="p-4 font-semibold text-gray-800 dark:text-neutral-200 cursor-pointer">{report.title}</td>
                                                  <td className="p-4 text-gray-500 dark:text-neutral-400">{new Date(report.createdAt).toLocaleDateString()}</td>
                                                  <td className="p-4 font-bold text-red-700">{report.scores?.project || report.resilienceScore}%</td>
@@ -120,7 +124,6 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                                                                 ) : (
                                                                     <button onClick={() => { setActiveMenu(null); onUpdateReportStatus(report.id, 'archived'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Archive</button>
                                                                 )}
-                                                                {/* --- FIX #2: Close the menu BEFORE showing the confirmation --- */}
                                                                 <button onClick={() => { setActiveMenu(null); onDeleteReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm text-red-700 hover:bg-gray-100 dark:hover:bg-neutral-800">Delete</button>
                                                             </div>
                                                         )}

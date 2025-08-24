@@ -1,3 +1,4 @@
+// src/components/Layout.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
 import { NavigateTo, Screen, User, UserRole, Workspace, WorkspaceInvitation } from '../types';
@@ -42,9 +43,6 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
         </button>
     </div>
 );
-
-
-// src/components/Layout.tsx
 
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' | 'invitations' | 'onRespondToInvitation' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName, invitations, onRespondToInvitation }) => {
@@ -100,11 +98,10 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
         }
         setEditingWorkspace(null);
     };
-
+    
     const handleSearchClick = () => {
         if (isCollapsed) {
             onToggleCollapse();
-            // Focus the input after the sidebar finishes its expansion animation (300ms)
             setTimeout(() => {
                 searchInputRef.current?.focus();
             }, 300);
@@ -128,15 +125,15 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     };
 
     return (
-        <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-80'}`}>
-            <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-700 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
+        <aside className={`bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-800 shadow-lg dark:shadow-black/20 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-80'}`}>
+            <div className={`p-4 flex-shrink-0 border-b border-gray-200 dark:border-neutral-800 flex ${isCollapsed ? 'flex-col items-center space-y-4' : 'items-center justify-between'}`}>
                 <div className={`flex items-center flex-shrink-0 ${isCollapsed ? 'w-full justify-center' : ''}`}>
                     {isCollapsed ? (
                         <VestaLogo className="w-9 h-9" />
                     ) : (
                         <>
                           <VestaLogo className="w-9 h-9 flex-shrink-0" />
-                          <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-200 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
+                          <span className={`ml-3 font-bold text-xl tracking-tight text-gray-800 dark:text-neutral-50 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
                               VESTA
                           </span>
                         </>
@@ -163,7 +160,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                                 invitations={invitations} 
                                 onRespond={onRespondToInvitation} 
                                 onClose={() => setInvitationsOpen(false)} 
-                                isCollapsed={isCollapsed} // <-- ADD THIS LINE
+                                isCollapsed={isCollapsed}
                             />
                         )}
                     </div>
@@ -182,7 +179,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                      <input
                          ref={searchInputRef}
                          onClick={handleSearchClick}
-                         readOnly={isCollapsed} // --- THE FIX IS HERE ---
+                         readOnly={isCollapsed}
                          type="text"
                          placeholder={isCollapsed ? '' : "Search..."}
                          value={searchTerm}
@@ -193,7 +190,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
             </div>
 
             <nav className="flex-1 px-4 pt-2 overflow-y-auto">
-                <p className={`text-sm font-semibold tracking-wider text-gray-500 dark:text-neutral-400 mb-2 px-3 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 h-0 pointer-events-none' : 'opacity-100'}`}>Workspaces</p>
+                <p className={`text-sm font-semibold tracking-wider text-gray-500 dark:text-neutral-500 mb-2 px-3 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 h-0 pointer-events-none' : 'opacity-100'}`}>Workspaces</p>
                 <ul className="space-y-1">
                     {filteredWorkspaces.map(ws => (
                         <li key={ws.id} className="group relative">
@@ -213,11 +210,12 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                                 <button
                                     title={ws.name}
                                     onClick={() => onSelectWorkspace(ws)}
-                                    className={`w-full text-left pl-3 pr-10 py-2.5 rounded-lg text-sm transition-colors duration-200 flex items-center relative ${currentWorkspace?.id === ws.id ? 'bg-red-700/10 dark:bg-red-500/10' : 'hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-neutral-300'} ${ws.status === 'archived' ? 'opacity-60' : ''}`}
+                                    // UPDATED: Active workspace style
+                                    className={`w-full text-left pl-3 pr-10 py-2.5 rounded-lg text-sm transition-colors duration-200 flex items-center relative ${currentWorkspace?.id === ws.id ? 'bg-neutral-200 dark:bg-neutral-800' : 'hover:bg-gray-100 dark:hover:bg-neutral-800/50 text-gray-600 dark:text-neutral-400'} ${ws.status === 'archived' ? 'opacity-60' : ''}`}
                                 >
                                     {currentWorkspace?.id === ws.id && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-700 rounded-r-full"></div>}
-                                    <BriefcaseIcon className={`w-5 h-5 flex-shrink-0 ${currentWorkspace?.id === ws.id ? 'text-red-700 dark:text-red-500' : 'text-gray-500 dark:text-neutral-400'}`} />
-                                    <span className={`ml-3 truncate transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'} ${currentWorkspace?.id === ws.id ? 'font-semibold text-red-700 dark:text-red-500' : ''}`}>{highlightMatch(ws.name)}</span>
+                                    <BriefcaseIcon className={`w-5 h-5 flex-shrink-0 ${currentWorkspace?.id === ws.id ? 'text-red-700 dark:text-red-500' : 'text-gray-500 dark:text-neutral-500'}`} />
+                                    <span className={`ml-3 truncate transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'} ${currentWorkspace?.id === ws.id ? 'font-semibold text-gray-900 dark:text-neutral-50' : ''}`}>{highlightMatch(ws.name)}</span>
                                 </button>
                                 {!isCollapsed && (
                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -259,7 +257,7 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                  )}
             </nav>
 
-            <div ref={profileRef} className="p-4 border-t border-gray-200 dark:border-neutral-700 flex-shrink-0 relative mt-auto">
+            <div ref={profileRef} className="p-4 border-t border-gray-200 dark:border-neutral-800 flex-shrink-0 relative mt-auto">
                 {isProfileOpen && <UserProfileDropdown navigateTo={navigateTo} onLogout={onLogout} onManageMembers={onManageMembers} />}
                 <button onClick={() => setProfileOpen(o => !o)} className={`w-full flex items-center p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-neutral-800 ${isCollapsed ? 'justify-center' : ''}`}>
                     <div className="w-10 h-10 bg-red-700 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden flex-shrink-0">
@@ -277,17 +275,15 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
 const TopNavbar: React.FC<Pick<LayoutProps, 'currentWorkspace'>> = 
 ({ currentWorkspace }) => {
     if (!currentWorkspace) {
-        // Render a placeholder or an empty header if no workspace is selected
-        return <header className="bg-white dark:bg-neutral-900 h-[73px] px-6 border-b border-gray-200 dark:border-neutral-700 flex-shrink-0 z-10" />;
+        return <header className="bg-white dark:bg-neutral-900 h-[73px] px-6 border-b border-gray-200 dark:border-neutral-800 flex-shrink-0 z-10" />;
     }
 
     return (
-        <header className="bg-white dark:bg-neutral-900 px-6 border-b border-gray-200 dark:border-neutral-700 flex justify-between items-center flex-shrink-0 z-10 h-[73px]">
+        <header className="bg-white dark:bg-neutral-900 px-6 border-b border-gray-200 dark:border-neutral-800 flex justify-between items-center flex-shrink-0 z-10 h-[73px]">
             <div>
-                <p className="text-sm text-gray-500 dark:text-neutral-400">Current Workspace</p>
-                <h1 className="text-lg font-bold text-gray-800 dark:text-neutral-200">{currentWorkspace.name}</h1>
+                <p className="text-sm text-gray-500 dark:text-neutral-500">Current Workspace</p>
+                <h1 className="text-lg font-bold text-gray-800 dark:text-neutral-50">{currentWorkspace.name}</h1>
             </div>
-            {/* The buttons have been removed from here. */}
         </header>
     );
 };
@@ -304,7 +300,7 @@ export const Layout: React.FC<LayoutProps> = (props) => {
     };
     
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-neutral-950 overflow-hidden">
+        <div className="flex h-screen bg-gray-100 dark:bg-neutral-950 overflow-hidden">
             <WorkspaceSidebar {...props} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleCollapse} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <TopNavbar {...props} />
