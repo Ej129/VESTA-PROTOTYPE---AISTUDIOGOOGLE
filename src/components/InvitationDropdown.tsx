@@ -20,7 +20,7 @@ const InvitationDropdown: React.FC<InvitationDropdownProps> = ({ invitations, on
     : 'top-full right-0 mt-2';
 
   return (
-    <div className={`absolute ${positionClasses} w-80 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl z-20 border border-gray-200 dark:border-neutral-700`}>
+    <div className={`absolute ${positionClasses} w-72 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl z-20 border border-gray-200 dark:border-neutral-700`}>
       <div className="p-4 border-b border-gray-200 dark:border-neutral-700">
         <h3 className="font-bold text-gray-800 dark:text-neutral-200">Pending Invitations</h3>
       </div>
