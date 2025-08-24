@@ -43,7 +43,6 @@ const UserProfileDropdown: React.FC<{ navigateTo: NavigateTo; onLogout: () => vo
     </div>
 );
 
-// src/components/Layout.tsx
 
 const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 'workspaces' | 'currentWorkspace' | 'onSelectWorkspace' | 'onCreateWorkspace' | 'navigateTo' | 'onManageMembers' | 'onNewAnalysis' | 'onKnowledgeBase' | 'onUpdateWorkspaceStatus' | 'onDeleteWorkspace' | 'onUpdateWorkspaceName' | 'invitations' | 'onRespondToInvitation' > & { isCollapsed: boolean, onToggleCollapse: () => void }> =
   ({ currentUser, onLogout, workspaces, currentWorkspace, onSelectWorkspace, onCreateWorkspace, navigateTo, onManageMembers, isCollapsed, onToggleCollapse, onKnowledgeBase, onNewAnalysis, onUpdateWorkspaceStatus, onDeleteWorkspace, onUpdateWorkspaceName, invitations, onRespondToInvitation }) => {
@@ -58,6 +57,9 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
     const inputRef = useRef<HTMLInputElement>(null);
     const [isInvitationsOpen, setInvitationsOpen] = useState(false);
     const invitationRef = useRef<HTMLDivElement>(null);
+    
+    // --- NEW: Add a ref for the search input ---
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -98,6 +100,17 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
         }
         setEditingWorkspace(null);
     };
+
+    // --- NEW: Add a handler for clicking the search area ---
+    const handleSearchClick = () => {
+        if (isCollapsed) {
+            onToggleCollapse();
+            // Focus the input after the sidebar finishes its expansion animation (300ms)
+            setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 300);
+        }
+    };
     
     const highlightMatch = (name: string) => {
         if (!searchTerm) return name;
@@ -131,7 +144,6 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                     )}
                 </div>
                 
-                {/* --- FIX: Removed the extra wrapping div around the icons --- */}
                 <div className={`flex items-center ${isCollapsed ? 'flex-col-reverse space-y-2 space-y-reverse mt-auto' : 'space-x-1'}`}>
                     <button onClick={onToggleCollapse} title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="p-2 rounded-md text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors duration-200">
                         <ChevronsLeftIcon className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
@@ -164,11 +176,13 @@ const WorkspaceSidebar: React.FC<Pick<LayoutProps, 'currentUser' | 'onLogout' | 
                 </div>
             </div>
 
-            {/* The rest of the component remains the same */}
             <div className={`p-4 flex-shrink-0`}>
                  <div className={`relative`}>
                      <SearchIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-neutral-500 transition-all duration-300`} />
+                     {/* --- MODIFIED: Added ref and onClick to the input --- */}
                      <input
+                         ref={searchInputRef}
+                         onClick={handleSearchClick}
                          type="text"
                          placeholder={isCollapsed ? '' : "Search..."}
                          value={searchTerm}
