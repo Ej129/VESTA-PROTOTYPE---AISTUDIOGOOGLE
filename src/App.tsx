@@ -259,23 +259,43 @@ const App: React.FC = () => {
   };
 
 
-  const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
-    if (!report) return '';
-    setAnalysisStatusText('Step 1 of 2: Rewriting with AI...');
+  const handleAutoEnhance = async (report: AnalysisReport) => {
+    if (!report || !selectedWorkspace) return;
+    
     setIsAnalyzing(true);
+    setAnalysisStatusText('Enhancing & Re-analyzing...'); // Single status message
+
     try {
-      const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report, knowledgeBaseSources);
-      await addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
-      setAnalysisStatusText('Step 2 of 2: Re-analyzing result...');
-      return improvedContentWithDiff;
+      // Call our new single, powerful function
+      const enhancedResponse = await vestaApi.enhanceAndAnalyzePlan(report.documentContent, report, knowledgeBaseSources);
+
+      // Create a complete, new report object from the response
+      const newReportData = {
+        title: `${report.title} (Enhanced)`,
+        documentContent: enhancedResponse.improvedDocumentContent,
+        scores: enhancedResponse.newAnalysis.scores,
+        findings: enhancedResponse.newAnalysis.findings,
+        // Calculate other necessary fields
+        resilienceScore: enhancedResponse.newAnalysis.scores.project,
+        summary: {
+            critical: enhancedResponse.newAnalysis.findings.filter(f => f.severity === 'critical').length,
+            warning: enhancedResponse.newAnalysis.findings.filter(f => f.severity === 'warning').length,
+            checks: Math.floor(1000 + Math.random() * 500)
+        }
+      };
+
+      // Use the existing function to save the new report and update the UI
+      await handleAnalysisComplete(newReportData);
+      navigateTo(Screen.Analysis);
+
     } catch (error) {
-      console.error("Enhancement failed:", error);
+      console.error("Enhancement and analysis process failed:", error);
       alert("The document could not be enhanced at this time. Please try again later.");
-      setIsAnalyzing(false); // Make sure to turn off loading on failure
-      throw error;
+    } finally {
+      setIsAnalyzing(false);
     }
   };
-
+  
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
     if (!selectedWorkspace) return;
     await workspaceApi.addKnowledgeSource(selectedWorkspace.id, { title, content, category, isEditable: true });

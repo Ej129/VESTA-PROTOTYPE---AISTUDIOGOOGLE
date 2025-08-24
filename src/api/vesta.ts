@@ -1,7 +1,7 @@
 // src/api/vesta.ts
 
+import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage, EnhancedAnalysisResponse } from '../types';
 import { GoogleGenAI, Type, GenerateContentResponse, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
 
 
 let ai: GoogleGenAI | null = null;
@@ -80,25 +80,73 @@ const reportSchema = {
     required: ["scores", "findings"],
 };
 
-export async function analyzePlan(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
-    if (!planContent.trim()) {
-        // ... (empty content handling remains the same)
-        return {
-            title: "Analysis Failed",
-            resilienceScore: 0,
-            scores: { project: 0, strategicGoals: 0, regulations: 0, risk: 0 },
-            findings: [{
-                id: 'error-empty',
-                title: 'Empty Document',
-                severity: 'critical',
-                sourceSnippet: 'N/A',
-                recommendation: 'The submitted document is empty. Please provide a project plan to analyze.',
-                status: 'active',
-            }],
-            summary: { critical: 1, warning: 0, checks: 0 },
-            documentContent: planContent
-        };
+export async function enhanceAndAnalyzePlan(planContent: string, report: AnalysisReport, knowledgeSources: KnowledgeSource[]): Promise<EnhancedAnalysisResponse> {
+    const findingsSummary = report.findings.map(f => `- Finding: "${f.title}"...\n  - Recommendation: ${f.recommendation}`).join('\n\n');
+    let contextPrompt = '';
+    if (knowledgeSources.length > 0) {
+        const sourcesText = knowledgeSources.map(s => `--- KNOWLEDGE SOURCE: ${s.title} ---\n${s.content}`).join('\n\n');
+        contextPrompt = `\n\nCONTEXTUAL KNOWLEDGE BASE:\n--- \n${sourcesText}\n---`;
     }
+
+    const newSchema = {
+        type: Type.OBJECT,
+        properties: {
+            improvedDocumentContent: {
+                type: Type.STRING,
+                description: "The full, rewritten text of the project plan, with all recommendations incorporated."
+            },
+            newAnalysis: {
+                type: Type.OBJECT,
+                description: "A new analysis of the rewritten document.",
+                properties: {
+                    scores: {
+                        type: Type.OBJECT,
+                        properties: {
+                            project: { type: Type.INTEGER },
+                            strategicGoals: { type: Type.INTEGER },
+                            regulations: { type: Type.INTEGER },
+                            risk: { type: Type.INTEGER }
+                        }
+                    },
+                    findings: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                title: { type: Type.STRING },
+                                severity: { type: Type.STRING },
+                                sourceSnippet: { type: Type.STRING },
+                                recommendation: { type: Type.STRING }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        required: ["improvedDocumentContent", "newAnalysis"]
+    };
+
+    const response = await getGenAIClient().models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `ORIGINAL PLAN:\n---\n${planContent}\n---\n\nISSUES & RECOMMENDATIONS:\n---\n${findingsSummary}\n---${contextPrompt}`,
+        config: {
+            systemInstruction: `You are an expert compliance officer. Your task is to perform two steps:
+1. FIRST, rewrite the entire ORIGINAL PLAN to meticulously incorporate all the given recommendations.
+2. SECOND, perform a brand new, thorough analysis on YOUR OWN REWRITTEN DOCUMENT.
+You must return a single JSON object containing both the rewritten document and the new analysis.`,
+            responseMimeType: "application/json",
+            responseSchema: newSchema,
+            temperature: 0.2,
+        },
+    });
+
+    const jsonText = response.text;
+    if (!jsonText) {
+        throw new Error("The AI model returned an empty response during enhancement.");
+    }
+    return JSON.parse(jsonText.trim());
+}
+
 
     let contextPrompt = '';
     if (knowledgeSources.length > 0) {

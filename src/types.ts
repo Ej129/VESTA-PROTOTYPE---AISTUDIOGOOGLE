@@ -171,3 +171,7 @@ export interface ChatMessage {
   role: 'user' | 'model';
   content: string;
 }
+export interface EnhancedAnalysisResponse {
+  improvedDocumentContent: string;
+  newAnalysis: Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt' | 'documentContent'>;
+}
