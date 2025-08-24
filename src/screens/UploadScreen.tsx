@@ -26,9 +26,11 @@ const KPITile: React.FC<{ title: string; value: string | number; icon: React.Rea
 
 const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport, onNewAnalysisClick, onUpdateReportStatus, onDeleteReport }) => {
     const [showArchived, setShowArchived] = useState(false);
+    // --- RE-ADDED: State for managing the action menu ---
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
+    // --- RE-ADDED: Effect to close menu when clicking outside ---
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -73,17 +75,18 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                          <span className="text-sm text-gray-500 dark:text-neutral-400">Show archived</span>
                      </label>
                 </div>
+                {/* --- FIX: The overflow-x-auto is on a nested div to allow the dropdown to escape --- */}
                 <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-gray-200 dark:border-neutral-800">
                     <div className="overflow-x-auto">
                         {reports.length > 0 ? (
                              <table className="w-full text-left">
                                  <thead className="border-b border-gray-200 dark:border-neutral-700">
                                      <tr>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm">Document Title</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm">Date</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm">Score</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm">Status</th>
-                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm text-right">Actions</th>
+                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Document Title</th>
+                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Date</th>
+                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Score</th>
+                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm whitespace-nowrap">Status</th>
+                                         <th className="p-4 font-semibold text-gray-500 dark:text-neutral-400 text-sm text-right whitespace-nowrap">Actions</th>
                                      </tr>
                                  </thead>
                                  <tbody>
@@ -92,7 +95,7 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                                          return (
                                              <tr key={report.id} className={`border-b border-gray-200 dark:border-neutral-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors ${report.status === 'archived' ? 'opacity-60' : ''}`}>
                                                  <td onClick={() => onSelectReport(report)} className="p-4 font-semibold text-gray-800 dark:text-neutral-200 cursor-pointer">{report.title}</td>
-                                                 <td className="p-4 text-gray-500 dark:text-neutral-400">{new Date(report.createdAt).toLocaleDateString()}</td>
+                                                 <td className="p-4 text-gray-500 dark:text-neutral-400 whitespace-nowrap">{new Date(report.createdAt).toLocaleDateString()}</td>
                                                  <td className="p-4 font-bold text-red-700">{report.scores?.project || report.resilienceScore}%</td>
                                                  <td className="p-4">
                                                      {report.status === 'archived' ? (
@@ -106,6 +109,7 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                                                      )}
                                                  </td>
                                                  <td className="p-4 text-right">
+                                                     {/* --- RE-ADDED: The stateful menu logic --- */}
                                                      <div className="relative inline-block" ref={activeMenu === report.id ? menuRef : null}>
                                                         <button onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === report.id ? null : report.id); }} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-neutral-700">
                                                             <MoreVerticalIcon className="w-5 h-5 text-gray-500"/>
@@ -119,8 +123,6 @@ const UploadScreen: React.FC<DashboardScreenProps> = ({ reports, onSelectReport,
                                                                 ) : (
                                                                     <button onClick={() => { setActiveMenu(null); onUpdateReportStatus(report.id, 'archived'); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-neutral-800">Archive</button>
                                                                 )}
-                                                                {/* --- THE FIX --- */}
-                                                                {/* This closes the menu BEFORE showing the confirmation, preventing the bug. */}
                                                                 <button onClick={() => { setActiveMenu(null); onDeleteReport(report); }} className="block w-full text-left px-3 py-1.5 text-sm text-red-700 hover:bg-gray-100 dark:hover:bg-neutral-800">Delete</button>
                                                             </div>
                                                         )}
