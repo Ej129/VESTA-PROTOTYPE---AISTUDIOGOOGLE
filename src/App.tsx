@@ -17,7 +17,6 @@ import { Layout } from './components/Layout';
 import * as vestaApi from './api/vesta';
 import ConfirmationModal from './components/ConfirmationModal';
 
-const App: React.FC = () => {
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4 text-center">
         <div className="max-w-2xl bg-white dark:bg-neutral-900 p-8 rounded-lg shadow-lg border border-red-700">
@@ -63,35 +62,48 @@ const NoWorkspaceSelectedScreen: React.FC<{ onCreate: () => void }> = ({ onCreat
 );
 
 const App: React.FC = () => {
+  // --- FAIL-FAST CHECK ---
   if (!import.meta.env.VITE_API_KEY) {
     return <ErrorScreen message="The 'VITE_API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
   }
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
+
   const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
+  
+  // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('Member');
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
+  
+  // Data scoped to the selected workspace
   const [reports, setReports] = useState<AnalysisReport[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [knowledgeBaseSources, setKnowledgeBaseSources] = useState<KnowledgeSource[]>([]);
   const [dismissalRules, setDismissalRules] = useState<DismissalRule[]>([]);
   const [customRegulations, setCustomRegulations] = useState<CustomRegulation[]>([]);
+  
   const [activeReport, setActiveReport] = useState<AnalysisReport | null>(null);
+  
+  // Modal State
   const [isCreateWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [isManageMembersModalOpen, setManageMembersModalOpen] = useState(false);
   const [isKnowledgeBaseModalOpen, setKnowledgeBaseModalOpen] = useState(false);
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   const [confirmation, setConfirmation] = useState<{ title: string; message: string; onConfirm: () => Promise<void>; confirmText?: string; } | null>(null);
+
+  
+  // Notification State
   const [notification, setNotification] = useState<{ message: string; workspaceName: string } | null>(null);
   const knownWorkspaceIds = useRef(new Set<string>());
+
+  // Loading State
   const [isSyncingSources, setIsSyncingSources] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisStatusText, setAnalysisStatusText] = useState('Analyzing...');
 
-
+  // Global Theme Persistence Fix
   useEffect(() => {
     const handleThemeChange = () => {
       if (localStorage.getItem('vesta-theme') === 'dark' || (!('vesta-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -100,8 +112,10 @@ const App: React.FC = () => {
         document.documentElement.classList.remove('dark');
       }
     };
+    
     window.addEventListener('storage', handleThemeChange);
     handleThemeChange();
+
     return () => {
       window.removeEventListener('storage', handleThemeChange);
     };
@@ -119,6 +133,7 @@ const App: React.FC = () => {
     setKnowledgeBaseSources(data.knowledgeBaseSources);
     setDismissalRules(data.dismissalRules);
     setCustomRegulations(data.customRegulations);
+    
     const members = await workspaceApi.getWorkspaceMembers(workspaceId);
     setWorkspaceMembers(members);
     const member = members.find(m => m.email === currentUser.email);
@@ -130,6 +145,7 @@ const App: React.FC = () => {
     const userWorkspaces = await workspaceApi.getWorkspacesForUser();
     setWorkspaces(userWorkspaces);
     knownWorkspaceIds.current = new Set(userWorkspaces.map(ws => ws.id));
+    // If no workspace is selected, or the selected one is no longer available, select the first one.
     if ((!selectedWorkspace || !userWorkspaces.some(ws => ws.id === selectedWorkspace.id)) && userWorkspaces.length > 0) {
       handleSelectWorkspace(userWorkspaces[0]);
     } else if (userWorkspaces.length === 0) {
@@ -148,6 +164,7 @@ const App: React.FC = () => {
       refreshWorkspaces();
       refreshInvitations();
     } else {
+      // Clear all state when user logs out
       setWorkspaces([]);
       setSelectedWorkspace(null);
       setReports([]);
@@ -161,6 +178,7 @@ const App: React.FC = () => {
     }
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
 
+  // Poll for new workspaces (from invitations being accepted)
   useEffect(() => {
       if (!currentUser) return;
       const intervalId = setInterval(async () => {
@@ -198,18 +216,15 @@ const App: React.FC = () => {
     }
   };
 
-
   const handleSelectWorkspace = async (workspace: Workspace) => {
-    if (selectedWorkspace?.id === workspace.id && screen === Screen.Dashboard) {
-      return;
-    }
+    if(selectedWorkspace?.id === workspace.id && screen !== Screen.Analysis) return;
     setSelectedWorkspace(workspace);
-    setActiveReport(null);
+    setActiveReport(null); // Clear active report when switching workspace
     await loadWorkspaceData(workspace.id);
-    navigateTo(Screen.Dashboard);
+    navigateTo(Screen.Dashboard); // Always go to Dashboard on workspace select
   };
 
-  const handleAnalysisComplete = async (report: Omit<AnalysisReport, 'id' | 'createdAt'>) => {
+  const handleAnalysisComplete = async (report: AnalysisReport) => {
     if (!selectedWorkspace) return;
     const newReport = { ...report, workspaceId: selectedWorkspace.id };
     const addedReport = await workspaceApi.addReport(newReport);
@@ -219,34 +234,18 @@ const App: React.FC = () => {
     return addedReport;
   };
 
-  const handleFileUpload = async (content: string, fileName: string, diffContent?: string) => {
+  const handleFileUpload = async (content: string, fileName: string) => {
     if (!selectedWorkspace) return;
-    setAnalysisStatusText('Analyzing document...');
-    setIsAnalyzing(true); 
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
-    try {
-      // The API now returns the formatted content directly.
-      const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
-      
-      // We no longer need to pass the raw `content`. The API response has everything.
-      const report = { 
-        ...reportData, 
-        title: fileName || "Pasted Text Analysis",
-        diffContent: diffContent
-      };
-
-      await handleAnalysisComplete(report);
-      setUploadModalOpen(false);
-      navigateTo(Screen.Analysis);
-    } catch (error) {
-      console.error("Analysis failed:", error);
-      alert((error as Error).message || 'An unknown error occurred during analysis.');
-      setUploadModalOpen(false);
-    } finally {
-      setIsAnalyzing(false);
-    }
+    setIsAnalyzing(true);
+    setUploadModalOpen(false); // Close modal immediately
+    navigateTo(Screen.Dashboard); // Navigate to dashboard while analyzing
+    const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
+    const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
+    await handleAnalysisComplete(report as AnalysisReport);
+    setIsAnalyzing(false);
+    navigateTo(Screen.Analysis);
   };
-
   
   const handleSelectReport = (report: AnalysisReport) => {
     setActiveReport(report);
@@ -264,47 +263,15 @@ const App: React.FC = () => {
       }
   };
 
-
-  const handleAutoEnhance = async (report: AnalysisReport) => {
-    if (!report || !selectedWorkspace) return;
-    
-    setIsAnalyzing(true);
-    setAnalysisStatusText('Enhancing & Re-analyzing...');
-
-    try {
-      const enhancedResponse = await vestaApi.enhanceAndAnalyzePlan(report.documentContent, report, knowledgeBaseSources);
-
-      const cleanContent = enhancedResponse.improvedDocumentContent.split('\n')
-        .filter(line => !line.startsWith('-- '))
-        .map(line => line.startsWith('++ ') ? line.substring(3) : line)
-        .join('\n');
-
-      const newReportData = {
-        title: `${report.title} (Enhanced)`,
-        documentContent: cleanContent, // --- THE FIX: Use the new clean content ---
-        diffContent: enhancedResponse.improvedDocumentContent, // Keep the diff for highlighting
-        scores: enhancedResponse.newAnalysis.scores,
-        findings: enhancedResponse.newAnalysis.findings,
-        resilienceScore: enhancedResponse.newAnalysis.scores.project,
-        summary: {
-            critical: enhancedResponse.newAnalysis.findings.filter(f => f.severity === 'critical').length,
-            warning: enhancedResponse.newAnalysis.findings.filter(f => f.severity === 'warning').length,
-            checks: Math.floor(1000 + Math.random() * 500)
-        }
-      };
-
-      // Use the existing function to save the new report and update the UI
-      await handleAnalysisComplete(newReportData);
-      navigateTo(Screen.Analysis);
-
-    } catch (error) {
-      console.error("Enhancement and analysis process failed:", error);
-      alert("The document could not be enhanced at this time. Please try again later.");
-    } finally {
+  const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
+      if (!report) return '';
+      setIsAnalyzing(true);
+      const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report);
+      addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
       setIsAnalyzing(false);
-    }
+      return improvedContentWithDiff;
   };
-  
+
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
     if (!selectedWorkspace) return;
     await workspaceApi.addKnowledgeSource(selectedWorkspace.id, { title, content, category, isEditable: true });
@@ -355,7 +322,7 @@ const App: React.FC = () => {
       try {
           await workspaceApi.inviteUser(selectedWorkspace.id, email, role);
           await addAuditLog('User Invited', `Invited ${email} as ${role}.`);
-          await loadWorkspaceData(selectedWorkspace.id);
+          await loadWorkspaceData(selectedWorkspace.id); // Refresh member list
       } catch (error) {
           alert((error as Error).message);
       }
@@ -405,7 +372,9 @@ const App: React.FC = () => {
   const handleUpdateWorkspaceStatus = async (workspaceId: string, status: 'active' | 'archived') => {
     try {
         await workspaceApi.updateWorkspaceStatus(workspaceId, status);
+        // The serverless function now handles audit logging, so we just refresh.
         await refreshWorkspaces();
+        // If the currently selected workspace was archived, navigate away
         if (selectedWorkspace?.id === workspaceId && status === 'archived') {
             const firstActive = workspaces.find(ws => ws.status !== 'archived' && ws.id !== workspaceId);
             if (firstActive) {
@@ -428,16 +397,14 @@ const App: React.FC = () => {
         onConfirm: async () => {
             try {
                 if (currentUser) {
+                     // The delete function will remove all data, so log first. The function itself cannot log to a store that's about to be deleted.
                     await workspaceApi.addAuditLog(workspace.id, currentUser.email, 'Workspace Deleted', `Workspace "${workspace.name}" was permanently deleted.`);
                 }
                 await workspaceApi.deleteWorkspace(workspace.id);
                 await refreshWorkspaces();
-                setConfirmation(null);
             } catch (error) {
                 console.error("Failed to delete workspace:", error);
                 alert((error as Error).message);
-                setConfirmation(null);
-                throw error;
             }
         }
     });
@@ -472,18 +439,15 @@ const App: React.FC = () => {
                     navigateTo(Screen.Dashboard);
                 }
                 await loadWorkspaceData(selectedWorkspace.id);
-                setConfirmation(null);
             } catch (error) {
                 console.error("Failed to delete report:", error);
                 alert((error as Error).message);
-                setConfirmation(null);
-                throw error;
             }
         }
     });
   };
 
-const renderScreenComponent = () => {
+  const renderScreenComponent = () => {
     if (!selectedWorkspace) {
         return <NoWorkspaceSelectedScreen onCreate={() => setCreateWorkspaceModalOpen(true)} />;
     }
@@ -499,19 +463,12 @@ const renderScreenComponent = () => {
     switch (screen) {
       case Screen.Dashboard:
         return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
-      
       case Screen.Analysis:
-        if (!activeReport) {
-          return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
-        }
-        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} analysisStatusText={analysisStatusText} onNewAnalysis={handleFileUpload} />;
-      
+        return <AnalysisScreen {...layoutProps} activeReport={activeReport} onUpdateReport={handleUpdateReport} onAutoEnhance={handleAutoEnhance} isEnhancing={isAnalyzing} onNewAnalysis={handleFileUpload} />;
       case Screen.AuditTrail:
         return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
-      
       case Screen.Settings:
         return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
-      
       default:
         return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={handleUpdateReportStatus} onDeleteReport={handleDeleteReport} />;
     }
@@ -522,17 +479,15 @@ const renderScreenComponent = () => {
 
   return (
     <div className="font-sans bg-gray-50 dark:bg-neutral-950 min-h-screen text-gray-800 dark:text-neutral-200">
-      {confirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <ConfirmationModal
-            title={confirmation.title}
-            message={confirmation.message}
-            confirmText={confirmation.confirmText}
-            onConfirm={confirmation.onConfirm}
-            onCancel={() => setConfirmation(null)}
-          />
-        </div>
-      )}
+        {confirmation && (
+            <ConfirmationModal
+                title={confirmation.title}
+                message={confirmation.message}
+                confirmText={confirmation.confirmText}
+                onConfirm={confirmation.onConfirm}
+                onCancel={() => setConfirmation(null)}
+            />
+        )}
         {notification && (
             <NotificationToast 
                 message={notification.message}
@@ -571,7 +526,6 @@ const renderScreenComponent = () => {
                 onClose={() => setUploadModalOpen(false)}
                 onUpload={handleFileUpload}
                 isAnalyzing={isAnalyzing}
-                analysisStatusText={analysisStatusText}
             />
         )}
         <Layout
@@ -597,5 +551,5 @@ const renderScreenComponent = () => {
     </div>
   );
 }
-}
+
 export default App;
