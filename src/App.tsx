@@ -228,6 +228,7 @@ const App: React.FC = () => {
       const report = { 
         ...reportData, 
         title: fileName || "Pasted Text Analysis",
+        documentContent: content, // --- THE FIX: Re-add the document content ---
         diffContent: diffContent
       };
       await handleAnalysisComplete(report);
@@ -241,6 +242,7 @@ const App: React.FC = () => {
       setIsAnalyzing(false);
     }
   };
+
   
   const handleSelectReport = (report: AnalysisReport) => {
     setActiveReport(report);
@@ -263,19 +265,22 @@ const App: React.FC = () => {
     if (!report || !selectedWorkspace) return;
     
     setIsAnalyzing(true);
-    setAnalysisStatusText('Enhancing & Re-analyzing...'); // Single status message
+    setAnalysisStatusText('Enhancing & Re-analyzing...');
 
     try {
-      // Call our new single, powerful function
       const enhancedResponse = await vestaApi.enhanceAndAnalyzePlan(report.documentContent, report, knowledgeBaseSources);
 
-      // Create a complete, new report object from the response
+      const cleanContent = enhancedResponse.improvedDocumentContent.split('\n')
+        .filter(line => !line.startsWith('-- '))
+        .map(line => line.startsWith('++ ') ? line.substring(3) : line)
+        .join('\n');
+
       const newReportData = {
         title: `${report.title} (Enhanced)`,
-        documentContent: enhancedResponse.improvedDocumentContent,
+        documentContent: cleanContent, // --- THE FIX: Use the new clean content ---
+        diffContent: enhancedResponse.improvedDocumentContent, // Keep the diff for highlighting
         scores: enhancedResponse.newAnalysis.scores,
         findings: enhancedResponse.newAnalysis.findings,
-        // Calculate other necessary fields
         resilienceScore: enhancedResponse.newAnalysis.scores.project,
         summary: {
             critical: enhancedResponse.newAnalysis.findings.filter(f => f.severity === 'critical').length,
