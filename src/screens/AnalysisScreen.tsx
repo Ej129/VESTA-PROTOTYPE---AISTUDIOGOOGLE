@@ -1,3 +1,5 @@
+// src/screens/AnalysisScreen.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisReport, Finding, ScreenLayoutProps, FindingStatus, FeedbackReason, ChatMessage } from '../types';
 import { StarIcon, DownloadIcon, EditIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, AlertCircleIcon, SendIcon, MessageSquareIcon } from '../components/Icons';
@@ -48,7 +50,6 @@ const DocumentEditor: React.FC<{
 
         content = escapeHtml(content);
 
-        // Sort findings by length of snippet descending to replace longer snippets first
         const sortedFindings = [...report.findings].sort((a, b) => b.sourceSnippet.length - a.sourceSnippet.length);
 
         sortedFindings.forEach(finding => {
@@ -104,16 +105,16 @@ const DocumentEditor: React.FC<{
                     <AnimatedChecklist steps={enhancementSteps} />
                 ) : isDiffing ? (
                      <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap font-mono">
-                        {report.documentContent.split('\n').map((line, index) => {
-                            if (line.startsWith('++ ')) {
-                                return <div key={index} className="highlight-added w-full block rounded px-2"><span className="select-none text-green-600 mr-2">+</span><span>{line.substring(3)}</span></div>;
-                            }
-                            if (line.startsWith('-- ')) {
-                                return <div key={index} className="highlight-removed w-full block rounded px-2"><span className="select-none text-red-600 mr-2">-</span><del>{line.substring(3)}</del></div>;
-                            }
-                            return <div key={index} className="px-2"><span className="select-none text-gray-400 mr-2"> </span><span>{line}</span></div>;
-                        })}
-                    </div>
+                         {report.documentContent.split('\n').map((line, index) => {
+                             if (line.startsWith('++ ')) {
+                                 return <div key={index} className="highlight-added w-full block rounded px-2"><span className="select-none text-green-600 mr-2">+</span><span>{line.substring(3)}</span></div>;
+                             }
+                             if (line.startsWith('-- ')) {
+                                 return <div key={index} className="highlight-removed w-full block rounded px-2"><span className="select-none text-red-600 mr-2">-</span><del>{line.substring(3)}</del></div>;
+                             }
+                             return <div key={index} className="px-2"><span className="select-none text-gray-400 mr-2"> </span><span>{line}</span></div>;
+                         })}
+                     </div>
                 ) : isEditing ? (
                     <textarea
                         value={report.documentContent}
@@ -122,7 +123,8 @@ const DocumentEditor: React.FC<{
                         autoFocus
                     />
                 ) : (
-                    <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}></div>
+                    // --- UPDATE: Added `leading-relaxed` for better readability ---
+                    <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}></div>
                 )
             }
         </div>
@@ -130,25 +132,21 @@ const DocumentEditor: React.FC<{
 );
 };
 
-const ScoreMeter: React.FC<{ label: string; score: number }> = ({ label, score }) => (
-    <div>
-        <div className="flex justify-between items-center mb-1">
-            <p className="text-sm font-semibold text-gray-800 dark:text-neutral-200">{label}</p>
-            <p className="text-sm font-bold text-gray-800 dark:text-neutral-200">{score}%</p>
+// --- NEW: A component for the 2x2 score grid ---
+const ScoreCard: React.FC<{ label: string; score: number }> = ({ label, score }) => {
+    const getScoreColor = (s: number) => {
+        if (s >= 90) return 'text-green-600 dark:text-green-500';
+        if (s >= 70) return 'text-yellow-600 dark:text-yellow-500';
+        return 'text-red-600 dark:text-red-500';
+    };
+
+    return (
+        <div className="bg-gray-50 dark:bg-neutral-800/50 p-3 rounded-lg border border-gray-200 dark:border-neutral-700/50">
+            <p className="text-xs text-gray-500 dark:text-neutral-400 truncate">{label}</p>
+            <p className={`text-2xl font-bold ${getScoreColor(score)}`}>{score}<span className="text-sm">%</span></p>
         </div>
-        <div className="w-full bg-gray-200 dark:bg-neutral-700 rounded-full h-2.5">
-            <div 
-                className="bg-gradient-to-r from-red-700 via-yellow-500 to-amber-400 h-2.5 rounded-full" 
-                style={{ width: `${score}%` }}
-                role="progressbar"
-                aria-valuenow={score}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={`${label} score`}
-            />
-        </div>
-    </div>
-);
+    );
+};
 
 
 const AnalysisPanel: React.FC<{
@@ -161,13 +159,14 @@ const AnalysisPanel: React.FC<{
   onFindingClick: (id: string) => void;
 }> = ({ report, onEnhance, isEnhancing, onStatusChange, onDismiss, setHoveredFindingId, onFindingClick }) => {
     const activeFindings = report.findings.filter(f => f.status === 'active');
+    
     return (
         <div className="space-y-6">
             <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-700">
                 <div className="p-4 border-b border-gray-200 dark:border-neutral-700">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-neutral-200 text-center">Analysis</h2>
+                    <h2 className="text-lg font-bold text-gray-800 dark:text-neutral-200 text-center">Analysis Panel</h2>
                 </div>
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-6">
                     <button
                         onClick={onEnhance}
                         disabled={isEnhancing}
@@ -177,21 +176,25 @@ const AnalysisPanel: React.FC<{
                         {isEnhancing ? 'Enhancing...' : 'Auto-Enhance Document'}
                     </button>
                     
-                    <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-neutral-700">
+                    {/* --- UPDATE: Replaced ScoreMeter list with a 2x2 grid of ScoreCards --- */}
+                    <div className="pt-6 border-t border-gray-200 dark:border-neutral-700">
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-neutral-400 mb-3">Compliance Scores</h3>
                         {report.scores ? (
-                            <>
-                                <ScoreMeter label="Project Score" score={report.scores.project} />
-                                <ScoreMeter label="Strategic Goals" score={report.scores.strategicGoals} />
-                                <ScoreMeter label="Regulations" score={report.scores.regulations} />
-                                <ScoreMeter label="Risk" score={report.scores.risk} />
-                            </>
+                            <div className="grid grid-cols-2 gap-3">
+                                <ScoreCard label="Project Score" score={report.scores.project} />
+                                <ScoreCard label="Strategic Goals" score={report.scores.strategicGoals} />
+                                <ScoreCard label="Regulations" score={report.scores.regulations} />
+                                <ScoreCard label="Risk Mitigation" score={report.scores.risk} />
+                            </div>
                         ) : (
-                            <>
-                                <ScoreMeter label="Overall Score" score={report.resilienceScore} />
+                            // Fallback for older reports without detailed scores
+                            <div className="bg-gray-50 dark:bg-neutral-800/50 p-4 rounded-lg text-center">
+                                <p className="text-3xl font-bold text-red-700">{report.resilienceScore}%</p>
+                                <p className="text-sm text-gray-600 dark:text-neutral-300">Overall Score</p>
                                 <p className="text-xs text-center text-gray-500 dark:text-neutral-400 pt-2">
                                     Detailed score breakdown is available for new analyses.
                                 </p>
-                            </>
+                           </div>
                         )}
                     </div>
                 </div>
@@ -201,34 +204,45 @@ const AnalysisPanel: React.FC<{
                 <h3 className="font-bold text-lg text-gray-800 dark:text-neutral-200 mb-4">Actionable Findings ({activeFindings.length})</h3>
                 {activeFindings.length > 0 ? (
                     <div className="space-y-4">
-                    {activeFindings.map(finding => (
-                        <div 
-                            key={finding.id} 
-                            className="bg-white dark:bg-neutral-900 rounded-lg shadow-sm border border-gray-200 dark:border-neutral-700 cursor-pointer"
-                            onMouseEnter={() => setHoveredFindingId(finding.id)}
-                            onMouseLeave={() => setHoveredFindingId(null)}
-                            onClick={() => onFindingClick(finding.id)}
-                        >
-                          <div className={`p-3 flex items-start rounded-t-lg ${finding.severity === 'critical' ? 'bg-red-700 text-white' : 'bg-yellow-400 text-yellow-900'}`}>
-                              <div className="flex-shrink-0 mt-0.5">{finding.severity === 'critical' ? <AlertTriangleIcon className="w-5 h-5"/> : <AlertCircleIcon className="w-5 h-5"/>}</div>
-                              <h4 className="ml-2 font-bold text-sm">{finding.title}</h4>
-                          </div>
-                          <div className="p-3 space-y-2">
-                            <p className="text-xs text-gray-500 dark:text-neutral-400 italic">"{finding.sourceSnippet}"</p>
-                            <p className="text-sm text-gray-800 dark:text-neutral-200">{finding.recommendation}</p>
-                          </div>
-                           <div className="px-3 py-2 bg-gray-50 dark:bg-neutral-800/50 border-t border-gray-200 dark:border-neutral-700 flex justify-end space-x-2 rounded-b-lg">
-                              <button onClick={(e) => { e.stopPropagation(); onDismiss(finding); }} className="flex items-center px-2 py-1 text-xs font-semibold text-gray-500 dark:text-neutral-400 bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 rounded-md transition-colors duration-200"><XCircleIcon className="w-4 h-4 mr-1" /> Dismiss</button>
-                              <button onClick={(e) => { e.stopPropagation(); onStatusChange(finding.id, 'resolved'); }} className="flex items-center px-2 py-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-200"><CheckCircleIcon className="w-4 h-4 mr-1" /> Resolved</button>
-                          </div>
-                        </div>
-                    ))}
+                    {activeFindings.map(finding => {
+                        const isCritical = finding.severity === 'critical';
+                        const borderColor = isCritical ? 'border-red-600' : 'border-yellow-500';
+                        const iconColor = isCritical ? 'text-red-600' : 'text-yellow-500';
+                        const IconComponent = isCritical ? AlertTriangleIcon : AlertCircleIcon;
+
+                        return (
+                            // --- UPDATE: New Finding Card design ---
+                            <div 
+                                key={finding.id} 
+                                className={`bg-white dark:bg-neutral-900 rounded-lg shadow-sm border border-l-4 border-gray-200 dark:border-neutral-700 ${borderColor} cursor-pointer transition-shadow hover:shadow-md`}
+                                onMouseEnter={() => setHoveredFindingId(finding.id)}
+                                onMouseLeave={() => setHoveredFindingId(null)}
+                                onClick={() => onFindingClick(finding.id)}
+                            >
+                              <div className="p-4">
+                                <div className="flex items-start">
+                                    <IconComponent className={`w-5 h-5 mt-0.5 flex-shrink-0 ${iconColor}`} />
+                                    <h4 className="ml-3 font-bold text-gray-900 dark:text-neutral-100">{finding.title}</h4>
+                                </div>
+                                <div className="pl-8 mt-2 space-y-2">
+                                    <p className="text-xs text-gray-500 dark:text-neutral-400 italic bg-gray-50 dark:bg-neutral-800/50 p-2 rounded">"{finding.sourceSnippet}"</p>
+                                    <p className="text-sm text-gray-700 dark:text-neutral-300">{finding.recommendation}</p>
+                                </div>
+                              </div>
+                               <div className="px-4 py-2 bg-gray-50 dark:bg-neutral-800/50 border-t border-gray-200 dark:border-neutral-700 flex justify-end space-x-2 rounded-b-lg">
+                                   <button onClick={(e) => { e.stopPropagation(); onDismiss(finding); }} className="flex items-center px-2 py-1 text-xs font-semibold text-gray-500 dark:text-neutral-400 bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 rounded-md transition-colors duration-200"><XCircleIcon className="w-4 h-4 mr-1" /> Dismiss</button>
+                                   <button onClick={(e) => { e.stopPropagation(); onStatusChange(finding.id, 'resolved'); }} className="flex items-center px-2 py-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-200"><CheckCircleIcon className="w-4 h-4 mr-1" /> Resolved</button>
+                               </div>
+                            </div>
+                        );
+                    })}
                     </div>
                 ) : (
-                    <div className="text-center p-8 bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700">
+                    // --- UPDATE: Improved "Empty State" for no findings ---
+                    <div className="text-center p-8 bg-white dark:bg-neutral-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-neutral-700">
                         <CheckCircleIcon className="w-12 h-12 mx-auto text-green-500" />
-                        <p className="mt-4 font-semibold text-gray-800 dark:text-neutral-200">No active findings!</p>
-                        <p className="text-sm text-gray-500 dark:text-neutral-400">This document meets all checks.</p>
+                        <p className="mt-4 font-semibold text-lg text-gray-800 dark:text-neutral-200">Excellent! No Active Findings</p>
+                        <p className="text-sm text-gray-500 dark:text-neutral-400">This document meets all compliance checks.</p>
                     </div>
                 )}
             </div>
@@ -363,23 +377,17 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({ activeReport, onUpdateR
     onUpdateReport(currentReport);
   };
   
-// src/screens/AnalysisScreen.tsx
-
   const handleEnhanceClick = async () => {
     if (!currentReport || isDiffing) return;
     setOriginalContent(currentReport.documentContent);
     setLocallyEnhancing(true);
 
-    // This part stays the same - we wait for the AI to finish
     const diffContent = await onAutoEnhance(currentReport);
 
-    // --- THE FIX ---
-    // We wrap the heavy state updates in a setTimeout.
-    // This allows the UI to become responsive before rendering the large new document.
     setTimeout(() => {
       setCurrentReport({ ...currentReport, documentContent: diffContent });
       setIsDiffing(true);
-    }, 0); // A 0ms delay is all that's needed.
+    }, 0); 
 
     setLocallyEnhancing(false);
   };
