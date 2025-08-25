@@ -47,40 +47,65 @@ const BackButton: React.FC<{ onBack: () => void; title?: string }> = ({ onBack, 
   </button>
 );
 
-const getContentForDownload = (report: AnalysisReport): string => {
-  // If there's enhanced content (diffContent), extract the clean enhanced version
-  if (report.diffContent) {
-    return report.diffContent
-      .split('\n')
-      .map(line => {
-        // Remove diff markers and return clean content
-        if (line.startsWith('++ ')) {
-          return line.substring(3); // Remove '++ ' prefix for additions
-        }
-        if (line.startsWith('-- ')) {
-          return ''; // Skip removals (return empty string)
-        }
-        return line; // Keep unchanged lines as-is
-      })
-      .filter(line => line !== '') // Remove empty lines from removals
-      .join('\n');
-  }
-  
-  // Fallback to original content if no enhanced version
-  return report.documentContent;
+/* ---------------- Enhance / Draft Preview UI ---------------- */
+const EnhanceControls: React.FC<{
+  activeReport: AnalysisReport;
+  onAutoEnhance?: (report?: AnalysisReport) => Promise<void> | void;
+  enhancedDraft?: string;
+  enhancedDraftHtml?: string;
+  onAcceptEnhanced?: (reportId: string) => Promise<void> | void;
+  onRejectEnhanced?: (reportId: string) => void;
+  isEnhancing?: boolean;
+  isAnalyzing?: boolean;
+}> = ({ activeReport, onAutoEnhance, enhancedDraft, enhancedDraftHtml, onAcceptEnhanced, onRejectEnhanced, isEnhancing, isAnalyzing }) => {
+  const reportId = activeReport?.id ?? '__draft__';
+  const busy = !!isEnhancing || !!isAnalyzing;
+
+  return (
+    <div className="enhance-controls space-y-3">
+      {enhancedDraft || enhancedDraftHtml ? (
+        <div className="enhance-preview border rounded p-4 bg-white dark:bg-neutral-800">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">Enhanced Draft — preview</h3>
+            <div className="space-x-2">
+              <button
+                onClick={() => onAcceptEnhanced?.(reportId)}
+                disabled={busy}
+                className="px-3 py-1 bg-amber-500 text-white rounded disabled:opacity-50"
+              >
+                Accept & Update
+              </button>
+              <button
+                onClick={() => onRejectEnhanced?.(reportId)}
+                disabled={busy}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+
+          {enhancedDraftHtml ? (
+            <div className="proposed-html-preview overflow-auto max-h-72 prose" dangerouslySetInnerHTML={{ __html: enhancedDraftHtml }} />
+          ) : (
+            <pre className="whitespace-pre-wrap max-h-72 overflow-auto text-sm">{enhancedDraft}</pre>
+          )}
+        </div>
+      ) : (
+        <div className="enhance-action">
+          <button
+            onClick={() => onAutoEnhance?.(activeReport)}
+            disabled={busy || !activeReport}
+            className="px-4 py-2 bg-amber-500 text-white rounded disabled:opacity-50"
+            title={busy ? (isEnhancing ? "Enhancing…" : (isAnalyzing ? "Analyzing…" : "Working…")) : "Auto-enhance this document"}
+          >
+            {isEnhancing ? 'Enhancing…' : 'Auto-Enhance'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 };
-
-const enhancementSteps = [
-  'Re-analyzing improved content...',
-  'Applying compliance formatting...',
-  'Improving clarity and structure...',
-  'Generating revised document...',
-];
-
-// Helper function to escape regex special characters
-function escapeRegExp(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 /* ---------------- DownloadDropdown ---------------- */
 const DownloadDropdown: React.FC<{
@@ -211,7 +236,7 @@ const DocumentEditor: React.FC<{
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800 flex flex-col h-full">
-      {/* Header */}
+      {/* Header */} 
       <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
         <div>
           <p className="text-xs text-gray-500 dark:text-neutral-500">
@@ -325,13 +350,19 @@ const ScoreCard: React.FC<{ label: string; score: number }> = ({ label, score })
 const AnalysisPanel: React.FC<{
   report: AnalysisReport;
   onEnhance: () => void;
+  onAutoEnhance?: (report?: AnalysisReport) => Promise<void> | void;
+  enhancedDraft?: string;
+  enhancedDraftHtml?: string;
+  onAcceptEnhanced?: (reportId: string) => Promise<void> | void;
+  onRejectEnhanced?: (reportId: string) => void;
   isEnhancing: boolean;
   analysisStatusText: string;
   onStatusChange: (findingId: string, status: FindingStatus) => void;
   onDismiss: (finding: Finding) => void;
   setHoveredFindingId: (id: string | null) => void;
   onFindingClick: (id: string) => void;
-}> = ({ report, onEnhance, isEnhancing, analysisStatusText, onStatusChange, onDismiss, setHoveredFindingId, onFindingClick }) => {
+  isAnalyzing?: boolean;
+}> = ({ report, onEnhance, onAutoEnhance, enhancedDraft, enhancedDraftHtml, onAcceptEnhanced, onRejectEnhanced, isEnhancing, analysisStatusText, onStatusChange, onDismiss, setHoveredFindingId, onFindingClick, isAnalyzing }) => {
   const activeFindings = report.findings.filter((f) => f.status === 'active');
 
   return (
@@ -341,23 +372,17 @@ const AnalysisPanel: React.FC<{
           <h2 className="text-lg font-bold text-gray-800 dark:text-neutral-50 text-center">Analysis Panel</h2>
         </div>
         <div className="p-4 sm:p-6 space-y-6">
-          <button
-            onClick={onEnhance}
-            disabled={isEnhancing}
-            className="w-full flex items-center justify-center py-3 px-4 bg-red-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isEnhancing ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
-                {analysisStatusText}
-              </>
-            ) : (
-              <>
-                <StarIcon className="w-5 h-5 mr-2 text-yellow-300" />
-                Auto-Enhance Document
-              </>
-            )}
-          </button>
+          {/* Replace single button with EnhanceControls so preview/accept/reject available */}
+          <EnhanceControls
+            activeReport={report}
+            onAutoEnhance={onAutoEnhance || (() => onEnhance())}
+            enhancedDraft={enhancedDraft}
+            enhancedDraftHtml={enhancedDraftHtml}
+            onAcceptEnhanced={onAcceptEnhanced}
+            onRejectEnhanced={onRejectEnhanced}
+            isEnhancing={isEnhancing}
+            isAnalyzing={isAnalyzing}
+          />
 
           <div className="pt-6 border-t border-gray-200 dark:border-neutral-700">
             <h3 className="text-sm font-semibold text-gray-500 dark:text-neutral-500 mb-3">Compliance Scores</h3>
@@ -530,71 +555,15 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
   );
 };
 
-/* ---------------- Enhance / Draft Preview UI ---------------- */
-const EnhanceControls: React.FC<{
-  activeReport: AnalysisReport;
-  onAutoEnhance: (report?: AnalysisReport) => void | Promise<void>;
-  enhancedDraft?: string;
-  enhancedDraftHtml?: string;
-  onAcceptEnhanced?: (reportId: string) => void | Promise<void>;
-  onRejectEnhanced?: (reportId: string) => void;
-  isEnhancing?: boolean;
-  isAnalyzing?: boolean;
-}> = ({ activeReport, onAutoEnhance, enhancedDraft, enhancedDraftHtml, onAcceptEnhanced, onRejectEnhanced, isEnhancing, isAnalyzing }) => {
-  const reportId = activeReport?.id ?? '__draft__';
-  const busy = !!isEnhancing || !!isAnalyzing;
-
-  return (
-    <div className="enhance-controls space-y-3">
-      {enhancedDraft || enhancedDraftHtml ? (
-        <div className="enhance-preview border rounded p-4 bg-white dark:bg-neutral-800">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold">Enhanced Draft — preview</h3>
-            <div className="space-x-2">
-              <button
-                onClick={() => onAcceptEnhanced?.(reportId)}
-                disabled={busy}
-                className="px-3 py-1 bg-amber-500 text-white rounded disabled:opacity-50"
-              >
-                Accept & Update
-              </button>
-              <button
-                onClick={() => onRejectEnhanced?.(reportId)}
-                disabled={busy}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-
-          {enhancedDraftHtml ? (
-            <div className="proposed-html-preview overflow-auto max-h-72 prose" dangerouslySetInnerHTML={{ __html: enhancedDraftHtml }} />
-          ) : (
-            <pre className="whitespace-pre-wrap max-h-72 overflow-auto text-sm">{enhancedDraft}</pre>
-          )}
-        </div>
-      ) : (
-        <div className="enhance-action">
-          <button
-            onClick={() => onAutoEnhance(activeReport)}
-            disabled={busy || !activeReport}
-            className="px-4 py-2 bg-amber-500 text-white rounded disabled:opacity-50"
-            title={busy ? (isEnhancing ? "Enhancing…" : (isAnalyzing ? "Analyzing…" : "Working…")) : "Auto-enhance this document"}
-          >
-            {isEnhancing ? 'Enhancing…' : 'Auto-Enhance'}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
 /* ---------------- Main AnalysisScreen ---------------- */
 interface AnalysisScreenProps extends ScreenLayoutProps {
   activeReport: AnalysisReport | null;
   onUpdateReport: (report: AnalysisReport) => void;
-  onAutoEnhance: (report: AnalysisReport) => Promise<string>;
+  onAutoEnhance?: (report?: AnalysisReport) => Promise<void> | void;
+  enhancedDraft?: string;
+  enhancedDraftHtml?: string;
+  onAcceptEnhanced?: (reportId: string) => Promise<void> | void;
+  onRejectEnhanced?: (reportId: string) => void;
   isEnhancing: boolean;
   analysisStatusText: string;
   onNewAnalysis: (content: string, fileName: string, diffContent?: string) => void;
@@ -605,6 +574,10 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   activeReport,
   onUpdateReport,
   onAutoEnhance,
+  enhancedDraft,
+  enhancedDraftHtml,
+  onAcceptEnhanced,
+  onRejectEnhanced,
   isEnhancing,
   analysisStatusText,
   currentWorkspace,
@@ -642,8 +615,8 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
 
     try {
       console.log("Starting enhancement for report:", currentReport.id);
-      const enhancedContent = await onAutoEnhance(currentReport);
-      console.log("Enhancement completed, received content:", enhancedContent ? "Yes" : "No");
+      await onAutoEnhance?.(currentReport);
+      console.log("Enhancement request submitted.");
     } catch (error) {
       console.error('Enhancement process failed and was caught in AnalysisScreen:', error);
     }
@@ -684,7 +657,13 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
     const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
     
     // Use the enhanced content for download
-    const contentToDownload = getContentForDownload(currentReport);
+    const contentToDownload = (currentReport.diffContent && currentReport.diffContent.length > 0)
+      ? currentReport.diffContent
+          .split('\n')
+          .map(line => (line.startsWith('++ ') ? line.substring(3) : (line.startsWith('-- ') ? '' : line)))
+          .filter(line => line !== '')
+          .join('\n')
+      : currentReport.documentContent;
     
     doc.setProperties({ title });
     doc.setFont('helvetica', 'bold');
@@ -712,7 +691,13 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
     const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
     
     // Use the enhanced content for download
-    const contentToDownload = getContentForDownload(currentReport);
+    const contentToDownload = (currentReport.diffContent && currentReport.diffContent.length > 0)
+      ? currentReport.diffContent
+          .split('\n')
+          .map(line => (line.startsWith('++ ') ? line.substring(3) : (line.startsWith('-- ') ? '' : line)))
+          .filter(line => line !== '')
+          .join('\n')
+      : currentReport.documentContent;
     
     const blob = new Blob([contentToDownload], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -730,7 +715,13 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
     const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
     
     // Use the enhanced content for download
-    const contentToDownload = getContentForDownload(currentReport);
+    const contentToDownload = (currentReport.diffContent && currentReport.diffContent.length > 0)
+      ? currentReport.diffContent
+          .split('\n')
+          .map(line => (line.startsWith('++ ') ? line.substring(3) : (line.startsWith('-- ') ? '' : line)))
+          .filter(line => line !== '')
+          .join('\n')
+      : currentReport.documentContent;
     
     const doc = new Document({
       sections: [
@@ -811,12 +802,18 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
           <AnalysisPanel
             report={currentReport}
             onEnhance={handleEnhanceClick}
+            onAutoEnhance={onAutoEnhance}
+            enhancedDraft={enhancedDraft}
+            enhancedDraftHtml={enhancedDraftHtml}
+            onAcceptEnhanced={onAcceptEnhanced}
+            onRejectEnhanced={onRejectEnhanced}
             isEnhancing={isEnhancing}
             analysisStatusText={analysisStatusText}
             onStatusChange={handleFindingStatusChange}
             onDismiss={(f) => setFeedbackFinding(f)}
             setHoveredFindingId={setHoveredFindingId}
             onFindingClick={handleFindingClick}
+            isAnalyzing={!!analysisStatusText}
           />
 
           <div className="h-[500px]">
