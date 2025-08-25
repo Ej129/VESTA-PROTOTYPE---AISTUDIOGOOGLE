@@ -79,12 +79,12 @@ const EnhanceControls: React.FC<{
         onClick={handleClick}
         disabled={busy || !activeReport}
         className={
-          `inline-flex items-center justify-center px-5 py-2 rounded-lg text-white font-semibold shadow-md transition ` +
-          (busy ? 'opacity-60 cursor-not-allowed bg-amber-400' : 'bg-amber-500 hover:bg-amber-600')
+          `inline-flex items-center gap-2 justify-center px-5 py-2 rounded-md text-white font-semibold shadow-sm transition ` +
+          (busy ? 'opacity-60 cursor-not-allowed bg-gradient-to-r from-amber-400 to-yellow-400' : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600')
         }
         title={busy ? (isEnhancing ? 'Enhancing…' : (isAnalyzing ? 'Analyzing…' : 'Working…')) : 'Auto-enhance this document'}
       >
-        {isEnhancing ? 'Enhancing…' : 'Auto-Enhance'}
+        <span className="h-2 w-2 rounded-full bg-white/90 animate-pulse" /> {isEnhancing ? 'Enhancing…' : 'Auto-Enhance'}
       </button>
     </div>
   );
@@ -570,6 +570,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   const [feedbackFinding, setFeedbackFinding] = useState<Finding | null>(null);
   const [hoveredFindingId, setHoveredFindingId] = useState<string | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [autoCompareArmed, setAutoCompareArmed] = useState(true);
 
   useEffect(() => {
     if (activeReport && (!currentReport || activeReport.id !== currentReport.id || 
@@ -579,6 +580,14 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
       setCurrentReport(activeReport);
     }
   }, [activeReport, currentReport]);
+
+  // Auto-enable compare view the first time we see a diff for this report
+  useEffect(() => {
+    if (!isEditing && autoCompareArmed && currentReport?.diffContent) {
+      setShowComparison(true);
+      setAutoCompareArmed(false);
+    }
+  }, [isEditing, autoCompareArmed, currentReport?.diffContent]);
 
   // Default back handler if none provided
   const handleBack = () => {

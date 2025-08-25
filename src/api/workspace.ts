@@ -262,7 +262,7 @@ export const deleteCustomRegulation = (workspaceId: string, regulationId: string
  * Delete multiple reports in parallel with a concurrency limit.
  * Falls back to sequential deletes if deleteReport is not available.
  */
-export async function deleteReportsBulk(workspaceId: string, reportIds: string[], concurrency = 6): Promise<{ success: string[]; failed: { id: string; error: any }[] }> {
+export async function deleteReportsBulk(reportIds: string[], concurrency = 6): Promise<{ success: string[]; failed: { id: string; error: any }[] }> {
   const ids = Array.from(new Set((reportIds || []).filter(Boolean)));
   const results: { success: string[]; failed: { id: string; error: any }[] } = { success: [], failed: [] };
   if (ids.length === 0) return results;
@@ -275,14 +275,7 @@ export async function deleteReportsBulk(workspaceId: string, reportIds: string[]
       if (i >= ids.length) return;
       const id = ids[i];
       try {
-        // reuse existing single-delete API if available
-        if (typeof deleteReport === 'function') {
-          await deleteReport(workspaceId, id);
-        } else {
-          // adjust path if your API route differs
-          const resp = await fetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/reports/${encodeURIComponent(id)}`, { method: 'DELETE' });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        }
+        await deleteReport(id);
         results.success.push(id);
       } catch (err) {
         results.failed.push({ id, error: err });

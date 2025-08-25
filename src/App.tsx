@@ -88,7 +88,7 @@ const App: React.FC = () => {
   }, []);
 
   const currentScreen = screenStack[screenStack.length - 1];
-
+  
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
@@ -160,6 +160,8 @@ const App: React.FC = () => {
         findings: newReportData.findings ?? targetReport.findings,
         scores: newReportData.scores ?? targetReport.scores,
         resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
+        // Store HTML diff so the editor can render highlights immediately
+        diffContent: highlightedHtml,
       };
 
       // 4) Update local state (match by id if present)
@@ -209,32 +211,32 @@ const App: React.FC = () => {
       window.removeEventListener('storage', handleThemeChange);
     };
   }, []);
-
-  const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
-    if (!currentUser) return;
-    
-    console.log("loadWorkspaceData called with keepActiveReport:", keepActiveReport);
-    
-    const data = await workspaceApi.getWorkspaceData(workspaceId);
-    setReports(data.reports);
-    setAuditLogs(data.auditLogs);
-    setKnowledgeBaseSources(data.knowledgeBaseSources);
-    setDismissalRules(data.dismissalRules);
-    setCustomRegulations(data.customRegulations);
-    
-    const members = await workspaceApi.getWorkspaceMembers(workspaceId);
-    setWorkspaceMembers(members);
-    const member = members.find(m => m.email === currentUser.email);
-    setUserRole(member?.role || 'Member');
-    
-    // Only reset activeReport if not explicitly keeping it
-    if (!keepActiveReport) {
-      console.log("Resetting activeReport to null");
-      setActiveReport(null);
-    } else {
-      console.log("Keeping current activeReport");
-    }
-  }, [currentUser]);
+  
+const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
+  if (!currentUser) return;
+  
+  console.log("loadWorkspaceData called with keepActiveReport:", keepActiveReport);
+  
+  const data = await workspaceApi.getWorkspaceData(workspaceId);
+  setReports(data.reports);
+  setAuditLogs(data.auditLogs);
+  setKnowledgeBaseSources(data.knowledgeBaseSources);
+  setDismissalRules(data.dismissalRules);
+  setCustomRegulations(data.customRegulations);
+  
+  const members = await workspaceApi.getWorkspaceMembers(workspaceId);
+  setWorkspaceMembers(members);
+  const member = members.find(m => m.email === currentUser.email);
+  setUserRole(member?.role || 'Member');
+  
+  // Only reset activeReport if not explicitly keeping it
+  if (!keepActiveReport) {
+    console.log("Resetting activeReport to null");
+    setActiveReport(null);
+  } else {
+    console.log("Keeping current activeReport");
+  }
+}, [currentUser]);
 
   const refreshWorkspaces = useCallback(async () => {
     if (!currentUser) return;
@@ -292,16 +294,16 @@ const App: React.FC = () => {
       }, 30000);
       return () => clearInterval(intervalId);
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
-
+  
   
   // Move this above any code that calls addAuditLog
     async function addAuditLog(action: AuditLogAction | string, details: string, keepActiveReport = false) {
-      if (!currentUser || !selectedWorkspace) return;
+    if (!currentUser || !selectedWorkspace) return;
       try {
         // cast to AuditLogAction when calling the API to accept string literals in callers
         await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action as AuditLogAction, details);
         // reload workspace data, optionally preserving active report
-        await loadWorkspaceData(selectedWorkspace.id, keepActiveReport);
+    await loadWorkspaceData(selectedWorkspace.id, keepActiveReport);
       } catch (err) {
         console.error('addAuditLog failed', err);
       }
@@ -363,11 +365,11 @@ const handleFileUpload = async (content: string, fileName: string, quick?: boole
           customRegulations
         )
       : await analyzePlan(
-          content,
-          knowledgeBaseSources,
-          dismissalRules,
-          customRegulations
-        );
+      content,
+      knowledgeBaseSources,
+      dismissalRules,
+      customRegulations
+    );
 
     // Create new report object
     const report = {
@@ -432,7 +434,7 @@ const handleSelectReport = (report: AnalysisReport) => {
           alert((error as Error).message);
       }
   };
-  
+
 
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
@@ -608,8 +610,8 @@ const handleSelectReport = (report: AnalysisReport) => {
     }
 
     try {
-      // use bulk API if available
-      const res = await workspaceApi.deleteReportsBulk(selectedWorkspace.id, ids, 8);
+      // use bulk API
+      const res = await workspaceApi.deleteReportsBulk(ids, 8);
       if (res.failed.length > 0) {
         // restore failed items back into UI
         const failedIds = new Set(res.failed.map(f => f.id));
@@ -626,11 +628,29 @@ const handleSelectReport = (report: AnalysisReport) => {
         try { await addAuditLog?.('Delete', `Deleted ${res.success.length} analyses`, false); } catch (e) { /* ignore */ }
       }
     } catch (err) {
-      // network or unexpected error: restore full previous state
-      setReports(prevReports);
-      setActiveReport(prevActive);
-      console.error('Bulk delete error', err);
-      alert('Failed to delete reports. Please try again.');
+      // fallback: attempt sequential single deletes
+      try {
+        const failed: string[] = [];
+        for (const id of ids) {
+          try { await workspaceApi.deleteReport(id); } catch (e) { failed.push(id); }
+        }
+        if (failed.length) {
+          const failedSet = new Set(failed);
+          const restored = prevReports.filter(r => failedSet.has(r.id));
+          const next = [...restored, ...remaining];
+          setReports(next);
+          if (prevActive && failedSet.has(prevActive.id)) setActiveReport(prevActive);
+          alert(`Failed to delete ${failed.length} item(s). They were restored.`);
+        } else {
+          try { await addAuditLog?.('Delete', `Deleted ${ids.length} analyses (sequential)`, false); } catch (_) {}
+        }
+      } catch (e2) {
+        // restore full previous state
+        setReports(prevReports);
+        setActiveReport(prevActive);
+        console.error('Delete error', e2);
+        alert('Failed to delete reports. Please try again.');
+      }
     }
   }
 

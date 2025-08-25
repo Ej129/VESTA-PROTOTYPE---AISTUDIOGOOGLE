@@ -128,17 +128,19 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzin
         ) : (
           <>
             <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-neutral-200">New Analysis</h2>
-            <input
-              type="file"
-              accept=".txt,.md,.docx,.pdf"
-              onChange={handleFileChange}
-              className="mb-4 block w-full text-sm text-gray-700 dark:text-neutral-300"
-            />
-            {error && <p className="text-sm text-red-500 mb-2">{error}</p>}
+            <div className="mb-4 p-3 rounded-lg border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50">
+              <input
+                type="file"
+                accept=".txt,.md,.docx,.pdf"
+                onChange={handleFileChange}
+                className="block w-full text-sm text-gray-700 dark:text-neutral-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-red-700 file:text-white hover:file:bg-red-800"
+              />
+            </div>
+            {error && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-md p-2 mb-3">{error}</p>}
             <div className="flex justify-between gap-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2 rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700"
+                className="px-4 py-2 rounded-md border border-gray-300 dark:border-neutral-600 bg-white/80 backdrop-blur text-gray-700 dark:text-neutral-200 hover:bg-white dark:hover:bg-neutral-700 transition shadow-sm"
               >
                 Cancel
               </button>
@@ -146,15 +148,15 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzin
                 <button
                   onClick={() => handleUpload(true)}
                   disabled={!fileContent}
-                  className="px-4 py-2 rounded-md bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-amber-600 hover:to-yellow-600 disabled:opacity-50 shadow-sm"
                   title="Faster, uses truncated input and less context"
                 >
-                  Quick Analyze
+                  <span className="h-2 w-2 rounded-full bg-white animate-pulse" /> Quick Analyze
                 </button>
                 <button
                   onClick={() => handleUpload(false)}
                   disabled={!fileContent}
-                  className="px-4 py-2 rounded-md bg-red-700 text-white hover:bg-red-800 disabled:opacity-50"
+                  className="px-4 py-2 rounded-md bg-gradient-to-r from-red-700 to-red-800 text-white hover:from-red-800 hover:to-red-900 disabled:opacity-50 shadow-sm"
                 >
                   Upload & Analyze
                 </button>
