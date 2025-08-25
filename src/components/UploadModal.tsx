@@ -1,6 +1,20 @@
 // src/components/UploadModal.tsx
 
 import React, { useState, useEffect } from 'react';
+import mammoth from "mammoth";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Set pdf.worker for bundlers (matches UploadZone)
+try {
+  // @ts-ignore
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.mjs',
+    import.meta.url
+  ).toString();
+} catch (e) {
+  // ignore in environments where import.meta.url isn't supported
+  // console.warn('pdf worker setup failed', e);
+}
 
 interface UploadModalProps {
   onClose: () => void;
@@ -22,7 +36,7 @@ const LoadingSteps: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentStep((prev) => (prev + 1) % steps.length);
-    }, 2000); // rotate steps every 2 seconds
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -33,19 +47,66 @@ const LoadingSteps: React.FC = () => {
   );
 };
 
+const extractTextFromFile = async (file: File): Promise<string> => {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf') {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = (pdfjsLib as any).getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent({ normalizeWhitespace: true });
+      const pageText = textContent.items
+        .map((item: any) => (typeof item.str === 'string' ? item.str : (item.unicode ?? '')))
+        .filter(Boolean)
+        .join(' ');
+      text += pageText + '\n';
+    }
+
+    // Heuristic: if mostly non-printable, likely scanned PDF => throw so UI can suggest OCR
+    const printableCount = (text.match(/[\p{L}\p{N}\p{P}\p{Zs}\p{S}]/gu) || []).length;
+    if (text.length > 0 && printableCount / text.length < 0.25) {
+      throw new Error('Extracted PDF text looks garbled or the PDF is scanned. Use a PDF with selectable text or enable OCR.');
+    }
+
+    return text.replace(/[ \t]{2,}/g, ' ').replace(/\r\n/g, '\n').trim();
+  } else if (ext === 'docx') {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    let raw = result.value || '';
+    raw = raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]+/g, ' ');
+    raw = raw.replace(/[\u200B-\u200F\uFEFF]/g, '');
+    raw = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    raw = raw.replace(/\n{3,}/g, '\n\n');
+    return raw.trim();
+  } else if (ext === 'txt' || ext === 'md') {
+    return await file.text();
+  } else if (ext === 'doc') {
+    throw new Error('Legacy .doc files are not supported. Save as .docx or .pdf and try again.');
+  } else {
+    throw new Error('Unsupported file type. Please upload a .pdf, .docx, or .txt file.');
+  }
+};
+
 const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzing }) => {
   const [fileContent, setFileContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setFileContent(event.target?.result as string);
-    };
-    reader.readAsText(file);
+    setError(null);
+    try {
+      const text = await extractTextFromFile(file);
+      setFileContent(text);
+    } catch (err) {
+      console.error('File extraction error', err);
+      setFileContent('');
+      setError(err instanceof Error ? err.message : 'Failed to extract file content.');
+    }
   };
 
   const handleUpload = () => {
@@ -73,6 +134,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzin
               onChange={handleFileChange}
               className="mb-4 block w-full text-sm text-gray-700 dark:text-neutral-300"
             />
+            {error && <p className="text-sm text-red-500 mb-2">{error}</p>}
             <div className="flex justify-end gap-3">
               <button
                 onClick={onClose}
