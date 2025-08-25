@@ -141,7 +141,7 @@ const App: React.FC = () => {
         resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
       };
 
-      // 4) Update local state (match by id if present; otherwise replace activeReport)
+      // 4) Update local state
       setReports(prev =>
         updatedReport.id
           ? prev.map(r => (r.id === updatedReport.id ? updatedReport : r))
@@ -149,13 +149,8 @@ const App: React.FC = () => {
       );
       setActiveReport(updatedReport);
 
-      // 5) Persist if you have a backend API (optional)
-      try {
-        // If workspaceApi.updateReport exists, call it. Replace with your API client name.
-        // await workspaceApi.updateReport(selectedWorkspace.id, updatedReport);
-      } catch (persistErr) {
-        console.warn('Failed to persist enhanced report, continuing with local state', persistErr);
-      }
+      // 5) Persist if available (optional)
+      // await workspaceApi.updateReport?.(selectedWorkspace.id, updatedReport);
 
       // 6) Audit log but preserve activeReport during reloads
       await addAuditLog('Auto-Fix', `Auto-enhanced report: ${updatedReport.title}`, true);
@@ -176,7 +171,6 @@ const App: React.FC = () => {
     setReports,
     setActiveReport
   ]);
-
 
 
   // Global Theme Persistence Fix
@@ -403,7 +397,7 @@ const handleSelectReport = (report: AnalysisReport) => {
           alert((error as Error).message);
       }
   };
-
+  
 
 
   // Auto-enhance handler: improve the document then re-run analysis to update scores
@@ -442,7 +436,7 @@ const handleSelectReport = (report: AnalysisReport) => {
         resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
       };
 
-      // 4) Update local state (match by id if present; otherwise replace activeReport)
+      // 4) Update local state
       setReports(prev =>
         updatedReport.id
           ? prev.map(r => (r.id === updatedReport.id ? updatedReport : r))
@@ -450,13 +444,8 @@ const handleSelectReport = (report: AnalysisReport) => {
       );
       setActiveReport(updatedReport);
 
-      // 5) Persist if you have a backend API (optional)
-      try {
-        // If workspaceApi.updateReport exists, call it. Replace with your API client name.
-        // await workspaceApi.updateReport(selectedWorkspace.id, updatedReport);
-      } catch (persistErr) {
-        console.warn('Failed to persist enhanced report, continuing with local state', persistErr);
-      }
+      // 5) Persist if available (optional)
+      // await workspaceApi.updateReport?.(selectedWorkspace.id, updatedReport);
 
       // 6) Audit log but preserve activeReport during reloads
       await addAuditLog('Auto-Fix', `Auto-enhanced report: ${updatedReport.title}`, true);
@@ -477,7 +466,6 @@ const handleSelectReport = (report: AnalysisReport) => {
     setReports,
     setActiveReport
   ]);
-
 
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
