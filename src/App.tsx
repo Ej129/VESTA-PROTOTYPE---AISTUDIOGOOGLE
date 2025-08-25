@@ -403,6 +403,7 @@ const handleFileUpload = async (content: string, fileName: string, quick?: boole
   }
 };
 const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') => {
+  console.log('Inspecting currentUser object:', currentUser);
   if (!file || !selectedWorkspace || !currentUser) return; // Add check for currentUser
 
   setIsAnalyzing(true);
