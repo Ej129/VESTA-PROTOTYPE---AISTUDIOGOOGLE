@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
 
@@ -174,48 +172,143 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
 
 export async function improvePlan(planContent: string, report: AnalysisReport): Promise<string> {
     if (!planContent.trim() || !report || report.findings.length === 0) {
-        return planContent; // Return original if no basis for improvement
+        return planContent; // Nothing to improve
     }
-    
-    const findingsSummary = report.findings.map(f => 
+
+    const findingsSummary = report.findings.map(f =>
         `- Finding: "${f.title}" (Severity: ${f.severity})\n` +
         `  - Source Snippet: "${f.sourceSnippet}"\n` +
         `  - Recommendation: ${f.recommendation}`
     ).join('\n\n');
 
-    try {
-        const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `The following project plan has been analyzed and several issues were found. Your task is to rewrite the entire document to incorporate the recommendations and fix the issues.
-RULES:
-1. Return ONLY the full, revised text of the project plan.
-2. DO NOT include any introductory text like "Here is the revised plan." or any other commentary.
-3. Compare your revised version to the original line-by-line.
-4. For every line that is NEW or MODIFIED, prefix it with "++ ".
-5. For every line that is REMOVED, prefix it with "-- ".
-6. For every line that is UNCHANGED, do NOT add any prefix.
+    const genai = getGenAIClient();
 
-ORIGINAL PLAN:
+    const systemPrompt = `
+You are an expert compliance editor for project plans in the financial sector.
+Your task: produce a single, fully revised version of the provided project plan that integrates the suggested recommendations.
+REQUIREMENTS:
+- Return ONLY the cleaned, full revised document text. Do NOT include diffs, annotations, commentary, or metadata.
+- Preserve all section headings, numbering, lists and factual content unless a minor inline edit improves clarity or compliance.
+- Do not invent budgets, add new major sections, or introduce new regulatory citations that were not present in the recommendations.
+- Use a professional formal tone suitable for regulatory documentation.
+`;
+
+    const userPrompt = `
+Original Plan:
 ---
 ${planContent}
 ---
 
-ISSUES AND RECOMMENDATIONS:
+Findings & Recommendations (use to guide edits):
 ---
 ${findingsSummary}
 ---
-`,
+
+Return the full revised document text only (no explanations).
+`;
+
+    // helper: extract raw text from response object shape
+    const extractText = (resp: any) => {
+        return (resp?.text ?? resp?.outputText ?? resp?.candidates?.[0]?.content ?? '').toString();
+    };
+
+    // helper: clean diff/code artifacts
+    const cleanOutput = (raw: string) => {
+        let out = String(raw || '');
+        // if wrapped in a fenced block, extract inner content
+        const codeBlockMatch = out.match(/```(?:[\w-]+\n)?([\s\S]*?)```/);
+        if (codeBlockMatch && codeBlockMatch[1]) out = codeBlockMatch[1];
+
+        // remove common diff markers at line starts
+        out = out
+            .split('\n')
+            .map(line => line.replace(/^\s*(\+\+|--|\+|-|>\s|<\s)\s?/, ''))
+            .filter(line => !/^(diff --git|index |@@ |--- |\+\+\+ )/.test(line))
+            .join('\n');
+
+        // strip zero-width/rtf junk and normalize spacing
+        out = out.replace(/[\u200B-\u200F\uFEFF]/g, '').replace(/^\s*{\\rtf1[\s\S]*?}/, '');
+        out = out.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        return out;
+    };
+
+    // token overlap similarity (simple word-set Jaccard)
+    const tokenOverlap = (a: string, b: string) => {
+        const wa = new Set(a.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean));
+        const wb = new Set(b.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean));
+        if (wa.size === 0 || wb.size === 0) return 0;
+        let inter = 0;
+        wa.forEach(t => { if (wb.has(t)) inter++; });
+        const union = new Set([...wa, ...wb]).size;
+        return inter / Math.max(1, union);
+    };
+
+    // primary request
+    let raw = '';
+    try {
+        const resp = await genai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: userPrompt,
             config: {
-                systemInstruction: "You are an expert technical writer and project manager specializing in compliance documentation. Your task is to revise a project plan to resolve issues identified in an analysis report. You must integrate the given recommendations seamlessly, apply appropriate compliance formatting, improve clarity, and ensure the document is professional and well-structured.",
+                systemInstruction: systemPrompt,
             },
         });
-
-        return response.text.trim();
-    } catch (error) {
-        console.error("Error improving plan with Gemini:", error);
-        // Fallback to original content on error
-        return `Error: Could not enhance document.\n\n${planContent}`; 
+        raw = extractText(resp).trim();
+    } catch (err) {
+        console.error("improvePlan primary call failed:", err);
+        return planContent;
     }
+
+    let cleaned = cleanOutput(raw);
+
+    // If cleaned output looks like a diff or is too dissimilar, do a strict second pass
+    const looksLikeDiff = /^(?:\+{1,2}|-{1,2}|diff --git|@@ )/m.test(raw) || tokenOverlap(planContent, cleaned) < 0.6;
+    if (looksLikeDiff) {
+        try {
+            const strictSystem = `
+You are a strictly conservative editor. Make ONLY MINOR INLINE EDITS to the original document to address the provided recommendations.
+DO NOT ADD OR REMOVE SECTIONS, BULLETS, TITLES, NUMBERING, OR BUDGETS.
+Return only the revised full document text with minimal edits.
+`;
+            const strictUser = `
+Original Plan:
+---
+${planContent}
+---
+
+Previous model output (may contain diffs):
+---
+${raw}
+---
+
+Findings & Recommendations:
+---
+${findingsSummary}
+---
+Return only the final revised document text, making minimal inline edits as required.
+`;
+            const resp2 = await genai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: strictUser,
+                config: { systemInstruction: strictSystem },
+            });
+            const raw2 = extractText(resp2).trim();
+            const cleaned2 = cleanOutput(raw2);
+            const sim2 = tokenOverlap(planContent, cleaned2);
+            // Accept second pass if reasonably similar
+            if (sim2 >= 0.5) {
+                cleaned = cleaned2;
+            } else {
+                // As a safe fallback, return the original plan (do not silently replace user content)
+                cleaned = planContent;
+            }
+        } catch (err2) {
+            console.warn("improvePlan strict second pass failed:", err2);
+            cleaned = planContent;
+        }
+    }
+
+    return cleaned;
 }
 
 export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
