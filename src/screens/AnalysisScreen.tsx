@@ -20,6 +20,7 @@ import {
   SendIcon,
   MessageSquareIcon,
   ChevronDownIcon,
+  SparklesIcon, //
 } from '../components/Icons';
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
@@ -27,6 +28,7 @@ import * as workspaceApi from '../api/workspace';
 import * as vestaApi from '../api/vesta';
 import FeedbackModal from '../components/FeedbackModal';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
+
 
 // Arrow Left Icon Component
 const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -45,14 +47,6 @@ const BackButton: React.FC<{ onBack: () => void; title?: string }> = ({ onBack, 
     <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200" />
     <span className="text-sm font-medium">Back</span>
   </button>
-);
-
-const SparklesIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3a6 6 0 0 0 9 9a6 6 0 0 0-9-9Z" />
-    <path d="M5 9a2 2 0 1 0 0-4a2 2 0 0 0 0 4Z" />
-    <path d="M19 13a2 2 0 1 0 0-4a2 2 0 0 0 0 4Z" />
-  </svg>
 );
 
 /* ---------------- Enhance / Draft Preview UI ---------------- */
