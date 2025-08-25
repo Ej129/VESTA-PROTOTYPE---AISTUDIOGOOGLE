@@ -102,9 +102,83 @@ const App: React.FC = () => {
   // Loading State
   const [isSyncingSources, setIsSyncingSources] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  // Enhancing state (auto-enhance)
+  // Enhancing state
   const [isEnhancing, setIsEnhancing] = useState(false);
-  
+
+  // Auto-enhance handler: improve the document then re-run analysis to update scores
+  const handleAutoEnhance = useCallback(async (maybeReport?: AnalysisReport) => {
+    // Resolve the real target report: prefer report by id, otherwise fall back to activeReport
+    const targetReport = (maybeReport && maybeReport.id)
+      ? reports.find(r => r.id === maybeReport.id) ?? maybeReport
+      : activeReport;
+
+    if (!targetReport || !selectedWorkspace) {
+      console.warn('Auto-enhance: no target report or workspace');
+      return;
+    }
+
+    setIsEnhancing(true);
+    try {
+      // 1) Improve document text
+      const improvedText = await improvePlan(targetReport.documentContent, targetReport);
+
+      // 2) Re-run analysis on improved text
+      const newReportData = await analyzePlan(
+        improvedText,
+        knowledgeBaseSources,
+        dismissalRules,
+        customRegulations
+      );
+
+      // 3) Merge results, preserving identity fields
+      const updatedReport: AnalysisReport = {
+        ...targetReport,
+        documentContent: improvedText,
+        title: newReportData.title ?? targetReport.title,
+        summary: newReportData.summary ?? targetReport.summary,
+        findings: newReportData.findings ?? targetReport.findings,
+        scores: newReportData.scores ?? targetReport.scores,
+        resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
+      };
+
+      // 4) Update local state (match by id if present; otherwise replace activeReport)
+      setReports(prev =>
+        updatedReport.id
+          ? prev.map(r => (r.id === updatedReport.id ? updatedReport : r))
+          : prev.map(r => (r === targetReport ? updatedReport : r))
+      );
+      setActiveReport(updatedReport);
+
+      // 5) Persist if you have a backend API (optional)
+      try {
+        // If workspaceApi.updateReport exists, call it. Replace with your API client name.
+        // await workspaceApi.updateReport(selectedWorkspace.id, updatedReport);
+      } catch (persistErr) {
+        console.warn('Failed to persist enhanced report, continuing with local state', persistErr);
+      }
+
+      // 6) Audit log but preserve activeReport during reloads
+      await addAuditLog('Auto-Fix', `Auto-enhanced report: ${updatedReport.title}`, true);
+
+    } catch (err) {
+      console.error('Auto-enhance failed', err);
+    } finally {
+      setIsEnhancing(false);
+    }
+  }, [
+    reports,
+    activeReport,
+    selectedWorkspace,
+    knowledgeBaseSources,
+    dismissalRules,
+    customRegulations,
+    addAuditLog,
+    setReports,
+    setActiveReport
+  ]);
+
+
+
   // Global Theme Persistence Fix
   useEffect(() => {
     const handleThemeChange = () => {
@@ -333,14 +407,23 @@ const handleSelectReport = (report: AnalysisReport) => {
 
 
   // Auto-enhance handler: improve the document then re-run analysis to update scores
-  const handleAutoEnhance = useCallback(async (report: AnalysisReport): Promise<string> => {
-    if (!report || !selectedWorkspace) return '';
+  const handleAutoEnhance = useCallback(async (maybeReport?: AnalysisReport) => {
+    // Resolve the real target report: prefer report by id, otherwise fall back to activeReport
+    const targetReport = (maybeReport && maybeReport.id)
+      ? reports.find(r => r.id === maybeReport.id) ?? maybeReport
+      : activeReport;
+
+    if (!targetReport || !selectedWorkspace) {
+      console.warn('Auto-enhance: no target report or workspace');
+      return;
+    }
+
     setIsEnhancing(true);
     try {
-      // Produce improved document text
-      const improvedText = await improvePlan(report.documentContent, report);
+      // 1) Improve document text
+      const improvedText = await improvePlan(targetReport.documentContent, targetReport);
 
-      // Re-run analysis on improved text to get updated scores/findings
+      // 2) Re-run analysis on improved text
       const newReportData = await analyzePlan(
         improvedText,
         knowledgeBaseSources,
@@ -348,39 +431,44 @@ const handleSelectReport = (report: AnalysisReport) => {
         customRegulations
       );
 
-      // Merge into the existing report object (preserve id, workspaceId, createdAt)
+      // 3) Merge results, preserving identity fields
       const updatedReport: AnalysisReport = {
-        ...report,
+        ...targetReport,
         documentContent: improvedText,
-        title: newReportData.title ?? report.title,
-        resilienceScore: newReportData.resilienceScore ?? report.resilienceScore,
-        scores: newReportData.scores ?? report.scores,
-        findings: newReportData.findings ?? report.findings,
-        summary: newReportData.summary ?? report.summary,
+        title: newReportData.title ?? targetReport.title,
+        summary: newReportData.summary ?? targetReport.summary,
+        findings: newReportData.findings ?? targetReport.findings,
+        scores: newReportData.scores ?? targetReport.scores,
+        resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
       };
 
-      // Update local state
-      setReports(prev => prev.map(r => (r.id === updatedReport.id ? updatedReport : r)));
+      // 4) Update local state (match by id if present; otherwise replace activeReport)
+      setReports(prev =>
+        updatedReport.id
+          ? prev.map(r => (r.id === updatedReport.id ? updatedReport : r))
+          : prev.map(r => (r === targetReport ? updatedReport : r))
+      );
       setActiveReport(updatedReport);
 
-      // Persist to backend if you have an API method (optional)
-      // await workspaceApi.updateReport(selectedWorkspace.id, updatedReport);
+      // 5) Persist if you have a backend API (optional)
+      try {
+        // If workspaceApi.updateReport exists, call it. Replace with your API client name.
+        // await workspaceApi.updateReport(selectedWorkspace.id, updatedReport);
+      } catch (persistErr) {
+        console.warn('Failed to persist enhanced report, continuing with local state', persistErr);
+      }
 
-      // Add an audit log but preserve activeReport during reloads
-      await addAuditLog('Auto-Fix', `Auto-enhanced report: ${report.title}`, true);
+      // 6) Audit log but preserve activeReport during reloads
+      await addAuditLog('Auto-Fix', `Auto-enhanced report: ${updatedReport.title}`, true);
 
-      // If you reload workspace data elsewhere and it clears state, make sure to pass keepActiveReport=true
-      // await loadWorkspaceData(selectedWorkspace.id, true);
-
-      return improvedText;
     } catch (err) {
       console.error('Auto-enhance failed', err);
-      // handle error UI as needed
-      return '';
     } finally {
       setIsEnhancing(false);
     }
   }, [
+    reports,
+    activeReport,
     selectedWorkspace,
     knowledgeBaseSources,
     dismissalRules,
