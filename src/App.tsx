@@ -321,36 +321,43 @@ const handleSelectReport = (report: AnalysisReport) => {
       }
   };
 
+// inside App.tsx
 const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
   if (!report) return '';
 
-  setIsAnalyzing(true);
   try {
-    // Call API to get improved content
-    const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report);
+    setIsAnalyzing(true);
 
-    // Build a new enhanced report object
+    // Call your API to improve content
+    const improvedContentWithDiff = await vestaApi.improvePlan(
+      report.documentContent,
+      report
+    );
+
+    // Create enhanced report object
     const enhancedReport: AnalysisReport = {
       ...report,
-      id: `${report.id}-enhanced-${Date.now()}`, // unique id
-      title: report.title.replace(/\.[^/.]+$/, '') + ' (Enhanced)',
-      diffContent: improvedContentWithDiff,
+      diffContent: improvedContentWithDiff, // highlighted diff
+      documentContent: report.documentContent, // keep original baseline
+      title: report.title + " (Enhanced)", // optional label
     };
 
-    // Save as active report so AnalysisScreen shows it
+    // ✅ Update state so AnalysisScreen shows enhanced version
     setActiveReport(enhancedReport);
 
-    // Add audit log
     addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
 
     return improvedContentWithDiff;
   } catch (error) {
-    console.error('Enhancement failed:', error);
+    console.error("AutoEnhance failed:", error);
+    alert("Auto-enhance failed. Please try again.");
     return '';
   } finally {
     setIsAnalyzing(false);
   }
 };
+
+
 
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
