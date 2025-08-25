@@ -70,7 +70,7 @@ const App: React.FC = () => {
     return <ErrorScreen message="The 'VITE_API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
   }
   
-  const { user: currentUser, loading, logout: handleLogout } = useAuth();
+  const { user: currentUser, loading, logout: handleLogout, getToken} = useAuth();
 
   const [screenStack, setScreenStack] = useState<Screen[]>([Screen.Dashboard]);
   
@@ -403,29 +403,25 @@ const handleFileUpload = async (content: string, fileName: string, quick?: boole
   }
 };
 const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') => {
-  console.log('Inspecting currentUser object:', currentUser);
-  if (!file || !selectedWorkspace || !currentUser) return; // Add check for currentUser
+  if (!file || !selectedWorkspace || !currentUser) return;
 
   setIsAnalyzing(true);
 
   try {
+      // --- THIS IS THE FINAL FIX ---
+      const token = await getToken(); // Use the new function from the context
+      if (!token) {
+          throw new Error("Authentication token not found. Please log in again.");
+      }
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('workspaceId', selectedWorkspace.id);
       formData.append('analysisType', analysisType);
 
-      // --- FIX IS HERE ---
-      // Get the authentication token from the logged-in user object.
-      // Netlify Identity stores it in user.token.access_token
-      const token = currentUser.token?.access_token;
-      if (!token) {
-          throw new Error("Authentication token not found. Please log in again.");
-      }
-
       const response = await fetch('/.netlify/functions/add-report', {
           method: 'POST',
           headers: {
-              // Add the Authorization header
               'Authorization': `Bearer ${token}`,
           },
           body: formData,
@@ -438,7 +434,7 @@ const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') =
       }
 
       const newReport = await response.json();
-      
+
       setReports(prevReports => [newReport, ...prevReports]);
       setActiveReport(newReport);
       navigateTo(Screen.Analysis);

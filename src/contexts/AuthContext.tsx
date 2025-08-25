@@ -16,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: () => void;
   logout: () => void;
+  getToken: () => Promise<string | null>; 
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -104,8 +105,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       window.netlifyIdentity.logout();
     }
   };
+  const getToken = async (): Promise<string | null> => {
+    const netlifyUser = window.netlifyIdentity?.currentUser();
+    if (netlifyUser) {
+        try {
+            // This will return a valid JWT, refreshing it if necessary
+            return await netlifyUser.jwt();
+        } catch (error) {
+            console.error("Error refreshing user token:", error);
+            return null;
+        }
+    }
+    return null;
+};
 
-  const value = { user, loading, login, logout };
+  const value = { user, loading, login, logout, getToken};
 
   return (
     <AuthContext.Provider value={value}>
