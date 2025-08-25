@@ -10,7 +10,7 @@ let ai: GoogleGenAI | null = null;
  */
 function getGenAIClient(): GoogleGenAI {
     // Use Vite's special way to access environment variables
-    const apiKey = import.meta.env.VITE_API_KEY;
+    const apiKey = (import.meta as any).env.VITE_API_KEY;
 
     if (!apiKey) {
         // This is a safeguard. The main App component should catch this earlier.
@@ -168,6 +168,57 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
             summary: { critical: 1, warning: 0, checks: 0 },
             documentContent: planContent,
         };
+    }
+}
+
+// Quick analysis: smaller input and minimal context for speed
+export async function analyzePlanQuick(planContent: string, knowledgeSources: KnowledgeSource[], dismissalRules: DismissalRule[], customRegulations: CustomRegulation[]): Promise<Omit<AnalysisReport, 'id' | 'workspaceId' | 'createdAt'>> {
+    // Truncate input aggressively (first ~4000 characters)
+    const truncated = String(planContent || '').slice(0, 4000);
+
+    // Keep only dismissal rules (cheap), drop heavy KB and custom regs to minimize token/context size
+    const minimalSources: KnowledgeSource[] = [];
+    const minimalCustom: CustomRegulation[] = [];
+
+    try {
+        const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Quickly analyze the following project plan (truncated):\n\n---\n\n${truncated}\n\n---\n\nReturn concise JSON with scores and findings only.`,
+            config: {
+                systemInstruction: `You are Vesta. Provide a fast, approximate assessment with fewer findings. Prefer precision over volume. Apply these learned dismissals and avoid reporting those titles:\n${(dismissalRules || []).map(r => `- ${r.findingTitle} (${r.reason})`).join('\n')}`,
+                responseMimeType: "application/json",
+                responseSchema: reportSchema,
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const parsedReport = JSON.parse(jsonText);
+        const criticalCount = parsedReport.findings.filter((f: any) => f.severity === 'critical').length;
+        const warningCount = parsedReport.findings.filter((f: any) => f.severity === 'warning').length;
+
+        return {
+            title: "Quick Analysis",
+            resilienceScore: parsedReport.scores.project,
+            scores: parsedReport.scores,
+            findings: parsedReport.findings.slice(0, 8).map((f: any, index: number): Finding => ({
+                id: `qfinding-${Date.now()}-${index}`,
+                title: f.title,
+                severity: f.severity,
+                sourceSnippet: f.sourceSnippet,
+                recommendation: f.recommendation,
+                status: 'active',
+            })),
+            summary: {
+                critical: criticalCount,
+                warning: warningCount,
+                checks: 300, // smaller/faster
+            },
+            documentContent: truncated,
+        };
+    } catch (error) {
+        console.error("Error during quick analysis:", error);
+        // Fall back to the regular analyzer as a best-effort (still truncated)
+        return analyzePlan(truncated, minimalSources, dismissalRules || [], minimalCustom);
     }
 }
 

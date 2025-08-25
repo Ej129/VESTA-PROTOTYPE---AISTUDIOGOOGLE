@@ -15,6 +15,8 @@ import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import { NotificationToast } from './components/NotificationToast';
 import { Layout } from './components/Layout';
 import { improvePlan, analyzePlan, improvePlanWithHighlights } from './api/vesta';
+// Quick analysis API
+import { analyzePlanQuick } from './api/vesta';
 import ConfirmationModal from './components/ConfirmationModal';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
@@ -341,7 +343,8 @@ const handleSelectWorkspace = async (workspace: Workspace, reportToSelect?: Anal
     return addedReport;
   };
 
-const handleFileUpload = async (content: string, fileName: string) => {
+// Primary upload handler used by modal and wrappers
+const handleFileUpload = async (content: string, fileName: string, quick?: boolean) => {
   if (!selectedWorkspace) return;
 
   try {
@@ -352,12 +355,19 @@ const handleFileUpload = async (content: string, fileName: string) => {
     setIsAnalyzing(true);
 
     // Call API to analyze document
-    const reportData = await analyzePlan(
-      content,
-      knowledgeBaseSources,
-      dismissalRules,
-      customRegulations
-    );
+    const reportData = quick
+      ? await analyzePlanQuick(
+          content,
+          knowledgeBaseSources,
+          dismissalRules,
+          customRegulations
+        )
+      : await analyzePlan(
+          content,
+          knowledgeBaseSources,
+          dismissalRules,
+          customRegulations
+        );
 
     // Create new report object
     const report = {
@@ -380,6 +390,11 @@ const handleFileUpload = async (content: string, fileName: string) => {
     setIsAnalyzing(false);
     alert("Analysis failed. Please try again.");
   }
+};
+
+// Wrapper for AnalysisScreen prop type
+const handleNewAnalysisFromAnalysisScreen = (content: string, fileName: string, quick?: boolean) => {
+  void handleFileUpload(content, fileName, quick);
 };
 
   
@@ -646,7 +661,7 @@ const renderScreenComponent = () => {
         onAutoEnhance={handleAutoEnhance}
         isEnhancing={isEnhancing}
         analysisStatusText={isEnhancing ? "Enhancing…" : (isAnalyzing ? "Analyzing…" : "")}
-        onNewAnalysis={handleFileUpload}
+        onNewAnalysis={handleNewAnalysisFromAnalysisScreen}
       />
     );
   }

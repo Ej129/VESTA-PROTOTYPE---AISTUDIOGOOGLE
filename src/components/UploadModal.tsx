@@ -18,7 +18,7 @@ try {
 
 interface UploadModalProps {
   onClose: () => void;
-  onUpload: (content: string, fileName: string) => void;
+  onUpload: (content: string, fileName: string, quick?: boolean) => void;
   isAnalyzing: boolean;
 }
 
@@ -109,9 +109,9 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzin
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = (quick?: boolean) => {
     if (!fileContent) return;
-    onUpload(fileContent, fileName);
+    onUpload(fileContent, fileName, quick);
   };
 
   return (
@@ -135,20 +135,30 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, isAnalyzin
               className="mb-4 block w-full text-sm text-gray-700 dark:text-neutral-300"
             />
             {error && <p className="text-sm text-red-500 mb-2">{error}</p>}
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-between gap-3">
               <button
                 onClick={onClose}
                 className="px-4 py-2 rounded-md border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleUpload}
-                disabled={!fileContent}
-                className="px-4 py-2 rounded-md bg-red-700 text-white hover:bg-red-800 disabled:opacity-50"
-              >
-                Upload & Analyze
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleUpload(true)}
+                  disabled={!fileContent}
+                  className="px-4 py-2 rounded-md bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                  title="Faster, uses truncated input and less context"
+                >
+                  Quick Analyze
+                </button>
+                <button
+                  onClick={() => handleUpload(false)}
+                  disabled={!fileContent}
+                  className="px-4 py-2 rounded-md bg-red-700 text-white hover:bg-red-800 disabled:opacity-50"
+                >
+                  Upload & Analyze
+                </button>
+              </div>
             </div>
           </>
         )}

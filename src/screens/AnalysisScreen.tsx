@@ -545,7 +545,7 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   onRejectEnhanced?: (reportId: string) => void;
   isEnhancing: boolean;
   analysisStatusText: string;
-  onNewAnalysis: (content: string, fileName: string, diffContent?: string) => void;
+  onNewAnalysis: (content: string, fileName: string, quickOrDiff?: boolean | string) => void;
   onBack?: () => void;
 }
 
