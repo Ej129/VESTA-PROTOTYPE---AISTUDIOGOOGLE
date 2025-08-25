@@ -234,18 +234,47 @@ const App: React.FC = () => {
     return addedReport;
   };
 
-  const handleFileUpload = async (content: string, fileName: string) => {
-    if (!selectedWorkspace) return;
+const handleFileUpload = async (content: string, fileName: string) => {
+  if (!selectedWorkspace) return;
+
+  try {
+    // Add to audit log that file was uploaded
     addAuditLog('Document Upload', `File uploaded: ${fileName}`);
+
+    // Start analyzing → keep modal open
     setIsAnalyzing(true);
-    setUploadModalOpen(false); // Close modal immediately
-    navigateTo(Screen.Dashboard); // Navigate to dashboard while analyzing
-    const reportData = await vestaApi.analyzePlan(content, knowledgeBaseSources, dismissalRules, customRegulations);
-    const report = { ...reportData, title: fileName || "Pasted Text Analysis" };
+
+    // Call API to analyze document
+    const reportData = await vestaApi.analyzePlan(
+      content,
+      knowledgeBaseSources,
+      dismissalRules,
+      customRegulations
+    );
+
+    // Create new report object
+    const report = {
+      ...reportData,
+      title: fileName || "Pasted Text Analysis",
+    };
+
+    // Save analysis result
     await handleAnalysisComplete(report as AnalysisReport);
+
+    // Stop analyzing + close modal
     setIsAnalyzing(false);
+    setUploadModalOpen(false);
+
+    // Navigate to analysis screen
     navigateTo(Screen.Analysis);
-  };
+
+  } catch (error) {
+    console.error("Analysis failed:", error);
+    setIsAnalyzing(false);
+    alert("Analysis failed. Please try again.");
+  }
+};
+
   
   const handleSelectReport = (report: AnalysisReport) => {
     setActiveReport(report);
