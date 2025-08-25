@@ -3,8 +3,8 @@
 import { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
 import { getStore } from "@netlify/blobs";
 import multipart from 'parse-multipart-data';
-// --- REPLACED LIBRARY ---
-import { PDFExtract, PDFExtractOptions } from 'pdf.js-extract';
+// --- CORRECT LIBRARY ---
+import PDFParser from "pdf2json";
 
 import { analyzePlan, analyzePlanQuick } from '../../src/api/vesta';
 import { AnalysisReport, KnowledgeSource, DismissalRule, CustomRegulation } from '../../src/types';
@@ -16,6 +16,26 @@ const requireAuth = (context: HandlerContext) => {
   }
   return user;
 };
+
+// Helper function to wrap the event-based pdf2json in a Promise
+const parsePdfBuffer = (buffer: Buffer): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const pdfParser = new PDFParser();
+
+    pdfParser.on("pdfParser_dataError", (errData: any) => {
+      console.error(errData.parserError);
+      reject(new Error("Error parsing PDF."));
+    });
+
+    pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+      const rawText = pdfParser.getRawTextContent();
+      resolve(rawText);
+    });
+
+    pdfParser.parseBuffer(buffer);
+  });
+};
+
 
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   if (event.httpMethod !== 'POST') {
@@ -52,16 +72,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
     let documentContent = '';
     if (filePart.type === 'application/pdf') {
-        // --- NEW PDF PARSING LOGIC ---
-        const pdfExtract = new PDFExtract();
-        const options: PDFExtractOptions = {}; // Options can be added here if needed
-        const data = await pdfExtract.extractBuffer(fileContentBuffer, options);
-        
-        // Combine the text from all pages
-        documentContent = data.pages.map(page => {
-            return page.content.map(item => item.str).join(' ');
-        }).join('\n');
-        // --- END OF NEW LOGIC ---
+        documentContent = await parsePdfBuffer(fileContentBuffer);
     } else {
         documentContent = fileContentBuffer.toString('utf-8');
     }
