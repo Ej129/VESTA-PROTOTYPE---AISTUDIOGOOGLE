@@ -125,20 +125,25 @@ const App: React.FC = () => {
     setScreen(newScreen);
   };
   
-  const loadWorkspaceData = useCallback(async (workspaceId: string) => {
-    if (!currentUser) return;
-    const data = await workspaceApi.getWorkspaceData(workspaceId);
-    setReports(data.reports);
-    setAuditLogs(data.auditLogs);
-    setKnowledgeBaseSources(data.knowledgeBaseSources);
-    setDismissalRules(data.dismissalRules);
-    setCustomRegulations(data.customRegulations);
-    
-    const members = await workspaceApi.getWorkspaceMembers(workspaceId);
-    setWorkspaceMembers(members);
-    const member = members.find(m => m.email === currentUser.email);
-    setUserRole(member?.role || 'Member');
-  }, [currentUser]);
+const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
+  if (!currentUser) return;
+  const data = await workspaceApi.getWorkspaceData(workspaceId);
+  setReports(data.reports);
+  setAuditLogs(data.auditLogs);
+  setKnowledgeBaseSources(data.knowledgeBaseSources);
+  setDismissalRules(data.dismissalRules);
+  setCustomRegulations(data.customRegulations);
+  
+  const members = await workspaceApi.getWorkspaceMembers(workspaceId);
+  setWorkspaceMembers(members);
+  const member = members.find(m => m.email === currentUser.email);
+  setUserRole(member?.role || 'Member');
+  
+  // Only reset activeReport if not explicitly keeping it
+  if (!keepActiveReport) {
+    setActiveReport(null);
+  }
+}, [currentUser]);
 
   const refreshWorkspaces = useCallback(async () => {
     if (!currentUser) return;
@@ -216,13 +221,18 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSelectWorkspace = async (workspace: Workspace) => {
-    if(selectedWorkspace?.id === workspace.id && screen !== Screen.Analysis) return;
-    setSelectedWorkspace(workspace);
-    setActiveReport(null); // Clear active report when switching workspace
-    await loadWorkspaceData(workspace.id);
-    navigateTo(Screen.Dashboard); // Always go to Dashboard on workspace select
-  };
+const handleSelectWorkspace = async (workspace: Workspace, reportToSelect?: AnalysisReport) => {
+  if(selectedWorkspace?.id === workspace.id && screen !== Screen.Analysis && !reportToSelect) return;
+  
+  setSelectedWorkspace(workspace);
+  setActiveReport(reportToSelect || null); // Keep the report if provided
+  await loadWorkspaceData(workspace.id);
+  
+  // Only navigate to dashboard if we're not selecting a specific report
+  if (!reportToSelect) {
+    navigateTo(Screen.Dashboard);
+  }
+};
 
   const handleAnalysisComplete = async (report: AnalysisReport) => {
     if (!selectedWorkspace) return;
@@ -278,11 +288,25 @@ const handleFileUpload = async (content: string, fileName: string) => {
   
 const handleSelectReport = (report: AnalysisReport) => {
   if (!report) return;
+  
+  // First, check if this report belongs to a different workspace
+  if (selectedWorkspace?.id !== report.workspaceId) {
+    // Find the workspace this report belongs to
+    const reportWorkspace = workspaces.find(ws => ws.id === report.workspaceId);
+    if (reportWorkspace) {
+      // Switch to the correct workspace first
+      handleSelectWorkspace(reportWorkspace).then(() => {
+        // After workspace is loaded, set the active report
+        setActiveReport(report);
+        navigateTo(Screen.Analysis);
+      });
+      return;
+    }
+  }
+  
+  // If already in the correct workspace, just set the report and navigate
   setActiveReport(report);
-  // Let React commit the state update, then navigate.
-  requestAnimationFrame(() => {
-    navigateTo(Screen.Analysis);
-  });
+  navigateTo(Screen.Analysis);
 };
 
 
