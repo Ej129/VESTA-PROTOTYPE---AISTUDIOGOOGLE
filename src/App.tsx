@@ -127,6 +127,9 @@ const App: React.FC = () => {
   
 const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
   if (!currentUser) return;
+  
+  console.log("loadWorkspaceData called with keepActiveReport:", keepActiveReport);
+  
   const data = await workspaceApi.getWorkspaceData(workspaceId);
   setReports(data.reports);
   setAuditLogs(data.auditLogs);
@@ -141,7 +144,10 @@ const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveRepo
   
   // Only reset activeReport if not explicitly keeping it
   if (!keepActiveReport) {
+    console.log("Resetting activeReport to null");
     setActiveReport(null);
+  } else {
+    console.log("Keeping current activeReport");
   }
 }, [currentUser]);
 
@@ -327,6 +333,7 @@ const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
   if (!report) return '';
 
   try {
+    console.log("Starting auto-enhance for report:", report.id);
     setIsAnalyzing(true);
 
     // Call your API to improve content
@@ -335,39 +342,39 @@ const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
       report
     );
 
+    console.log("API call completed, creating enhanced report");
+
     // Create enhanced report object
     const enhancedReport: AnalysisReport = {
       ...report,
       diffContent: improvedContentWithDiff, // highlighted diff
       documentContent: report.documentContent, // keep original baseline
-      title: report.title.includes("(Enhanced)") ? report.title : report.title + " (Enhanced)", // avoid duplicate labels
+      title: report.title.includes("(Enhanced)") ? report.title : report.title + " (Enhanced)",
     };
 
-    // ✅ Update BOTH activeReport state AND reports list
+    console.log("Setting enhanced report as active");
+
+    // ✅ Update activeReport state - this will trigger AnalysisScreen to re-render
     setActiveReport(enhancedReport);
     
-    // Also update the reports list so it shows the enhanced version
+    // Also update the reports list
     setReports(prevReports => 
       prevReports.map(r => r.id === report.id ? enhancedReport : r)
     );
 
-    // Optional: Save to backend if you want persistence
-    try {
-      await workspaceApi.updateReport(enhancedReport);
-    } catch (saveError) {
-      console.error("Failed to save enhanced report:", saveError);
-      // Continue anyway - the enhancement is still applied in UI
-    }
-
+    // Add audit log
     addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
 
+    console.log("Auto-enhance completed successfully");
     return improvedContentWithDiff;
+
   } catch (error) {
     console.error("AutoEnhance failed:", error);
     alert("Auto-enhance failed. Please try again.");
     return '';
   } finally {
-    // ✅ Critical: Always set isAnalyzing to false to stop the loading state
+    console.log("Setting isAnalyzing to false");
+    // ✅ Always clear the loading state
     setIsAnalyzing(false);
   }
 };
