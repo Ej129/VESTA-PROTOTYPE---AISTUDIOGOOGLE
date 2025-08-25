@@ -321,14 +321,37 @@ const handleSelectReport = (report: AnalysisReport) => {
       }
   };
 
-  const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
-      if (!report) return '';
-      setIsAnalyzing(true);
-      const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report);
-      addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
-      setIsAnalyzing(false);
-      return improvedContentWithDiff;
-  };
+const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
+  if (!report) return '';
+
+  setIsAnalyzing(true);
+  try {
+    // Call API to get improved content
+    const improvedContentWithDiff = await vestaApi.improvePlan(report.documentContent, report);
+
+    // Build a new enhanced report object
+    const enhancedReport: AnalysisReport = {
+      ...report,
+      id: `${report.id}-enhanced-${Date.now()}`, // unique id
+      title: report.title.replace(/\.[^/.]+$/, '') + ' (Enhanced)',
+      diffContent: improvedContentWithDiff,
+    };
+
+    // Save as active report so AnalysisScreen shows it
+    setActiveReport(enhancedReport);
+
+    // Add audit log
+    addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
+
+    return improvedContentWithDiff;
+  } catch (error) {
+    console.error('Enhancement failed:', error);
+    return '';
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
+
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
     if (!selectedWorkspace) return;
