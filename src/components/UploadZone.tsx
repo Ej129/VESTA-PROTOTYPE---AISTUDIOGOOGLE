@@ -27,31 +27,80 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUpload, isAnalyzing }) => {
 
     const fileName = file.name;
     const fileExtension = fileName.split('.').pop()?.toLowerCase();
-    
+
     setIsProcessing(true);
     setError(null);
 
     try {
       let content = '';
+
+      // Try to enable cMap support (improves extraction for some PDFs)
+      try {
+        // Use GlobalWorkerOptions for other settings as well
+        // @ts-ignore
+        pdfjsLib.GlobalWorkerOptions.cMapUrl = new URL('pdfjs-dist/cmaps/', import.meta.url).toString();
+        // @ts-ignore
+        pdfjsLib.GlobalWorkerOptions.cMapPacked = true;
+      } catch (cmErr) {
+        // not fatal; continue
+        console.warn('pdfjs cMap setup warning', cmErr);
+      }
+
       if (fileExtension === 'pdf') {
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const loadingTask = (pdfjsLib as any).getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
         let pdfText = '';
+
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          pdfText += textContent.items.map((item: any) => item.str).join(' ');
+          const textContent = await page.getTextContent({ normalizeWhitespace: true });
+          const pageText = textContent.items
+            .map((item: any) => {
+              // item.str is common; fall back to other properties if present
+              return (typeof item.str === 'string' && item.str) || (item.unicode ?? '') || (item.toString ? item.toString() : '');
+            })
+            .filter(Boolean)
+            .join(' ');
+          pdfText += pageText + '\n';
         }
-        content = pdfText;
+
+        // Basic heuristic: check printable character ratio
+        const totalLen = Math.max(1, pdfText.length);
+        const printableCount = (pdfText.match(/[\p{L}\p{N}\p{P}\p{Zs}\p{S}]/gu) || []).length;
+        const printableRatio = printableCount / totalLen;
+
+        // If low printable ratio, likely scanned PDF / wrong encoding -> suggest OCR
+        if (printableRatio < 0.25) {
+          throw new Error(
+            'Extracted PDF text appears garbled or the PDF is likely a scanned image. ' +
+            'Try a PDF with selectable text or enable OCR (e.g. Tesseract).'
+          );
+        }
+
+        // Collapse multiple spaces, normalize newlines
+        content = pdfText.replace(/[ \t]{2,}/g, ' ').replace(/\r\n/g, '\n').trim();
       } else if (fileExtension === 'docx') {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
-        content = result.value;
+        let raw = result.value || '';
+
+        // Remove control characters and zero-width characters
+        raw = raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]+/g, ' ');
+        raw = raw.replace(/[\u200B-\u200F\uFEFF]/g, ''); // zero-width and BOM
+        raw = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        // collapse multiple blank lines
+        raw = raw.replace(/\n{3,}/g, '\n\n');
+        content = raw.trim();
+      } else if (fileExtension === 'doc') {
+        // legacy .doc not supported by mammoth
+        throw new Error('Legacy .doc files are not supported. Please save as .docx or .pdf and try again.');
       } else if (fileExtension === 'txt') {
         content = await file.text();
       } else {
         throw new Error('Unsupported file type. Please upload a .pdf, .docx, or .txt file.');
       }
+
       onUpload(content, fileName);
     } catch (e) {
       console.error("Error processing file:", e);
