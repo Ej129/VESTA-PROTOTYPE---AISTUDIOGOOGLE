@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
 
@@ -173,16 +171,18 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
 }
 
 export async function improvePlan(planContent: string, report: AnalysisReport): Promise<string> {
-    if (!planContent.trim() || !report || report.findings.length === 0) {
-        return planContent; // Return original if no basis for improvement
-    }
-    
-    const findingsSummary = report.findings.map(f => 
-        `- Finding: "${f.title}" (Severity: ${f.severity})\n` +
-        `  - Source Snippet: "${f.sourceSnippet}"\n` +
-        `  - Recommendation: ${f.recommendation}`
-    ).join('\n\n');
+  // --- call into your existing AI implementation and capture raw string output ---
+  if (!planContent.trim() || !report || report.findings.length === 0) {
+    return planContent; // Return original if no basis for improvement
+  }
+  
+  const findingsSummary = report.findings.map(f => 
+      `- Finding: "${f.title}" (Severity: ${f.severity})\n` +
+      `  - Source Snippet: "${f.sourceSnippet}"\n` +
+      `  - Recommendation: ${f.recommendation}`
+  ).join('\n\n');
 
+  const rawOutput: string = await (async () => {
     try {
         const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
             model: "gemini-2.5-flash",
@@ -216,6 +216,38 @@ ${findingsSummary}
         // Fallback to original content on error
         return `Error: Could not enhance document.\n\n${planContent}`; 
     }
+  })();
+
+  // --- Post-process the raw output to remove diffs/annotations and return a clean document ---
+  let cleaned = String(rawOutput || '');
+
+  // If model returned a fenced code block, extract its content
+  const codeBlock = cleaned.match(/```(?:\w*\n)?([\s\S]*?)```/);
+  if (codeBlock && codeBlock[1]) {
+    cleaned = codeBlock[1];
+  }
+
+  // Remove common diff/annotation markers at start of lines (++/--/+/- and similar)
+  cleaned = cleaned
+    .split('\n')
+    .map(line => {
+      // Remove leading markers like "++ ", "-- ", "+ ", "- ", ">>> " etc.
+      return line.replace(/^\s*(\+\+|--|\+|-|>>>|<<<|>\s|<\s)\s?/, '');
+    })
+    // Filter out diff metadata lines that are not part of the document
+    .filter(line => !/^(diff --git|index |@@ |--- |\+\+\+ )/.test(line))
+    .join('\n');
+
+  // Remove any leftover "++" or "--" tokens at starts of paragraphs
+  cleaned = cleaned.replace(/^\s*\+\+\s*/gm, '').replace(/^\s*--\s*/gm, '');
+
+  // Strip RTF/garbage markers if accidentally returned
+  cleaned = cleaned.replace(/^\s*{\\rtf1[\s\S]*?}/, '');
+
+  // Normalize whitespace and collapse excessive blank lines
+  cleaned = cleaned.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+
+  return cleaned;
 }
 
 export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
