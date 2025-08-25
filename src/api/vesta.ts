@@ -1,3 +1,5 @@
+
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
 
@@ -171,120 +173,49 @@ export async function analyzePlan(planContent: string, knowledgeSources: Knowled
 }
 
 export async function improvePlan(planContent: string, report: AnalysisReport): Promise<string> {
-  const genai = getGenAIClient();
+    if (!planContent.trim() || !report || report.findings.length === 0) {
+        return planContent; // Return original if no basis for improvement
+    }
+    
+    const findingsSummary = report.findings.map(f => 
+        `- Finding: "${f.title}" (Severity: ${f.severity})\n` +
+        `  - Source Snippet: "${f.sourceSnippet}"\n` +
+        `  - Recommendation: ${f.recommendation}`
+    ).join('\n\n');
 
-  // Strong system/user instructions to force raw document output only
-  const systemPrompt = `
-You are a professional editor. Given a document, produce a single, fully revised version of the document.
-DO NOT include any diffs, annotations, explanations, or metadata. Return ONLY the cleaned full document text.
-Preserve sections/headings. Use a professional, formal tone suitable for regulatory / project documentation.
-`;
+    try {
+        const response: GenerateContentResponse = await getGenAIClient().models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `The following project plan has been analyzed and several issues were found. Your task is to rewrite the entire document to incorporate the recommendations and fix the issues.
+RULES:
+1. Return ONLY the full, revised text of the project plan.
+2. DO NOT include any introductory text like "Here is the revised plan." or any other commentary.
+3. Compare your revised version to the original line-by-line.
+4. For every line that is NEW or MODIFIED, prefix it with "++ ".
+5. For every line that is REMOVED, prefix it with "-- ".
+6. For every line that is UNCHANGED, do NOT add any prefix.
 
-  const userPrompt = `
-Original document:
+ORIGINAL PLAN:
 ---
 ${planContent}
 ---
 
-Task: Return the complete revised document text only. No lists of changes, no diff markers (++, --, +, -), no code fences, no commentary.
-`;
-
-  // Helper: extract raw text from the genai response object (adapt if your client shape differs)
-  const extractRawText = (resp: any) => {
-    if (!resp) return '';
-    // common shapes: resp.candidates[0].content or resp.outputText / resp.text
-    return (resp?.candidates?.[0]?.content ?? resp?.outputText ?? resp?.text ?? '').toString();
-  };
-
-  // Call the model (adjust call shape if your getGenAIClient uses a different method)
-  let rawOutput = '';
-  try {
-    const resp = await genai.generate?.({
-      model: 'gpt-5-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.15,
-      max_output_tokens: 2000
-    } as any) as any;
-
-    rawOutput = extractRawText(resp);
-  } catch (err) {
-    // Fallback: try a simple text call if generate wasn't available
-    try {
-      const resp2 = await genai.generateText?.({
-        model: 'gpt-5-mini',
-        prompt: systemPrompt + '\n' + userPrompt,
-        temperature: 0.15,
-        maxTokens: 2000
-      } as any);
-      rawOutput = extractRawText(resp2);
-    } catch (err2) {
-      console.error('improvePlan model call failed', err2);
-      throw new Error('AI improvePlan call failed');
-    }
-  }
-
-  // Cleaning function: strip fenced blocks, diff markers, and stray annotations
-  let cleaned = String(rawOutput || '');
-
-  // If wrapped in a code fence, extract inner content
-  const codeBlockMatch = cleaned.match(/```(?:\w*\n)?([\s\S]*?)```/);
-  if (codeBlockMatch && codeBlockMatch[1]) cleaned = codeBlockMatch[1];
-
-  // Remove common diff markers at line starts
-  cleaned = cleaned
-    .split('\n')
-    .map(line => line.replace(/^\s*(\+\+|--|\+|-|>\s|<\s|>>>|<<<)\s?/, ''))
-    .filter(line => !/^(diff --git|index |@@ |--- |\+\+\+ )/.test(line))
-    .join('\n');
-
-  // Remove any leftover ++/-- tokens and RTF markers
-  cleaned = cleaned.replace(/^\s*[\+\-]{2,}\s*/gm, '').replace(/^\s*{\\rtf1[\s\S]*?}/, '');
-
-  // Normalize whitespace and collapse excessive blank lines
-  cleaned = cleaned.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-
-  // If the output still looks like a diff or is too short, do a second-pass extraction
-  const looksLikeDiff = /^(?:\+{2}|-{2}|diff --git|@@ )/m.test(cleaned) || (cleaned.split('\n').length < Math.max(5, planContent.split('\n').length * 0.3));
-  if (looksLikeDiff) {
-    // Ask the model to extract the document portion only from the previous rawOutput
-    const extractorPrompt = `
-You were given an editor response. Extract ONLY the document content from the response below. Do NOT include diffs, annotations, or explanations; return only the cleaned document text.
-
-Response to extract:
+ISSUES AND RECOMMENDATIONS:
 ---
-${rawOutput}
+${findingsSummary}
 ---
-Return only the cleaned document.
-`;
-    try {
-      const resp3 = await genai.generate?.({
-        model: 'gpt-5-mini',
-        messages: [
-          { role: 'system', content: 'You are a strict extractor. Return only the document text.' },
-          { role: 'user', content: extractorPrompt }
-        ],
-        temperature: 0.0,
-        max_output_tokens: 2000
-      } as any) as any;
-      const secondPass = extractRawText(resp3);
-      if (secondPass && secondPass.trim().length > 0) {
-        // Clean secondary output as well
-        cleaned = secondPass
-          .replace(/```(?:\w*\n)?([\s\S]*?)```/, '$1')
-          .replace(/^\s*[\+\-]{2,}\s*/gm, '')
-          .replace(/\r\n/g, '\n')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
-      }
-    } catch (e) {
-      console.warn('Second pass extraction failed, using best-effort cleaned output', e);
-    }
-  }
+`,
+            config: {
+                systemInstruction: "You are an expert technical writer and project manager specializing in compliance documentation. Your task is to revise a project plan to resolve issues identified in an analysis report. You must integrate the given recommendations seamlessly, apply appropriate compliance formatting, improve clarity, and ensure the document is professional and well-structured.",
+            },
+        });
 
-  return cleaned;
+        return response.text.trim();
+    } catch (error) {
+        console.error("Error improving plan with Gemini:", error);
+        // Fallback to original content on error
+        return `Error: Could not enhance document.\n\n${planContent}`; 
+    }
 }
 
 export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
