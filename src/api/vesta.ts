@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage } from '../types';
+import { diffWordsWithSpace } from 'diff';
 
 let ai: GoogleGenAI | null = null;
 
@@ -309,6 +310,45 @@ Return only the final revised document text, making minimal inline edits as requ
     }
 
     return cleaned;
+}
+
+function escapeHtml(str: string) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Generate inline HTML that highlights changes between original and revised:
+ * - additions wrapped in <ins class="added">...</ins>
+ * - removals wrapped in <del class="removed">...</del>
+ * Caller should render as trusted HTML in the preview pane.
+ */
+export function highlightChanges(original: string, revised: string): string {
+  const parts = diffWordsWithSpace(original || '', revised || '');
+  return parts.map(p => {
+    const v = escapeHtml(p.value);
+    if (p.added) {
+      return `<ins class="vesta-added" style="background:#e6ffed;color:#064e3b;text-decoration:none;">${v}</ins>`;
+    }
+    if (p.removed) {
+      return `<del class="vesta-removed" style="background:#ffecec;color:#991b1b;text-decoration:line-through;">${v}</del>`;
+    }
+    return v;
+  }).join('');
+}
+
+/**
+ * Convenience wrapper: returns both cleaned enhanced text and HTML-highlighted diff.
+ * Use this in App.handleAutoEnhance to save the draft and show a preview with highlights.
+ */
+export async function improvePlanWithHighlights(planContent: string, report: AnalysisReport): Promise<{ text: string; highlightedHtml: string }> {
+  const text = await improvePlan(planContent, report);
+  const highlightedHtml = highlightChanges(planContent, text);
+  return { text, highlightedHtml };
 }
 
 export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
