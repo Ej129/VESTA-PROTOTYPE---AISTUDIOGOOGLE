@@ -403,31 +403,46 @@ const handleFileUpload = async (content: string, fileName: string, quick?: boole
   }
 };
 const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') => {
-  if (!file) return;
+  if (!file || !selectedWorkspace) return;
+
+  // Show a loading indicator to the user
+  setIsAnalyzing(true);
 
   try {
-      // The old `handleFileUpload` expects the file content as a string.
-      // So, we read it here first.
-      const content = await file.text();
-      const fileName = file.name;
-      const isQuick = analysisType === 'quick';
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('workspaceId', selectedWorkspace.id);
+      formData.append('analysisType', analysisType);
 
-      // Now, we call your original, trusted function with the data it expects.
-      // It will handle the API call, state updates, and navigation.
-      await handleFileUpload(content, fileName, isQuick);
+      // Call your Netlify function endpoint
+      const response = await fetch('/.netlify/functions/add-report', {
+          method: 'POST',
+          body: formData,
+      });
 
-      // After it's all done, we can close our new modal.
-      // Your original function already closes the *old* modal, so we'll adjust that later.
-      setIsNewAnalysisModalOpen(false);
+      if (!response.ok) {
+          const errorBody = await response.json();
+          throw new Error(errorBody.message || 'Failed to start analysis.');
+      }
+
+      const newReport = await response.json();
+
+      // Success! Add the new report to our state to update the UI
+      setReports(prevReports => [newReport, ...prevReports]);
+      
+      // Navigate to the new report's analysis screen
+      setActiveReport(newReport);
+      navigateTo(Screen.Analysis);
 
   } catch (error) {
-      console.error("Failed to read file or start analysis:", error);
-      alert("Could not read the selected file. Please ensure it is a valid text-based file.");
-      // Also turn off the loading state in case of an error here
+      console.error("Error starting analysis:", error);
+      alert((error as Error).message);
+  } finally {
+      // Hide loading indicator and close the modal
       setIsAnalyzing(false);
+      setIsNewAnalysisModalOpen(false); // Make sure this is the state for your new modal
   }
 };
-
 // Wrapper for AnalysisScreen prop type
 const handleNewAnalysisFromAnalysisScreen = (content: string, fileName: string, quick?: boolean) => {
   void handleFileUpload(content, fileName, quick);
