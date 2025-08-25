@@ -20,7 +20,7 @@
     "jspdf": "^3.0.1",
     "mammoth": "^1.8.0",
     "parse-multipart-data": "^1.5.0",
-    "pdf.js-extract": "^0.2.1",
+    "pdf2json": "^3.2.0",
     "pdfjs-dist": "^5.4.54",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
