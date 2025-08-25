@@ -559,28 +559,45 @@ const handleSelectReport = (report: AnalysisReport) => {
     }
   };
 
-  const handleDeleteReport = (report: AnalysisReport) => {
-    if (!selectedWorkspace) return;
-    setConfirmation({
-        title: "Delete Analysis",
-        message: `Are you sure you want to permanently delete the analysis for "${report.title}"? This action cannot be undone.`,
-        confirmText: "Delete Analysis",
-        onConfirm: async () => {
-            try {
-                await addAuditLog('Analysis Deleted', `Analysis "${report.title}" was permanently deleted.`);
-                await workspaceApi.deleteReport(report.id);
-                if (activeReport?.id === report.id) {
-                    setActiveReport(null);
-                    navigateTo(Screen.Dashboard);
-                }
-                await loadWorkspaceData(selectedWorkspace.id);
-            } catch (error) {
-                console.error("Failed to delete report:", error);
-                alert((error as Error).message);
-            }
-        }
-    });
-  };
+  // Replace or update your existing handleDeleteReport to use deleteReportsBulk.
+  // This optimistically removes reports from UI, then calls API in parallel.
+  // If API fails for some ids, it re-inserts them and logs an error.
+
+  async function handleDeleteReportOptimized(reportIds: string[] | string) {
+    const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
+    if (!ids.length) return;
+
+    // confirm once if needed (UI flow earlier may already confirm)
+    if (!confirm(`Delete ${ids.length} analysis${ids.length > 1 ? 'es' : ''}? This cannot be undone.`)) return;
+
+    // optimistic update: remove from local state immediately
+    const prevReports = reports;
+    const remaining = prevReports.filter(r => !ids.includes(r.id));
+    setReports(remaining);
+    if (activeReport && ids.includes(activeReport.id)) {
+      setActiveReport(null);
+    }
+
+    try {
+      const res = await workspaceApi.deleteReportsBulk(selectedWorkspace!.id, ids, 12); // concurrency 12 for speed
+      if (res.failed.length > 0) {
+        // revert failed deletions back into state
+        const failedIds = new Set(res.failed.map(f => f.id));
+        const reverted = prevReports.filter(r => failedIds.has(r.id));
+        setReports(prev => [...reverted, ...prev]); // re-add failed ones
+        console.error('Some deletes failed', res.failed);
+        alert(`Failed to delete ${res.failed.length} items. They were restored.`);
+      } else {
+        // success: optionally log audit and show toast
+        await addAuditLog('Delete', `Deleted ${res.success.length} analysis reports`, false);
+      }
+    } catch (err) {
+      // network error: restore previous state
+      setReports(prevReports);
+      console.error('Bulk delete failed', err);
+      alert('Failed to delete reports. Please try again.');
+    }
+  }
 
 const renderScreenComponent = () => {
   // Allow Analysis to render if we already have an activeReport,

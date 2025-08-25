@@ -1,5 +1,3 @@
-
-
 import { User, Workspace, WorkspaceMember, AnalysisReport, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, UserRole, WorkspaceData, CustomRegulation, WorkspaceInvitation } from '../types';
 
 // --- API Helper ---
@@ -259,3 +257,44 @@ export const deleteCustomRegulation = (workspaceId: string, regulationId: string
         body: JSON.stringify({ workspaceId, regulationId }),
     });
 };
+
+/**
+ * Delete multiple reports in parallel with a concurrency limit.
+ * Falls back to sequential deletes if deleteReport is not available.
+ */
+export async function deleteReportsBulk(workspaceId: string, reportIds: string[], concurrency = 8): Promise<{ success: string[]; failed: { id: string; error: any }[] }> {
+  // ensure unique ids
+  const ids = Array.from(new Set(reportIds)).filter(Boolean);
+  const results: { success: string[]; failed: { id: string; error: any }[] } = { success: [], failed: [] };
+
+  // simple concurrency limiter
+  const queue: Promise<void>[] = [];
+  let idx = 0;
+
+  const worker = async () => {
+    while (idx < ids.length) {
+      const i = idx++;
+      const id = ids[i];
+      try {
+        // reuse existing single-delete API if present
+        if (typeof deleteReport === 'function') {
+          await deleteReport(workspaceId, id);
+        } else {
+          // fallback: direct fetch (adjust path to your API route if different)
+          await fetch(`/api/workspaces/${workspaceId}/reports/${id}`, { method: 'DELETE' });
+        }
+        results.success.push(id);
+      } catch (err) {
+        results.failed.push({ id, error: err });
+      }
+    }
+  };
+
+  // start N workers
+  for (let i = 0; i < Math.min(concurrency, ids.length); i++) {
+    queue.push(worker());
+  }
+
+  await Promise.all(queue);
+  return results;
+}
