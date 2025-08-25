@@ -277,12 +277,17 @@ const App: React.FC = () => {
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
 
   
-  const addAuditLog = useCallback(async (action: AuditLogAction, details: string, keepActiveReport = false) => {
+  // Move this above any code that calls addAuditLog
+  async function addAuditLog(action: AuditLogAction, details: string, keepActiveReport = false) {
     if (!currentUser || !selectedWorkspace) return;
-    await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action, details);
-    // Reload workspace data; optionally preserve the current active report
-    await loadWorkspaceData(selectedWorkspace.id, keepActiveReport);
-  }, [currentUser, selectedWorkspace, loadWorkspaceData]);
+    try {
+      await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action, details);
+      // reload workspace data, optionally preserving active report
+      await loadWorkspaceData(selectedWorkspace.id, keepActiveReport);
+    } catch (err) {
+      console.error('addAuditLog failed', err);
+    }
+  }
 
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
