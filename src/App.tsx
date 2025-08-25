@@ -63,7 +63,7 @@ const NoWorkspaceSelectedScreen: React.FC<{ onCreate: () => void }> = ({ onCreat
 
 const App: React.FC = () => {
   // --- FAIL-FAST CHECK ---
-  if (!import.meta.env.VITE_API_KEY) {
+  if (!(import.meta as any).env.VITE_API_KEY) {
     return <ErrorScreen message="The 'VITE_API_KEY' environment variable is not set. This key is required to communicate with the Google Gemini API." />;
   }
   
@@ -107,7 +107,7 @@ const App: React.FC = () => {
 
   // Auto-enhance handler: improve the document then re-run analysis to update scores
   const handleAutoEnhance = useCallback(async (maybeReport?: AnalysisReport) => {
-    // Resolve the real target report: prefer report by id, otherwise fall back to activeReport
+    // Resolve target report (prefer id match, fallback to activeReport)
     const targetReport = (maybeReport && maybeReport.id)
       ? reports.find(r => r.id === maybeReport.id) ?? maybeReport
       : activeReport;
@@ -119,10 +119,10 @@ const App: React.FC = () => {
 
     setIsEnhancing(true);
     try {
-      // 1) Improve document text
+      // 1) Produce improved document text
       const improvedText = await improvePlan(targetReport.documentContent, targetReport);
 
-      // 2) Re-run analysis on improved text
+      // 2) Re-run analysis on improved text to update scores/findings
       const newReportData = await analyzePlan(
         improvedText,
         knowledgeBaseSources,
@@ -141,7 +141,7 @@ const App: React.FC = () => {
         resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
       };
 
-      // 4) Update local state
+      // 4) Update local state (match by id if present)
       setReports(prev =>
         updatedReport.id
           ? prev.map(r => (r.id === updatedReport.id ? updatedReport : r))
@@ -149,12 +149,11 @@ const App: React.FC = () => {
       );
       setActiveReport(updatedReport);
 
-      // 5) Persist if available (optional)
-      // await workspaceApi.updateReport?.(selectedWorkspace.id, updatedReport);
+      // 5) Optional persist (uncomment and adapt if you have an API)
+      // try { await workspaceApi.updateReport?.(selectedWorkspace.id, updatedReport); } catch (e) { console.warn(e); }
 
-      // 6) Audit log but preserve activeReport during reloads
+      // 6) Audit log and keep activeReport during reloads
       await addAuditLog('Auto-Fix', `Auto-enhanced report: ${updatedReport.title}`, true);
-
     } catch (err) {
       console.error('Auto-enhance failed', err);
     } finally {
@@ -171,7 +170,6 @@ const App: React.FC = () => {
     setReports,
     setActiveReport
   ]);
-
 
   // Global Theme Persistence Fix
   useEffect(() => {
@@ -195,31 +193,31 @@ const App: React.FC = () => {
     setScreen(newScreen);
   };
   
-const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
-  if (!currentUser) return;
-  
-  console.log("loadWorkspaceData called with keepActiveReport:", keepActiveReport);
-  
-  const data = await workspaceApi.getWorkspaceData(workspaceId);
-  setReports(data.reports);
-  setAuditLogs(data.auditLogs);
-  setKnowledgeBaseSources(data.knowledgeBaseSources);
-  setDismissalRules(data.dismissalRules);
-  setCustomRegulations(data.customRegulations);
-  
-  const members = await workspaceApi.getWorkspaceMembers(workspaceId);
-  setWorkspaceMembers(members);
-  const member = members.find(m => m.email === currentUser.email);
-  setUserRole(member?.role || 'Member');
-  
-  // Only reset activeReport if not explicitly keeping it
-  if (!keepActiveReport) {
-    console.log("Resetting activeReport to null");
-    setActiveReport(null);
-  } else {
-    console.log("Keeping current activeReport");
-  }
-}, [currentUser]);
+  const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
+    if (!currentUser) return;
+    
+    console.log("loadWorkspaceData called with keepActiveReport:", keepActiveReport);
+    
+    const data = await workspaceApi.getWorkspaceData(workspaceId);
+    setReports(data.reports);
+    setAuditLogs(data.auditLogs);
+    setKnowledgeBaseSources(data.knowledgeBaseSources);
+    setDismissalRules(data.dismissalRules);
+    setCustomRegulations(data.customRegulations);
+    
+    const members = await workspaceApi.getWorkspaceMembers(workspaceId);
+    setWorkspaceMembers(members);
+    const member = members.find(m => m.email === currentUser.email);
+    setUserRole(member?.role || 'Member');
+    
+    // Only reset activeReport if not explicitly keeping it
+    if (!keepActiveReport) {
+      console.log("Resetting activeReport to null");
+      setActiveReport(null);
+    } else {
+      console.log("Keeping current activeReport");
+    }
+  }, [currentUser]);
 
   const refreshWorkspaces = useCallback(async () => {
     if (!currentUser) return;
@@ -277,6 +275,7 @@ const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveRepo
       }, 30000);
       return () => clearInterval(intervalId);
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
+
   
   const addAuditLog = useCallback(async (action: AuditLogAction, details: string, keepActiveReport = false) => {
     if (!currentUser || !selectedWorkspace) return;
@@ -398,74 +397,6 @@ const handleSelectReport = (report: AnalysisReport) => {
       }
   };
   
-
-
-  // Auto-enhance handler: improve the document then re-run analysis to update scores
-  const handleAutoEnhance = useCallback(async (maybeReport?: AnalysisReport) => {
-    // Resolve the real target report: prefer report by id, otherwise fall back to activeReport
-    const targetReport = (maybeReport && maybeReport.id)
-      ? reports.find(r => r.id === maybeReport.id) ?? maybeReport
-      : activeReport;
-
-    if (!targetReport || !selectedWorkspace) {
-      console.warn('Auto-enhance: no target report or workspace');
-      return;
-    }
-
-    setIsEnhancing(true);
-    try {
-      // 1) Improve document text
-      const improvedText = await improvePlan(targetReport.documentContent, targetReport);
-
-      // 2) Re-run analysis on improved text
-      const newReportData = await analyzePlan(
-        improvedText,
-        knowledgeBaseSources,
-        dismissalRules,
-        customRegulations
-      );
-
-      // 3) Merge results, preserving identity fields
-      const updatedReport: AnalysisReport = {
-        ...targetReport,
-        documentContent: improvedText,
-        title: newReportData.title ?? targetReport.title,
-        summary: newReportData.summary ?? targetReport.summary,
-        findings: newReportData.findings ?? targetReport.findings,
-        scores: newReportData.scores ?? targetReport.scores,
-        resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
-      };
-
-      // 4) Update local state
-      setReports(prev =>
-        updatedReport.id
-          ? prev.map(r => (r.id === updatedReport.id ? updatedReport : r))
-          : prev.map(r => (r === targetReport ? updatedReport : r))
-      );
-      setActiveReport(updatedReport);
-
-      // 5) Persist if available (optional)
-      // await workspaceApi.updateReport?.(selectedWorkspace.id, updatedReport);
-
-      // 6) Audit log but preserve activeReport during reloads
-      await addAuditLog('Auto-Fix', `Auto-enhanced report: ${updatedReport.title}`, true);
-
-    } catch (err) {
-      console.error('Auto-enhance failed', err);
-    } finally {
-      setIsEnhancing(false);
-    }
-  }, [
-    reports,
-    activeReport,
-    selectedWorkspace,
-    knowledgeBaseSources,
-    dismissalRules,
-    customRegulations,
-    addAuditLog,
-    setReports,
-    setActiveReport
-  ]);
 
 
   const addKnowledgeSource = async (title: string, content: string, category: KnowledgeCategory) => {
