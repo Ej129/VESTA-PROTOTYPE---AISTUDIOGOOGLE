@@ -281,16 +281,17 @@ const App: React.FC = () => {
 
   
   // Move this above any code that calls addAuditLog
-  async function addAuditLog(action: AuditLogAction, details: string, keepActiveReport = false) {
-    if (!currentUser || !selectedWorkspace) return;
-    try {
-      await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action, details);
-      // reload workspace data, optionally preserving active report
-      await loadWorkspaceData(selectedWorkspace.id, keepActiveReport);
-    } catch (err) {
-      console.error('addAuditLog failed', err);
+    async function addAuditLog(action: AuditLogAction | string, details: string, keepActiveReport = false) {
+      if (!currentUser || !selectedWorkspace) return;
+      try {
+        // cast to AuditLogAction when calling the API to accept string literals in callers
+        await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action as AuditLogAction, details);
+        // reload workspace data, optionally preserving active report
+        await loadWorkspaceData(selectedWorkspace.id, keepActiveReport);
+      } catch (err) {
+        console.error('addAuditLog failed', err);
+      }
     }
-  }
 
   const handleCreateWorkspace = async (name: string) => {
     if (!currentUser) return;
@@ -559,45 +560,57 @@ const handleSelectReport = (report: AnalysisReport) => {
     }
   };
 
-  // Replace or update your existing handleDeleteReport to use deleteReportsBulk.
-  // This optimistically removes reports from UI, then calls API in parallel.
-  // If API fails for some ids, it re-inserts them and logs an error.
+  // safe, optimistic bulk delete handler
+  async function handleDeleteReportOptimized(inputIds: string | string[]) {
+    const ids = Array.isArray(inputIds) ? inputIds.filter(Boolean) : [inputIds].filter(Boolean);
+    if (ids.length === 0 || !selectedWorkspace) return;
 
-  async function handleDeleteReportOptimized(reportIds: string[] | string) {
-    const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
-    if (!ids.length) return;
-
-    // confirm once if needed (UI flow earlier may already confirm)
+    // Confirm once
     if (!confirm(`Delete ${ids.length} analysis${ids.length > 1 ? 'es' : ''}? This cannot be undone.`)) return;
 
-    // optimistic update: remove from local state immediately
-    const prevReports = reports;
+    // keep snapshot to allow restore
+    const prevReports = [...reports];
+    const prevActive = activeReport;
+
+    // optimistic UI update: remove immediately, but pick a fallback activeReport instead of null
     const remaining = prevReports.filter(r => !ids.includes(r.id));
     setReports(remaining);
     if (activeReport && ids.includes(activeReport.id)) {
-      setActiveReport(null);
+      // choose first remaining as active, or null if none
+      setActiveReport(remaining[0] ?? null);
     }
 
     try {
-      const res = await workspaceApi.deleteReportsBulk(selectedWorkspace!.id, ids, 12); // concurrency 12 for speed
+      // use bulk API if available
+      const res = await workspaceApi.deleteReportsBulk(selectedWorkspace.id, ids, 8);
       if (res.failed.length > 0) {
-        // revert failed deletions back into state
+        // restore failed items back into UI
         const failedIds = new Set(res.failed.map(f => f.id));
-        const reverted = prevReports.filter(r => failedIds.has(r.id));
-        setReports(prev => [...reverted, ...prev]); // re-add failed ones
+        const restored = prevReports.filter(r => failedIds.has(r.id));
+        // restore in original order
+        const next = [...restored, ...remaining];
+        setReports(next);
+        // if previous active was removed and not deleted, restore it
+        if (prevActive && failedIds.has(prevActive.id)) setActiveReport(prevActive);
         console.error('Some deletes failed', res.failed);
-        alert(`Failed to delete ${res.failed.length} items. They were restored.`);
+        alert(`Failed to delete ${res.failed.length} item(s). They were restored.`);
       } else {
-        // success: optionally log audit and show toast
-        await addAuditLog('Delete', `Deleted ${res.success.length} analysis reports`, false);
+        // success: optional audit log
+        try { await addAuditLog?.('Delete', `Deleted ${res.success.length} analyses`, false); } catch (e) { /* ignore */ }
       }
     } catch (err) {
-      // network error: restore previous state
+      // network or unexpected error: restore full previous state
       setReports(prevReports);
-      console.error('Bulk delete failed', err);
+      setActiveReport(prevActive);
+      console.error('Bulk delete error', err);
       alert('Failed to delete reports. Please try again.');
     }
   }
+
+  // Backwards-compatible wrapper: the UI expects `handleDeleteReport` — forward to optimized implementation.
+  const handleDeleteReport = async (reportIds: string[] | string) => {
+    return handleDeleteReportOptimized(reportIds);
+  };
 
 const renderScreenComponent = () => {
   // Allow Analysis to render if we already have an activeReport,
@@ -753,4 +766,54 @@ const renderScreenComponent = () => {
   );
 }
 
+// Lightweight module-scoped storage for enhanced drafts.
+// This mirrors the minimal API of a React state setter so existing calls like
+// `setEnhancedDrafts(prev => ({ ...prev, [id]: draft }))` work.
+// Drafts are persisted to localStorage so they survive reloads.
+type EnhancedDrafts = Record<string, { text: string; highlightedHtml?: string }>;
+
+const STORAGE_KEY = 'vesta-enhanced-drafts';
+
+// init from localStorage
+let _enhancedDrafts: EnhancedDrafts = {};
+try {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  _enhancedDrafts = raw ? JSON.parse(raw) : {};
+} catch (e) {
+  console.warn('Failed to parse enhanced drafts from localStorage', e);
+  _enhancedDrafts = {};
+}
+
+/**
+ * setEnhancedDrafts accepts either a new value or an updater function like React's setState.
+ * It updates the in-memory store and persists to localStorage.
+ */
+function setEnhancedDrafts(updater: EnhancedDrafts | ((prev: EnhancedDrafts) => EnhancedDrafts)) {
+  try {
+    const next =
+      typeof updater === 'function'
+        ? (updater as (prev: EnhancedDrafts) => EnhancedDrafts)(_enhancedDrafts)
+        : updater;
+
+    _enhancedDrafts = next || {};
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(_enhancedDrafts));
+    } catch (e) {
+      // ignore storage errors (e.g., quota), but keep in-memory copy
+      console.warn('Failed to persist enhanced drafts to localStorage', e);
+    }
+  } catch (err) {
+    console.error('setEnhancedDrafts error', err);
+  }
+}
+
+// Optional getter if you need to read drafts from outside the component
+export function getEnhancedDrafts(): EnhancedDrafts {
+  return _enhancedDrafts;
+}
+
 export default App;
+
+function setEnhancedDrafts(arg0: (prev: any) => any) {
+  throw new Error('Function not implemented.');
+}
