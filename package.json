@@ -1,5 +1,5 @@
 {
-  "name": "vesta-workspaces-app",
+  "name": "vesta",
   "version": "1.0.0",
   "description": "An AI-powered collaborative platform for analyzing project plans.",
   "private": true,
