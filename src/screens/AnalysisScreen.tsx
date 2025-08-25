@@ -550,7 +550,6 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   onRejectEnhanced?: (reportId: string) => void;
   isEnhancing: boolean;
   analysisStatusText: string;
-  onNewAnalysis: (content: string, fileName: string, quickOrDiff?: boolean | string) => void;
   onBack?: () => void;
 }
 
@@ -565,7 +564,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   isEnhancing,
   analysisStatusText,
   currentWorkspace,
-  onNewAnalysis,
   navigateTo,
   onBack,
 }) => {

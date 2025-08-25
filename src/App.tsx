@@ -769,7 +769,6 @@ const renderScreenComponent = () => {
         onAutoEnhance={handleAutoEnhance}
         isEnhancing={isEnhancing}
         analysisStatusText={isEnhancing ? "Enhancing…" : (isAnalyzing ? "Analyzing…" : "")}
-        onNewAnalysis={handleNewAnalysisFromAnalysisScreen}
       />
     );
   }
