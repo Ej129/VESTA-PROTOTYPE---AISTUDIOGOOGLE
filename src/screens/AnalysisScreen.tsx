@@ -530,6 +530,66 @@ const ChatPanel: React.FC<{ documentContent: string }> = ({ documentContent }) =
   );
 };
 
+/* ---------------- Enhance / Draft Preview UI ---------------- */
+const EnhanceControls: React.FC<{
+  activeReport: AnalysisReport;
+  onAutoEnhance: (report?: AnalysisReport) => void | Promise<void>;
+  enhancedDraft?: string;
+  enhancedDraftHtml?: string;
+  onAcceptEnhanced?: (reportId: string) => void | Promise<void>;
+  onRejectEnhanced?: (reportId: string) => void;
+  isEnhancing?: boolean;
+  isAnalyzing?: boolean;
+}> = ({ activeReport, onAutoEnhance, enhancedDraft, enhancedDraftHtml, onAcceptEnhanced, onRejectEnhanced, isEnhancing, isAnalyzing }) => {
+  const reportId = activeReport?.id ?? '__draft__';
+  const busy = !!isEnhancing || !!isAnalyzing;
+
+  return (
+    <div className="enhance-controls space-y-3">
+      {enhancedDraft || enhancedDraftHtml ? (
+        <div className="enhance-preview border rounded p-4 bg-white dark:bg-neutral-800">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">Enhanced Draft — preview</h3>
+            <div className="space-x-2">
+              <button
+                onClick={() => onAcceptEnhanced?.(reportId)}
+                disabled={busy}
+                className="px-3 py-1 bg-amber-500 text-white rounded disabled:opacity-50"
+              >
+                Accept & Update
+              </button>
+              <button
+                onClick={() => onRejectEnhanced?.(reportId)}
+                disabled={busy}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+
+          {enhancedDraftHtml ? (
+            <div className="proposed-html-preview overflow-auto max-h-72 prose" dangerouslySetInnerHTML={{ __html: enhancedDraftHtml }} />
+          ) : (
+            <pre className="whitespace-pre-wrap max-h-72 overflow-auto text-sm">{enhancedDraft}</pre>
+          )}
+        </div>
+      ) : (
+        <div className="enhance-action">
+          <button
+            onClick={() => onAutoEnhance(activeReport)}
+            disabled={busy || !activeReport}
+            className="px-4 py-2 bg-amber-500 text-white rounded disabled:opacity-50"
+            title={busy ? (isEnhancing ? "Enhancing…" : (isAnalyzing ? "Analyzing…" : "Working…")) : "Auto-enhance this document"}
+          >
+            {isEnhancing ? 'Enhancing…' : 'Auto-Enhance'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ---------------- Main AnalysisScreen ---------------- */
 interface AnalysisScreenProps extends ScreenLayoutProps {
   activeReport: AnalysisReport | null;
