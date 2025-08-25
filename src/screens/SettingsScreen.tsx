@@ -1,8 +1,7 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, DismissalRule, ScreenLayoutProps, CustomRegulation } from '../types';
 import { UserProfileIcon, BellIcon, BriefcaseIcon, ShieldIcon, LinkIcon, KeyIcon, MoonIcon, SunIcon, TrashIcon, BrainCircuitIcon, PlusIcon } from '../components/Icons';
+import BackButton from '../components/BackButton';
 
 interface SettingsScreenProps extends ScreenLayoutProps {
   dismissalRules: DismissalRule[];
@@ -11,6 +10,9 @@ interface SettingsScreenProps extends ScreenLayoutProps {
   customRegulations: CustomRegulation[];
   onAddRegulation: (ruleText: string) => void;
   onDeleteRegulation: (regulationId: string) => void;
+  navigateTo: (s: Screen) => void;
+  goBack?: () => void;
+  onClose?: () => void;
 }
 
 const SettingsCard = ({ title, subtitle, children, footer }: { title: string, subtitle: string, children: React.ReactNode, footer?: React.ReactNode }) => (
@@ -315,7 +317,7 @@ const RegulationsSettings = ({ regulations, onAdd, onDelete }: { regulations: Cu
 }
 
 
-const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, customRegulations, onAddRegulation, onDeleteRegulation, currentUser, userRole }) => {
+const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDeleteDismissalRule, onUserUpdate, customRegulations, onAddRegulation, onDeleteRegulation, currentUser, userRole, navigateTo, goBack }) => {
     const [activeTab, setActiveTab] = useState('profile');
     
     const baseTabs = [
@@ -341,8 +343,20 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ dismissalRules, onDelet
         }
     };
 
+    const handleBack = () => {
+        if (typeof goBack === 'function') {
+            goBack();
+        } else {
+            // safe fallback: go to dashboard/workspace
+            navigateTo(Screen.Dashboard);
+        }
+    };
+
     return (
         <div className="p-8">
+            <div className="mb-4">
+                <BackButton onBack={handleBack} title="Back to workspace" />
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <aside className="lg:col-span-1">
                     <nav className="space-y-1">

@@ -14,7 +14,7 @@ import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import { NotificationToast } from './components/NotificationToast';
 import { Layout } from './components/Layout';
-import { improvePlan, analyzePlan } from './api/vesta';
+import { improvePlan, analyzePlan, improvePlanWithHighlights } from './api/vesta';
 import ConfirmationModal from './components/ConfirmationModal';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
@@ -69,8 +69,24 @@ const App: React.FC = () => {
   
   const { user: currentUser, loading, logout: handleLogout } = useAuth();
 
-  const [screen, setScreen] = useState<Screen>(Screen.Dashboard);
+  const [screenStack, setScreenStack] = useState<Screen[]>([Screen.Dashboard]);
   
+  const navigateTo = useCallback((screen: Screen) => {
+    setScreenStack((s) => {
+      if (s[s.length - 1] === screen) return s; // already there
+      return [...s, screen];
+    });
+  }, []);
+
+  const goBack = useCallback(() => {
+    setScreenStack((s) => {
+      if (s.length <= 1) return s;
+      return s.slice(0, -1);
+    });
+  }, []);
+
+  const currentScreen = screenStack[screenStack.length - 1];
+
   // Workspace state
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
@@ -192,10 +208,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const navigateTo: NavigateTo = (newScreen: Screen) => {
-    setScreen(newScreen);
-  };
-  
   const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
     if (!currentUser) return;
     
@@ -307,7 +319,7 @@ const App: React.FC = () => {
   };
 
 const handleSelectWorkspace = async (workspace: Workspace, reportToSelect?: AnalysisReport) => {
-  if(selectedWorkspace?.id === workspace.id && screen !== Screen.Analysis && !reportToSelect) return;
+  if(selectedWorkspace?.id === workspace.id && currentScreen !== Screen.Analysis && !reportToSelect) return;
   
   setSelectedWorkspace(workspace);
   setActiveReport(reportToSelect || null); // Keep the report if provided
@@ -615,7 +627,7 @@ const handleSelectReport = (report: AnalysisReport) => {
 const renderScreenComponent = () => {
   // Allow Analysis to render if we already have an activeReport,
   // even if selectedWorkspace is momentarily null.
-  if (screen === Screen.Analysis && activeReport) {
+  if (currentScreen === Screen.Analysis && activeReport) {
     const layoutProps = {
       navigateTo,
       currentUser: currentUser!,
@@ -653,7 +665,7 @@ const renderScreenComponent = () => {
     userRole,
   };
 
-  switch (screen) {
+  switch (currentScreen) {
     case Screen.Dashboard:
       return (
         <UploadScreen
@@ -661,7 +673,7 @@ const renderScreenComponent = () => {
           onSelectReport={handleSelectReport}
           onNewAnalysisClick={() => setUploadModalOpen(true)}
           onUpdateReportStatus={handleUpdateReportStatus}
-          onDeleteReport={handleDeleteReport}
+          onDeleteReport={(report: AnalysisReport) => handleDeleteReport(report.id)}
         />
       );
     case Screen.Analysis: // fallback if no activeReport yet
@@ -681,7 +693,7 @@ const renderScreenComponent = () => {
           onSelectReport={handleSelectReport}
           onNewAnalysisClick={() => setUploadModalOpen(true)}
           onUpdateReportStatus={handleUpdateReportStatus}
-          onDeleteReport={handleDeleteReport}
+          onDeleteReport={(report: AnalysisReport) => handleDeleteReport(report.id)}
         />
       );
   }
@@ -813,7 +825,3 @@ export function getEnhancedDrafts(): EnhancedDrafts {
 }
 
 export default App;
-
-function setEnhancedDrafts(arg0: (prev: any) => any) {
-  throw new Error('Function not implemented.');
-}
