@@ -408,8 +408,7 @@ const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') =
   setIsAnalyzing(true);
 
   try {
-      // --- THIS IS THE FINAL FIX ---
-      const token = await getToken(); // Use the new function from the context
+      const token = await getToken();
       if (!token) {
           throw new Error("Authentication token not found. Please log in again.");
       }
@@ -426,12 +425,23 @@ const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') =
           },
           body: formData,
       });
-      // --- END OF FIX ---
 
+      // --- START OF THE FIX ---
       if (!response.ok) {
-          const errorBody = await response.json();
-          throw new Error(errorBody.message || errorBody.error || 'Failed to start analysis.');
+          // Check if the response is JSON or plain text
+          const contentType = response.headers.get("content-type");
+          let errorMessage;
+
+          if (contentType && contentType.includes("application/json")) {
+              const errorBody = await response.json();
+              errorMessage = errorBody.message || errorBody.error || 'Failed to start analysis.';
+          } else {
+              // If not JSON, read the error as plain text
+              errorMessage = await response.text();
+          }
+          throw new Error(errorMessage);
       }
+      // --- END OF THE FIX ---
 
       const newReport = await response.json();
 
@@ -441,6 +451,7 @@ const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') =
 
   } catch (error) {
       console.error("Error starting analysis:", error);
+      // The alert will now show the actual server message, e.g., "Could not extract text..."
       alert((error as Error).message);
   } finally {
       setIsAnalyzing(false);
