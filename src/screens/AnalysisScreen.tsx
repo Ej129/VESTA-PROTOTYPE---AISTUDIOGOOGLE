@@ -193,41 +193,81 @@ const App: React.FC = () => {
     return improvedContentWithDiff;
   };
 
-  const renderScreenComponent = () => {
-    if (!selectedWorkspace) {
-      return <NoWorkspaceSelectedScreen onCreate={() => setCreateWorkspaceModalOpen(true)} />;
-    }
+const renderScreenComponent = () => {
+  // Allow Analysis to render if we already have an activeReport,
+  // even if selectedWorkspace is momentarily null.
+  if (screen === Screen.Analysis && activeReport) {
     const layoutProps = {
       navigateTo,
       currentUser: currentUser!,
       onLogout: handleLogout,
-      currentWorkspace: selectedWorkspace,
+      currentWorkspace: selectedWorkspace, // can be null briefly
       onManageMembers: () => setManageMembersModalOpen(true),
       userRole,
     };
 
-    switch (screen) {
-      case Screen.Dashboard:
-        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={() => {}} onDeleteReport={() => {}} />;
-      case Screen.Analysis:
-        return (
-          <AnalysisScreen
-            {...layoutProps}
-            activeReport={activeReport}
-            onUpdateReport={handleUpdateReport}
-            onAutoEnhance={handleAutoEnhance}
-            isEnhancing={isAnalyzing || isAnalyzingNewReport} // 👈 merged loader state
-            onNewAnalysis={handleFileUpload}
-          />
-        );
-      case Screen.AuditTrail:
-        return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
-      case Screen.Settings:
-        return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={() => {}} onUserUpdate={() => {}} customRegulations={customRegulations} onAddRegulation={() => {}} onDeleteRegulation={() => {}} />;
-      default:
-        return <UploadScreen reports={reports} onSelectReport={handleSelectReport} onNewAnalysisClick={() => setUploadModalOpen(true)} onUpdateReportStatus={() => {}} onDeleteReport={() => {}} />;
-    }
+    return (
+      <AnalysisScreen
+        key={activeReport.id}                 // force fresh mount per report
+        {...layoutProps}
+        activeReport={activeReport}
+        onUpdateReport={handleUpdateReport}
+        onAutoEnhance={handleAutoEnhance}
+        isEnhancing={isAnalyzing}
+        analysisStatusText={isAnalyzing ? "Analyzing…" : ""}  // optional
+        onNewAnalysis={handleFileUpload}
+      />
+    );
+  }
+
+  // For all other screens, still require a workspace.
+  if (!selectedWorkspace) {
+    return <NoWorkspaceSelectedScreen onCreate={() => setCreateWorkspaceModalOpen(true)} />;
+  }
+
+  const layoutProps = {
+    navigateTo,
+    currentUser: currentUser!,
+    onLogout: handleLogout,
+    currentWorkspace: selectedWorkspace,
+    onManageMembers: () => setManageMembersModalOpen(true),
+    userRole,
   };
+
+  switch (screen) {
+    case Screen.Dashboard:
+      return (
+        <UploadScreen
+          reports={reports}
+          onSelectReport={handleSelectReport}
+          onNewAnalysisClick={() => setUploadModalOpen(true)}
+          onUpdateReportStatus={handleUpdateReportStatus}
+          onDeleteReport={handleDeleteReport}
+        />
+      );
+    case Screen.Analysis: // fallback if no activeReport yet
+      return (
+        <div className="flex items-center justify-center h-full p-8 text-gray-500">
+          Loading analysis…
+        </div>
+      );
+    case Screen.AuditTrail:
+      return <AuditTrailScreen {...layoutProps} logs={auditLogs} reports={reports} onSelectReport={handleSelectReport} />;
+    case Screen.Settings:
+      return <SettingsScreen {...layoutProps} dismissalRules={dismissalRules} onDeleteDismissalRule={deleteDismissalRule} onUserUpdate={handleUserUpdate} customRegulations={customRegulations} onAddRegulation={handleAddRegulation} onDeleteRegulation={handleDeleteRegulation} />;
+    default:
+      return (
+        <UploadScreen
+          reports={reports}
+          onSelectReport={handleSelectReport}
+          onNewAnalysisClick={() => setUploadModalOpen(true)}
+          onUpdateReportStatus={handleUpdateReportStatus}
+          onDeleteReport={handleDeleteReport}
+        />
+      );
+  }
+};
+
 
   if (loading) return <InitializingScreen />;
   if (!currentUser) return <LoginScreen />;
