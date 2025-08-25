@@ -37,7 +37,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     };
 
     // --- 2. PARSE FILE UPLOAD: Handle multipart data and extract file ---
-    const bodyBuffer = Buffer.from(event.body, 'base64');
+    // Correctly create a buffer, respecting Netlify's isBase64Encoded flag
+    const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
     const boundary = multipart.getBoundary(event.headers['content-type']);
     const parts = multipart.parse(bodyBuffer, boundary);
 
