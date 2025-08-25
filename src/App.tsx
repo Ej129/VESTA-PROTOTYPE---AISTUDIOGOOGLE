@@ -102,7 +102,9 @@ const App: React.FC = () => {
   // Loading State
   const [isSyncingSources, setIsSyncingSources] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
+  // Enhancing state (auto-enhance)
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  
   // Global Theme Persistence Fix
   useEffect(() => {
     const handleThemeChange = () => {
@@ -262,7 +264,7 @@ const handleFileUpload = async (content: string, fileName: string) => {
     setIsAnalyzing(true);
 
     // Call API to analyze document
-    const reportData = await vestaApi.analyzePlan(
+    const reportData = await analyzePlan(
       content,
       knowledgeBaseSources,
       dismissalRules,
@@ -331,9 +333,9 @@ const handleSelectReport = (report: AnalysisReport) => {
 
 
   // Auto-enhance handler: improve the document then re-run analysis to update scores
-  const handleAutoEnhance = useCallback(async (report: AnalysisReport) => {
-    if (!report || !selectedWorkspace) return;
-    setIsEnhancing(true); // create this state if not present
+  const handleAutoEnhance = useCallback(async (report: AnalysisReport): Promise<string> => {
+    if (!report || !selectedWorkspace) return '';
+    setIsEnhancing(true);
     try {
       // Produce improved document text
       const improvedText = await improvePlan(report.documentContent, report);
@@ -369,9 +371,12 @@ const handleSelectReport = (report: AnalysisReport) => {
 
       // If you reload workspace data elsewhere and it clears state, make sure to pass keepActiveReport=true
       // await loadWorkspaceData(selectedWorkspace.id, true);
+
+      return improvedText;
     } catch (err) {
       console.error('Auto-enhance failed', err);
       // handle error UI as needed
+      return '';
     } finally {
       setIsEnhancing(false);
     }
@@ -582,8 +587,8 @@ const renderScreenComponent = () => {
         activeReport={activeReport}
         onUpdateReport={handleUpdateReport}
         onAutoEnhance={handleAutoEnhance}
-        isEnhancing={isAnalyzing}
-        analysisStatusText={isAnalyzing ? "Analyzing…" : ""}  // optional
+        isEnhancing={isEnhancing}
+        analysisStatusText={isEnhancing ? "Enhancing…" : (isAnalyzing ? "Analyzing…" : "")}
         onNewAnalysis={handleFileUpload}
       />
     );
