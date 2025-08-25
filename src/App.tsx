@@ -321,7 +321,8 @@ const handleSelectReport = (report: AnalysisReport) => {
       }
   };
 
-// inside App.tsx
+
+
 const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
   if (!report) return '';
 
@@ -339,11 +340,24 @@ const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
       ...report,
       diffContent: improvedContentWithDiff, // highlighted diff
       documentContent: report.documentContent, // keep original baseline
-      title: report.title + " (Enhanced)", // optional label
+      title: report.title.includes("(Enhanced)") ? report.title : report.title + " (Enhanced)", // avoid duplicate labels
     };
 
-    // ✅ Update state so AnalysisScreen shows enhanced version
+    // ✅ Update BOTH activeReport state AND reports list
     setActiveReport(enhancedReport);
+    
+    // Also update the reports list so it shows the enhanced version
+    setReports(prevReports => 
+      prevReports.map(r => r.id === report.id ? enhancedReport : r)
+    );
+
+    // Optional: Save to backend if you want persistence
+    try {
+      await workspaceApi.updateReport(enhancedReport);
+    } catch (saveError) {
+      console.error("Failed to save enhanced report:", saveError);
+      // Continue anyway - the enhancement is still applied in UI
+    }
 
     addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
 
@@ -353,6 +367,7 @@ const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
     alert("Auto-enhance failed. Please try again.");
     return '';
   } finally {
+    // ✅ Critical: Always set isAnalyzing to false to stop the loading state
     setIsAnalyzing(false);
   }
 };
