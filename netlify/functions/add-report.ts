@@ -3,19 +3,18 @@
 import { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
 import { getStore } from "@netlify/blobs";
 import multipart from 'parse-multipart-data';
-import pdf from 'pdf-parse';
+// --- REPLACED LIBRARY ---
+import { PDFExtract, PDFExtractOptions } from 'pdf.js-extract';
 
-// Re-using your existing API and type imports
 import { analyzePlan, analyzePlanQuick } from '../../src/api/vesta';
 import { AnalysisReport, KnowledgeSource, DismissalRule, CustomRegulation } from '../../src/types';
 
-// Copied directly from your other functions for consistency
 const requireAuth = (context: HandlerContext) => {
-  const user = context.clientContext?.user;
-  if (!user || !user.email) {
-    throw new Error("Authentication required.");
-  }
-  return user;
+  const user = context.clientContext?.user;
+  if (!user || !user.email) {
+    throw new Error("Authentication required.");
+  }
+  return user;
 };
 
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
@@ -29,15 +28,11 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
   try {
     const user = requireAuth(context);
-
-    // --- 1. SETUP: Initialize Netlify Blobs store access ---
     const storeOptions = {
         siteID: process.env.NETLIFY_SITE_ID,
         token: process.env.NETLIFY_API_TOKEN,
     };
 
-    // --- 2. PARSE FILE UPLOAD: Handle multipart data and extract file ---
-    // Correctly create a buffer, respecting Netlify's isBase64Encoded flag
     const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
     const boundary = multipart.getBoundary(event.headers['content-type']);
     const parts = multipart.parse(bodyBuffer, boundary);
@@ -55,11 +50,18 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     const fileName = filePart.filename || 'Untitled Analysis';
     const fileContentBuffer = filePart.data;
 
-    // --- 3. EXTRACT TEXT: Use pdf-parse for PDFs, or treat as text ---
     let documentContent = '';
     if (filePart.type === 'application/pdf') {
-        const data = await pdf(fileContentBuffer);
-        documentContent = data.text;
+        // --- NEW PDF PARSING LOGIC ---
+        const pdfExtract = new PDFExtract();
+        const options: PDFExtractOptions = {}; // Options can be added here if needed
+        const data = await pdfExtract.extractBuffer(fileContentBuffer, options);
+        
+        // Combine the text from all pages
+        documentContent = data.pages.map(page => {
+            return page.content.map(item => item.str).join(' ');
+        }).join('\n');
+        // --- END OF NEW LOGIC ---
     } else {
         documentContent = fileContentBuffer.toString('utf-8');
     }
@@ -68,7 +70,6 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         return { statusCode: 400, body: 'Could not extract text from the provided file.' };
     }
 
-    // --- 4. FETCH CONTEXT: Get Knowledge Base, etc., from Blobs ---
     const knowledgeStore = getStore({ name: "knowledge-sources", ...storeOptions });
     const dismissalRulesStore = getStore({ name: "dismissal-rules", ...storeOptions });
     const customRegulationsStore = getStore({ name: "custom-regulations", ...storeOptions });
@@ -79,13 +80,11 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       customRegulationsStore.get(workspaceId, { type: "json" }) as Promise<CustomRegulation[] | null>,
     ]);
 
-    // --- 5. RUN ANALYSIS: Call your Vesta AI logic ---
     const isQuick = analysisType === 'quick';
     const reportData = isQuick
       ? await analyzePlanQuick(documentContent, knowledgeBaseSources || [], dismissalRules || [], customRegulations || [])
       : await analyzePlan(documentContent, knowledgeBaseSources || [], dismissalRules || [], customRegulations || []);
 
-    // --- 6. SAVE REPORT: Add the new report to the list in Netlify Blobs ---
     const reportsStore = getStore({ name: "reports", ...storeOptions });
     const existingReports = (await reportsStore.get(workspaceId, { type: "json" })) as AnalysisReport[] || [];
     
@@ -102,11 +101,9 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     const updatedReports = [newReport, ...existingReports];
     await reportsStore.setJSON(workspaceId, updatedReports);
 
-    // TODO: Add an audit log entry here if desired
-
     return {
       statusCode: 200,
-      body: JSON.stringify(newReport), // Return the newly created report
+      body: JSON.stringify(newReport),
     };
 
   } catch (error) {
