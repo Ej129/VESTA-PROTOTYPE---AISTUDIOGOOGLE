@@ -424,3 +424,10 @@ export const Zap = (props: React.SVGProps<SVGSVGElement>) => (
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
+export const SparklesIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3a6 6 0 0 0 9 9a6 6 0 0 0-9-9Z" />
+    <path d="M5 9a2 2 0 1 0 0-4a2 2 0 0 0 0 4Z" />
+    <path d="M19 13a2 2 0 1 0 0-4a2 2 0 0 0 0 4Z" />
+  </svg>
+);

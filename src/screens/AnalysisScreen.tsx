@@ -47,44 +47,60 @@ const BackButton: React.FC<{ onBack: () => void; title?: string }> = ({ onBack, 
   </button>
 );
 
+const SparklesIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3a6 6 0 0 0 9 9a6 6 0 0 0-9-9Z" />
+    <path d="M5 9a2 2 0 1 0 0-4a2 2 0 0 0 0 4Z" />
+    <path d="M19 13a2 2 0 1 0 0-4a2 2 0 0 0 0 4Z" />
+  </svg>
+);
+
 /* ---------------- Enhance / Draft Preview UI ---------------- */
-// Replace current EnhanceControls with this restored, clickable button that falls back to onEnhance.
+// Replace your old EnhanceControls with this new version
 const EnhanceControls: React.FC<{
   activeReport: AnalysisReport;
   onAutoEnhance?: (report?: AnalysisReport) => Promise<void> | void;
-  onEnhance?: () => void;
   isEnhancing?: boolean;
   isAnalyzing?: boolean;
-}> = ({ activeReport, onAutoEnhance, onEnhance, isEnhancing, isAnalyzing }) => {
+}> = ({ activeReport, onAutoEnhance, isEnhancing, isAnalyzing }) => {
+  
   const busy = !!isEnhancing || !!isAnalyzing;
+
   const handleClick = async () => {
-    if (busy || !activeReport) return;
-    // prefer explicit onAutoEnhance, otherwise call the older onEnhance handler
+    if (busy || !activeReport || typeof onAutoEnhance !== 'function') return;
+    
     try {
-      if (typeof onAutoEnhance === 'function') {
-        await onAutoEnhance(activeReport);
-      } else if (typeof onEnhance === 'function') {
-        await onEnhance();
-      } else {
-        console.warn('No enhance handler provided');
-      }
+      await onAutoEnhance(activeReport);
     } catch (err) {
-      console.error('Enhance failed', err);
+      console.error('Enhancement failed:', err);
+      // Optionally, show an alert to the user.
+      // alert('Auto-Enhance failed. Please check the console for details.');
     }
   };
+
+  // Determine button text based on the current state
+  const buttonText = isEnhancing ? 'Enhancing…' : isAnalyzing ? 'Analyzing…' : 'Auto-Enhance';
 
   return (
     <div className="enhance-action">
       <button
         onClick={handleClick}
-        disabled={busy || !activeReport}
+        disabled={busy}
         className={
-          `inline-flex items-center gap-2 justify-center px-5 py-2 rounded-md text-white font-semibold shadow-sm transition ` +
-          (busy ? 'opacity-60 cursor-not-allowed bg-gradient-to-r from-amber-400 to-yellow-400' : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600')
+          `inline-flex items-center gap-3 justify-center w-full px-5 py-3 rounded-lg text-white font-bold shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 ` +
+          (busy 
+            ? 'bg-gray-400 dark:bg-neutral-600 cursor-not-allowed' 
+            : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800'
+          )
         }
-        title={busy ? (isEnhancing ? 'Enhancing…' : (isAnalyzing ? 'Analyzing…' : 'Working…')) : 'Auto-enhance this document'}
+        title={busy ? 'An operation is already in progress...' : 'Automatically improve this document using AI'}
       >
-        <span className="h-2 w-2 rounded-full bg-white/90 animate-pulse" /> {isEnhancing ? 'Enhancing…' : 'Auto-Enhance'}
+        {isEnhancing ? (
+          <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+        ) : (
+          <SparklesIcon className="w-5 h-5" />
+        )}
+        {buttonText}
       </button>
     </div>
   );
