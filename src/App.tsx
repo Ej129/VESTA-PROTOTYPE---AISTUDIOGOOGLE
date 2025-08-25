@@ -14,7 +14,7 @@ import * as workspaceApi from './api/workspace';
 import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import { NotificationToast } from './components/NotificationToast';
 import { Layout } from './components/Layout';
-import * as vestaApi from './api/vesta';
+import { improvePlan, analyzePlan } from './api/vesta';
 import ConfirmationModal from './components/ConfirmationModal';
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
@@ -330,56 +330,60 @@ const handleSelectReport = (report: AnalysisReport) => {
 
 
 
-const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
-  if (!report) return '';
+  // Auto-enhance handler: improve the document then re-run analysis to update scores
+  const handleAutoEnhance = useCallback(async (report: AnalysisReport) => {
+    if (!report || !selectedWorkspace) return;
+    setIsEnhancing(true); // create this state if not present
+    try {
+      // Produce improved document text
+      const improvedText = await improvePlan(report.documentContent, report);
 
-  try {
-    console.log("Starting auto-enhance for report:", report.id);
-    setIsAnalyzing(true);
+      // Re-run analysis on improved text to get updated scores/findings
+      const newReportData = await analyzePlan(
+        improvedText,
+        knowledgeBaseSources,
+        dismissalRules,
+        customRegulations
+      );
 
-    // Call your API to improve content
-    const improvedContentWithDiff = await vestaApi.improvePlan(
-      report.documentContent,
-      report
-    );
+      // Merge into the existing report object (preserve id, workspaceId, createdAt)
+      const updatedReport: AnalysisReport = {
+        ...report,
+        documentContent: improvedText,
+        title: newReportData.title ?? report.title,
+        resilienceScore: newReportData.resilienceScore ?? report.resilienceScore,
+        scores: newReportData.scores ?? report.scores,
+        findings: newReportData.findings ?? report.findings,
+        summary: newReportData.summary ?? report.summary,
+      };
 
-    console.log("API call completed, creating enhanced report");
+      // Update local state
+      setReports(prev => prev.map(r => (r.id === updatedReport.id ? updatedReport : r)));
+      setActiveReport(updatedReport);
 
-    // Create enhanced report object
-    const enhancedReport: AnalysisReport = {
-      ...report,
-      diffContent: improvedContentWithDiff, // highlighted diff
-      documentContent: report.documentContent, // keep original baseline
-      title: report.title.includes("(Enhanced)") ? report.title : report.title + " (Enhanced)",
-    };
+      // Persist to backend if you have an API method (optional)
+      // await workspaceApi.updateReport(selectedWorkspace.id, updatedReport);
 
-    console.log("Setting enhanced report as active");
+      // Add an audit log but preserve activeReport during reloads
+      await addAuditLog('Auto-Fix', `Auto-enhanced report: ${report.title}`, true);
 
-    // ✅ Update activeReport state - this will trigger AnalysisScreen to re-render
-    setActiveReport(enhancedReport);
-    
-    // Also update the reports list
-    setReports(prevReports => 
-      prevReports.map(r => r.id === report.id ? enhancedReport : r)
-    );
-
-    // Add audit log but preserve the enhanced activeReport while workspace data reloads
-    await addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`, true);
-
-    console.log("Auto-enhance completed successfully");
-    return improvedContentWithDiff;
-
-  } catch (error) {
-    console.error("AutoEnhance failed:", error);
-    alert("Auto-enhance failed. Please try again.");
-    return '';
-  } finally {
-    console.log("Setting isAnalyzing to false");
-    // ✅ Always clear the loading state
-    setIsAnalyzing(false);
-  }
-};
-
+      // If you reload workspace data elsewhere and it clears state, make sure to pass keepActiveReport=true
+      // await loadWorkspaceData(selectedWorkspace.id, true);
+    } catch (err) {
+      console.error('Auto-enhance failed', err);
+      // handle error UI as needed
+    } finally {
+      setIsEnhancing(false);
+    }
+  }, [
+    selectedWorkspace,
+    knowledgeBaseSources,
+    dismissalRules,
+    customRegulations,
+    addAuditLog,
+    setReports,
+    setActiveReport
+  ]);
 
 
 
