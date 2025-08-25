@@ -128,87 +128,90 @@ const DocumentEditor: React.FC<{
   hoveredFindingId,
   selectedFindingId,
 }) => {
+  const [showComparison, setShowComparison] = useState(true);
+
   const escapeHtml = (unsafe: string) =>
     unsafe
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
   const getHighlightedContent = () => {
-    if (!report) return '';
+    if (!report) return "";
     let content = report.documentContent;
-    content = escapeHtml(content);
-
-    const sortedFindings = [...report.findings].sort(
-      (a, b) => b.sourceSnippet.length - a.sourceSnippet.length
-    );
-
-    sortedFindings.forEach((finding) => {
-      const isHovered = finding.id === hoveredFindingId;
-      const isSelected = finding.id === selectedFindingId;
-      let highlightClass = finding.severity === 'critical' ? 'highlight-critical' : 'highlight-warning';
-
-      if (isSelected) {
-        highlightClass += ' ring-2 ring-offset-1 dark:ring-offset-neutral-950 ring-red-500 dark:ring-yellow-400';
-      } else if (isHovered) {
-        highlightClass += ' ring-2 ring-offset-1 dark:ring-offset-neutral-950 ring-blue-400';
-      }
-
-      const replacement = `<mark id="snippet-${finding.id}" class="${highlightClass}">${escapeHtml(
-        finding.sourceSnippet
-      )}</mark>`;
-
-      content = content.replace(
-        new RegExp(escapeRegExp(escapeHtml(finding.sourceSnippet)), 'g'),
-        replacement
-      );
-    });
-
-    return content;
+    return escapeHtml(content).replace(/\n/g, "<br />");
   };
 
   const getHighlightedChangesContent = () => {
     if (!report?.diffContent) return getHighlightedContent();
-
     return report.diffContent
-      .split('\n')
+      .split("\n")
       .map((line) => {
         if (line.startsWith('++ ')) {
-          return `<mark class="highlight-added">${escapeHtml(line.substring(3))}</mark>`;
+          return `<mark class="highlight-added">${escapeHtml(
+            line.substring(3)
+          )}</mark>`;
         }
-        if (line.startsWith('-- ')) {
-          return ''; // Don't show removed lines
+        if (line.startsWith("-- ")) {
+          return `<mark class="highlight-removed">${escapeHtml(
+            line.substring(3)
+          )}</mark>`;
         }
         return escapeHtml(line);
       })
-      .join('<br />');
+      .join("<br />");
   };
 
   const isEnhancedReport = !!report.diffContent;
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800 flex flex-col h-full">
+      {/* Header */}
       <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-neutral-700 flex-shrink-0">
         <div>
-          <p className="text-xs text-gray-500 dark:text-neutral-500">{report.workspaceId.replace('-', ' ').toUpperCase()}</p>
-          <h2 className="font-bold text-lg text-gray-800 dark:text-neutral-50 truncate pr-4">{report.title}</h2>
+          <p className="text-xs text-gray-500 dark:text-neutral-500">
+            {report.workspaceId.replace("-", " ").toUpperCase()}
+          </p>
+          <h2 className="font-bold text-lg text-gray-800 dark:text-neutral-50 truncate pr-4">
+            {report.title}
+          </h2>
         </div>
-
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <DownloadDropdown onDownloadPdf={onDownloadPdf} onDownloadTxt={onDownloadTxt} onDownloadDocx={onDownloadDocx} />
-
+          {isEnhancedReport && (
+            <button
+              onClick={() => setShowComparison((prev) => !prev)}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-700 text-gray-700 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800"
+            >
+              {showComparison ? "Enhanced Only" : "Compare"}
+            </button>
+          )}
+          <DownloadDropdown
+            onDownloadPdf={onDownloadPdf}
+            onDownloadTxt={onDownloadTxt}
+            onDownloadDocx={onDownloadDocx}
+          />
           {isEditing ? (
-            <button onClick={onSaveChanges} className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800">Save Draft</button>
+            <button
+              onClick={onSaveChanges}
+              className="px-4 py-1.5 border border-red-700 rounded-lg text-sm font-bold bg-red-700 text-white hover:bg-red-800"
+            >
+              Save Draft
+            </button>
           ) : (
-            <button onClick={onToggleEdit} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800" title="Edit Document">
+            <button
+              onClick={onToggleEdit}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800"
+              title="Edit Document"
+            >
               <EditIcon className="w-5 h-5 text-gray-500 dark:text-neutral-400" />
             </button>
           )}
         </div>
       </div>
 
+      {/* Body */}
       <div className="p-6 bg-gray-50 dark:bg-neutral-950 rounded-b-xl flex-1 overflow-y-auto">
         {isEditing ? (
           <textarea
@@ -217,16 +220,46 @@ const DocumentEditor: React.FC<{
             className="w-full h-full bg-transparent focus:outline-none resize-none text-base leading-relaxed font-sans text-gray-800 dark:text-neutral-200"
             autoFocus
           />
+        ) : isEnhancedReport && showComparison ? (
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left column: Original */}
+            <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed border-r border-gray-200 dark:border-neutral-700 pr-4">
+              <h3 className="text-sm font-semibold mb-2 text-gray-500 dark:text-neutral-400">
+                Original
+              </h3>
+              <div
+                dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
+              />
+            </div>
+
+            {/* Right column: Enhanced */}
+            <div className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed pl-4">
+              <h3 className="text-sm font-semibold mb-2 text-gray-500 dark:text-neutral-400">
+                Enhanced
+              </h3>
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: getHighlightedChangesContent(),
+                }}
+              />
+            </div>
+          </div>
         ) : (
           <div
             className="prose prose-sm max-w-none text-gray-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: isEnhancedReport ? getHighlightedChangesContent() : getHighlightedContent() }}
+            dangerouslySetInnerHTML={{
+              __html: isEnhancedReport
+                ? getHighlightedChangesContent()
+                : getHighlightedContent(),
+            }}
           />
         )}
       </div>
     </div>
   );
 };
+
+
 
 /* ---------------- ScoreCard ---------------- */
 const ScoreCard: React.FC<{ label: string; score: number }> = ({ label, score }) => {
