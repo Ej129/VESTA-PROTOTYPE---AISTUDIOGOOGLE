@@ -5,7 +5,7 @@ import { GoogleGenerativeAI as GoogleGenAI, HarmCategory, HarmBlockThreshold, Ge
 
 // This function should eventually be moved to a backend function as well to fully secure your API key.
 function getGenAIClient(): GoogleGenAI {
-    const apiKey = process.env.VITE_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your deployment settings.");
     }
