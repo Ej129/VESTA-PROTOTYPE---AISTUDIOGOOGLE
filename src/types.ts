@@ -46,10 +46,19 @@ export interface AnalysisReport {
   diffContent?: string;
 }
 
+// src/types.ts
+
 export interface User {
-    name: string;
-    email: string;
-    avatar?: string;
+  id: string;
+  email: string;
+  // ... any other properties
+
+  // Add this optional token property
+  token?: {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  };
 }
 
 export type UserRole = "Administrator" | "Risk Management Officer" | "Strategy Officer" | "Member";

@@ -403,9 +403,8 @@ const handleFileUpload = async (content: string, fileName: string, quick?: boole
   }
 };
 const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') => {
-  if (!file || !selectedWorkspace) return;
+  if (!file || !selectedWorkspace || !currentUser) return; // Add check for currentUser
 
-  // Show a loading indicator to the user
   setIsAnalyzing(true);
 
   try {
@@ -414,23 +413,32 @@ const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') =
       formData.append('workspaceId', selectedWorkspace.id);
       formData.append('analysisType', analysisType);
 
-      // Call your Netlify function endpoint
+      // --- FIX IS HERE ---
+      // Get the authentication token from the logged-in user object.
+      // Netlify Identity stores it in user.token.access_token
+      const token = currentUser.token?.access_token;
+      if (!token) {
+          throw new Error("Authentication token not found. Please log in again.");
+      }
+
       const response = await fetch('/.netlify/functions/add-report', {
           method: 'POST',
+          headers: {
+              // Add the Authorization header
+              'Authorization': `Bearer ${token}`,
+          },
           body: formData,
       });
+      // --- END OF FIX ---
 
       if (!response.ok) {
           const errorBody = await response.json();
-          throw new Error(errorBody.message || 'Failed to start analysis.');
+          throw new Error(errorBody.message || errorBody.error || 'Failed to start analysis.');
       }
 
       const newReport = await response.json();
-
-      // Success! Add the new report to our state to update the UI
-      setReports(prevReports => [newReport, ...prevReports]);
       
-      // Navigate to the new report's analysis screen
+      setReports(prevReports => [newReport, ...prevReports]);
       setActiveReport(newReport);
       navigateTo(Screen.Analysis);
 
@@ -438,9 +446,8 @@ const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') =
       console.error("Error starting analysis:", error);
       alert((error as Error).message);
   } finally {
-      // Hide loading indicator and close the modal
       setIsAnalyzing(false);
-      setIsNewAnalysisModalOpen(false); // Make sure this is the state for your new modal
+      setIsNewAnalysisModalOpen(false);
   }
 };
 // Wrapper for AnalysisScreen prop type
