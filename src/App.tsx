@@ -15,6 +15,7 @@ import { AlertTriangleIcon, BriefcaseIcon } from './components/Icons';
 import { NotificationToast } from './components/NotificationToast';
 import { Layout } from './components/Layout';
 import { improvePlan, analyzePlan, improvePlanWithHighlights } from './api/vesta';
+import { NewAnalysisModal } from './components/NewAnalysisModal';
 // Quick analysis API
 import { analyzePlanQuick } from './api/vesta';
 import ConfirmationModal from './components/ConfirmationModal';
@@ -110,7 +111,13 @@ const App: React.FC = () => {
   const [isManageMembersModalOpen, setManageMembersModalOpen] = useState(false);
   const [isKnowledgeBaseModalOpen, setKnowledgeBaseModalOpen] = useState(false);
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
-  const [confirmation, setConfirmation] = useState<{ title: string; message: string; onConfirm: () => Promise<void>; confirmText?: string; } | null>(null);
+  const [isNewAnalysisModalOpen, setIsNewAnalysisModalOpen] = useState(false); 
+  const [confirmation, setConfirmation] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => Promise<void>;
+    confirmText?: string;
+  } | null>(null);
 
   
   // Notification State
@@ -211,7 +218,9 @@ const App: React.FC = () => {
       window.removeEventListener('storage', handleThemeChange);
     };
   }, []);
-  
+
+
+
 const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveReport = false) => {
   if (!currentUser) return;
   
@@ -391,6 +400,31 @@ const handleFileUpload = async (content: string, fileName: string, quick?: boole
     console.error("Analysis failed:", error);
     setIsAnalyzing(false);
     alert("Analysis failed. Please try again.");
+  }
+};
+const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') => {
+  if (!file) return;
+
+  try {
+      // The old `handleFileUpload` expects the file content as a string.
+      // So, we read it here first.
+      const content = await file.text();
+      const fileName = file.name;
+      const isQuick = analysisType === 'quick';
+
+      // Now, we call your original, trusted function with the data it expects.
+      // It will handle the API call, state updates, and navigation.
+      await handleFileUpload(content, fileName, isQuick);
+
+      // After it's all done, we can close our new modal.
+      // Your original function already closes the *old* modal, so we'll adjust that later.
+      setIsNewAnalysisModalOpen(false);
+
+  } catch (error) {
+      console.error("Failed to read file or start analysis:", error);
+      alert("Could not read the selected file. Please ensure it is a valid text-based file.");
+      // Also turn off the loading state in case of an error here
+      setIsAnalyzing(false);
   }
 };
 
@@ -701,16 +735,16 @@ const renderScreenComponent = () => {
   };
 
   switch (currentScreen) {
-    case Screen.Dashboard:
-      return (
-        <UploadScreen
-          reports={reports}
-          onSelectReport={handleSelectReport}
-          onNewAnalysisClick={() => setUploadModalOpen(true)}
-          onUpdateReportStatus={handleUpdateReportStatus}
-          onDeleteReport={(report: AnalysisReport) => handleDeleteReport(report.id)}
-        />
-      );
+case Screen.Dashboard:
+  return (
+    <UploadScreen
+      reports={reports}
+      onSelectReport={handleSelectReport}
+      onNewAnalysisClick={() => setIsNewAnalysisModalOpen(true)} // <-- THIS IS THE NEW LINE
+      onUpdateReportStatus={handleUpdateReportStatus}
+      onDeleteReport={(report: AnalysisReport) => handleDeleteReport(report.id)}
+    />
+  );
     case Screen.Analysis: // fallback if no activeReport yet
       return (
         <div className="flex items-center justify-center h-full p-8 text-gray-500">
@@ -786,6 +820,15 @@ const renderScreenComponent = () => {
             <UploadModal
                 onClose={() => setUploadModalOpen(false)}
                 onUpload={handleFileUpload}
+                isAnalyzing={isAnalyzing}
+            />
+        )}
+                {/* ADD THE CODE BLOCK BELOW */}
+                {isNewAnalysisModalOpen && (
+            <NewAnalysisModal
+                isOpen={isNewAnalysisModalOpen}
+                onClose={() => setIsNewAnalysisModalOpen(false)}
+                onAnalyze={handleStartAnalysis}
                 isAnalyzing={isAnalyzing}
             />
         )}
