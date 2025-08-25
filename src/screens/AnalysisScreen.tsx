@@ -48,21 +48,41 @@ const BackButton: React.FC<{ onBack: () => void; title?: string }> = ({ onBack, 
 );
 
 /* ---------------- Enhance / Draft Preview UI ---------------- */
-// Simple Auto-Enhance button (restored original design)
+// Replace current EnhanceControls with this restored, clickable button that falls back to onEnhance.
 const EnhanceControls: React.FC<{
   activeReport: AnalysisReport;
   onAutoEnhance?: (report?: AnalysisReport) => Promise<void> | void;
+  onEnhance?: () => void;
   isEnhancing?: boolean;
   isAnalyzing?: boolean;
-}> = ({ activeReport, onAutoEnhance, isEnhancing, isAnalyzing }) => {
+}> = ({ activeReport, onAutoEnhance, onEnhance, isEnhancing, isAnalyzing }) => {
   const busy = !!isEnhancing || !!isAnalyzing;
+  const handleClick = async () => {
+    if (busy || !activeReport) return;
+    // prefer explicit onAutoEnhance, otherwise call the older onEnhance handler
+    try {
+      if (typeof onAutoEnhance === 'function') {
+        await onAutoEnhance(activeReport);
+      } else if (typeof onEnhance === 'function') {
+        await onEnhance();
+      } else {
+        console.warn('No enhance handler provided');
+      }
+    } catch (err) {
+      console.error('Enhance failed', err);
+    }
+  };
+
   return (
     <div className="enhance-action">
       <button
-        onClick={() => onAutoEnhance?.(activeReport)}
+        onClick={handleClick}
         disabled={busy || !activeReport}
-        className="px-4 py-2 bg-amber-500 text-white rounded disabled:opacity-50"
-        title={busy ? (isEnhancing ? "Enhancing…" : (isAnalyzing ? "Analyzing…" : "Working…")) : "Auto-enhance this document"}
+        className={
+          `inline-flex items-center justify-center px-5 py-2 rounded-lg text-white font-semibold shadow-md transition ` +
+          (busy ? 'opacity-60 cursor-not-allowed bg-amber-400' : 'bg-amber-500 hover:bg-amber-600')
+        }
+        title={busy ? (isEnhancing ? 'Enhancing…' : (isAnalyzing ? 'Analyzing…' : 'Working…')) : 'Auto-enhance this document'}
       >
         {isEnhancing ? 'Enhancing…' : 'Auto-Enhance'}
       </button>
@@ -339,10 +359,6 @@ const AnalysisPanel: React.FC<{
           <EnhanceControls
             activeReport={report}
             onAutoEnhance={onAutoEnhance || (() => onEnhance())}
-            enhancedDraft={enhancedDraft}
-            enhancedDraftHtml={enhancedDraftHtml}
-            onAcceptEnhanced={onAcceptEnhanced}
-            onRejectEnhanced={onRejectEnhanced}
             isEnhancing={isEnhancing}
             isAnalyzing={isAnalyzing}
           />
