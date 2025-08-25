@@ -4,7 +4,12 @@
 
 [functions]
   directory = "netlify/functions"
+  # ADD THIS LINE: This solves the "canvas" error by telling Netlify's
+  # build system to treat it as an external package.
+  external_node_modules = ["canvas"]
 
 [build.environment]
-  NODE_VERSION = "18"
+  # CHANGE THIS LINE: Your project requires Node 20 or newer.
+  # This was causing your very first deployment error.
+  NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
