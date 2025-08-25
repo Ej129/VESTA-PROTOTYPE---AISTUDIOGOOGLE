@@ -120,7 +120,10 @@ const App: React.FC = () => {
     setIsEnhancing(true);
     try {
       // 1) Produce improved document text
-      const improvedText = await improvePlan(targetReport.documentContent, targetReport);
+      const { text: improvedText, highlightedHtml } = await improvePlanWithHighlights(targetReport.documentContent, targetReport);
+
+      // save draft object instead of plain string
+      setEnhancedDrafts(prev => ({ ...prev, [targetReport.id!]: { text: improvedText, highlightedHtml } }));
 
       // 2) Re-run analysis on improved text to update scores/findings
       const newReportData = await analyzePlan(
