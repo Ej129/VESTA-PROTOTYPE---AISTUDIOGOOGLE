@@ -1,3 +1,5 @@
+import mammoth from "mammoth"; 
+import * as pdfjsLib from "pdfjs-dist"; 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Screen, NavigateTo, AnalysisReport, User, AuditLog, AuditLogAction, KnowledgeSource, DismissalRule, FeedbackReason, Finding, KnowledgeCategory, Workspace, WorkspaceMember, UserRole, CustomRegulation, WorkspaceInvitation } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -16,6 +18,7 @@ import { NotificationToast } from './components/NotificationToast';
 import { Layout } from './components/Layout';
 import { improvePlan, analyzePlan, improvePlanWithHighlights } from './api/vesta';
 import { NewAnalysisModal } from './components/NewAnalysisModal';
+
 // Quick analysis API
 import { analyzePlanQuick } from './api/vesta';
 import ConfirmationModal from './components/ConfirmationModal';
@@ -408,61 +411,82 @@ const handleStartAnalysis = async (file: File, analysisType: 'quick' | 'full') =
   setIsAnalyzing(true);
 
   try {
-      const token = await getToken();
-      if (!token) {
-          throw new Error("Authentication token not found. Please log in again.");
-      }
+    // 1. Extract text on the client-side first
+    const textContent = await extractTextFromFile(file);
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('workspaceId', selectedWorkspace.id);
-      formData.append('analysisType', analysisType);
+    if (!textContent) {
+      throw new Error("Could not extract any text from the file. It might be empty or a scanned image.");
+    }
 
-      const response = await fetch('/.netlify/functions/add-report', {
-          method: 'POST',
-          headers: {
-              'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-      });
+    const token = await getToken();
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in again.");
+    }
 
-      // --- START OF THE FIX ---
-      if (!response.ok) {
-          // Check if the response is JSON or plain text
-          const contentType = response.headers.get("content-type");
-          let errorMessage;
+    // 2. Send the extracted text and other data as a JSON payload
+    const response = await fetch('/.netlify/functions/add-report', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json', // We are now sending JSON
+      },
+      body: JSON.stringify({
+        textContent: textContent,
+        fileName: file.name,
+        workspaceId: selectedWorkspace.id,
+        analysisType: analysisType,
+      }),
+    });
 
-          if (contentType && contentType.includes("application/json")) {
-              const errorBody = await response.json();
-              errorMessage = errorBody.message || errorBody.error || 'Failed to start analysis.';
-          } else {
-              // If not JSON, read the error as plain text
-              errorMessage = await response.text();
-          }
-          throw new Error(errorMessage);
-      }
-      // --- END OF THE FIX ---
+    if (!response.ok) {
+      const errorBody = await response.json(); // Server errors will now be JSON
+      throw new Error(errorBody.error || 'Failed to start analysis.');
+    }
 
-      const newReport = await response.json();
+    const newReport = await response.json();
 
-      setReports(prevReports => [newReport, ...prevReports]);
-      setActiveReport(newReport);
-      navigateTo(Screen.Analysis);
+    setReports(prevReports => [newReport, ...prevReports]);
+    setActiveReport(newReport);
+    navigateTo(Screen.Analysis);
 
   } catch (error) {
-      console.error("Error starting analysis:", error);
-      // The alert will now show the actual server message, e.g., "Could not extract text..."
-      alert((error as Error).message);
+    console.error("Error starting analysis:", error);
+    alert((error as Error).message);
   } finally {
-      setIsAnalyzing(false);
-      setIsNewAnalysisModalOpen(false);
+    setIsAnalyzing(false);
+    setIsNewAnalysisModalOpen(false);
   }
 };
-// Wrapper for AnalysisScreen prop type
-const handleNewAnalysisFromAnalysisScreen = (content: string, fileName: string, quick?: boolean) => {
-  void handleFileUpload(content, fileName, quick);
-};
+// Set up the worker for pdf.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
 
+const extractTextFromFile = async (file: File): Promise<string> => {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf') {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      text += pageText + '\n';
+    }
+    return text.trim();
+  } else if (ext === 'docx') {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value?.trim() || '';
+  } else if (['txt', 'md'].includes(ext)) {
+    return await file.text();
+  } else {
+    throw new Error('Unsupported file type. Please upload a .pdf, .docx, or .txt file.');
+  }
+};
   
 const handleSelectReport = (report: AnalysisReport) => {
   if (!report) return;
