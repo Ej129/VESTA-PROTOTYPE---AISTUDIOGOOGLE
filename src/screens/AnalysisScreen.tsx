@@ -197,7 +197,12 @@ const DocumentEditor: React.FC<{
 
   const getHighlightedChangesContent = () => {
     if (!report?.diffContent) return getHighlightedContent();
-    return report.diffContent
+    const diff = report.diffContent;
+    // If diff already looks like HTML (from improvePlanWithHighlights), return as-is
+    if (/<(ins|del)[^>]*>/i.test(diff) || /<\w+[^>]*>/.test(diff)) {
+      return diff;
+    }
+    return diff
       .split("\n")
       .map((line) => {
         if (line.startsWith('++ ')) {
@@ -206,9 +211,9 @@ const DocumentEditor: React.FC<{
           )}</mark>`;
         }
         if (line.startsWith("-- ")) {
-          return `<mark class="highlight-removed">${escapeHtml(
+          return `<mark class="highlight-removed"><del>${escapeHtml(
             line.substring(3)
-          )}</mark>`;
+          )}</del></mark>`;
         }
         return escapeHtml(line);
       })
