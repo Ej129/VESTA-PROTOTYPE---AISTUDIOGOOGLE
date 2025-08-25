@@ -1,11 +1,11 @@
 // src/api/vesta.ts
 
-import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage, EnhancedAnalysisResponse } from '../types';
+import { AnalysisReport, Finding, KnowledgeSource, DismissalRule, CustomRegulation, ChatMessage, EnhancedAnalysisResponse } from '../../src/types';
 import { GoogleGenerativeAI as GoogleGenAI, HarmCategory, HarmBlockThreshold, GenerationConfig, Content } from "@google/generative-ai";
 
 // This function should eventually be moved to a backend function as well to fully secure your API key.
 function getGenAIClient(): GoogleGenAI {
-    const apiKey = import.meta.env.VITE_API_KEY;
+    const apiKey = process.env.VITE_API_KEY;
     if (!apiKey) {
         throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your deployment settings.");
     }

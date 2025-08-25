@@ -10,7 +10,7 @@ let ai: GoogleGenAI | null = null;
  */
 function getGenAIClient(): GoogleGenAI {
     // Use Vite's special way to access environment variables
-    const apiKey = (import.meta as any).env.VITE_API_KEY;
+    const apiKey = process.env.VITE_API_KEY;
 
     if (!apiKey) {
         // This is a safeguard. The main App component should catch this earlier.
