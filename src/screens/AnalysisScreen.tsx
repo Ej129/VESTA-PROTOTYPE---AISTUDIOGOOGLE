@@ -27,6 +27,29 @@ import * as vestaApi from '../api/vesta';
 import FeedbackModal from '../components/FeedbackModal';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
 
+const getContentForDownload = (report: AnalysisReport): string => {
+  // If there's enhanced content (diffContent), extract the clean enhanced version
+  if (report.diffContent) {
+    return report.diffContent
+      .split('\n')
+      .map(line => {
+        // Remove diff markers and return clean content
+        if (line.startsWith('++ ')) {
+          return line.substring(3); // Remove '++ ' prefix for additions
+        }
+        if (line.startsWith('-- ')) {
+          return ''; // Skip removals (return empty string)
+        }
+        return line; // Keep unchanged lines as-is
+      })
+      .filter(line => line !== '') // Remove empty lines from removals
+      .join('\n');
+  }
+  
+  // Fallback to original content if no enhanced version
+  return report.documentContent;
+};
+
 const enhancementSteps = [
   'Re-analyzing improved content...',
   'Applying compliance formatting...',
@@ -559,70 +582,76 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (!currentReport) return;
-    const doc = new jsPDF();
-    const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
-    doc.setProperties({ title });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(title, 15, 20);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    const pageHeight = doc.internal.pageSize.height;
-    const margin = 20;
-    let y = 30;
-    const lines = doc.splitTextToSize(currentReport.documentContent, doc.internal.pageSize.width - margin * 2);
-    lines.forEach((line: string) => {
-      if (y + 10 > pageHeight - margin) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.text(line, margin, y);
-      y += 7;
-    });
-    doc.save(`${title}.pdf`);
-  };
+const handleDownloadPdf = () => {
+  if (!currentReport) return;
+  const doc = new jsPDF();
+  const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
+  
+  // Use the enhanced content for download
+  const contentToDownload = getContentForDownload(currentReport);
+  
+  doc.setProperties({ title });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(title, 15, 20);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 20;
+  let y = 30;
+  const lines = doc.splitTextToSize(contentToDownload, doc.internal.pageSize.width - margin * 2);
+  lines.forEach((line: string) => {
+    if (y + 10 > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.text(line, margin, y);
+    y += 7;
+  });
+  doc.save(`${title}.pdf`);
+};
 
-  const handleDownloadTxt = () => {
-    if (!currentReport) return;
-    const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
-    const blob = new Blob([currentReport.documentContent], { type: 'text/plain;charset=utf-8' });
+const handleDownloadTxt = () => {
+  if (!currentReport) return;
+  const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
+  
+  // Use the enhanced content for download
+  const contentToDownload = getContentForDownload(currentReport);
+  
+  const blob = new Blob([contentToDownload], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${title}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+
+  const doc = new Document({
+    sections: [
+      {
+        children: contentToDownload.split('\n').map((textLine) =>
+          new Paragraph({
+            children: [new TextRun(textLine)],
+          })
+        ),
+      },
+    ],
+  });
+  Packer.toBlob(doc).then((blob) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${title}.txt`;
+    link.download = `${title}.docx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadDocx = () => {
-    if (!currentReport) return;
-    const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
-    const doc = new Document({
-      sections: [
-        {
-          children: currentReport.documentContent.split('\n').map((textLine) =>
-            new Paragraph({
-              children: [new TextRun(textLine)],
-            })
-          ),
-        },
-      ],
-    });
-    Packer.toBlob(doc).then((blob) => {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${title}.docx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    });
-  };
+  });
+};
 
   const handleSaveChanges = () => {
     setIsEditing(false);
