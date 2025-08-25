@@ -7,6 +7,7 @@ import {
   FindingStatus,
   FeedbackReason,
   ChatMessage,
+  Screen,
 } from '../types';
 import {
   StarIcon,
@@ -26,6 +27,25 @@ import * as workspaceApi from '../api/workspace';
 import * as vestaApi from '../api/vesta';
 import FeedbackModal from '../components/FeedbackModal';
 import { AnimatedChecklist } from '../components/AnimatedChecklist';
+
+// Arrow Left Icon Component
+const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
+// Back Button Component
+const BackButton: React.FC<{ onBack: () => void; title?: string }> = ({ onBack, title }) => (
+  <button
+    onClick={onBack}
+    className="flex items-center space-x-2 px-3 py-2 text-gray-600 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-all duration-200 group"
+    title={title || "Back to Dashboard"}
+  >
+    <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200" />
+    <span className="text-sm font-medium">Back</span>
+  </button>
+);
 
 const getContentForDownload = (report: AnalysisReport): string => {
   // If there's enhanced content (diffContent), extract the clean enhanced version
@@ -282,8 +302,6 @@ const DocumentEditor: React.FC<{
   );
 };
 
-
-
 /* ---------------- ScoreCard ---------------- */
 const ScoreCard: React.FC<{ label: string; score: number }> = ({ label, score }) => {
   const getScoreColor = (s: number) => {
@@ -520,6 +538,7 @@ interface AnalysisScreenProps extends ScreenLayoutProps {
   isEnhancing: boolean;
   analysisStatusText: string;
   onNewAnalysis: (content: string, fileName: string, diffContent?: string) => void;
+  onBack?: () => void;
 }
 
 const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
@@ -530,6 +549,8 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   analysisStatusText,
   currentWorkspace,
   onNewAnalysis,
+  navigateTo,
+  onBack,
 }) => {
   // Keep a local copy to allow editing before saving, but always sync to activeReport
   const [currentReport, setCurrentReport] = useState<AnalysisReport | null>(activeReport);
@@ -539,17 +560,32 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
 
   useEffect(() => {
-    setCurrentReport(activeReport);
-  }, [activeReport]);
+    if (activeReport && (!currentReport || activeReport.id !== currentReport.id || 
+        activeReport.diffContent !== currentReport.diffContent ||
+        activeReport.documentContent !== currentReport.documentContent)) {
+      console.log("Updating currentReport with activeReport:", activeReport);
+      setCurrentReport(activeReport);
+    }
+  }, [activeReport, currentReport]);
+
+  // Default back handler if none provided
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigateTo(Screen.Dashboard);
+    }
+  };
 
   const handleEnhanceClick = async () => {
     if (!currentReport || isEnhancing) return;
 
     try {
-      await onAutoEnhance(currentReport);
+      console.log("Starting enhancement for report:", currentReport.id);
+      const enhancedContent = await onAutoEnhance(currentReport);
+      console.log("Enhancement completed, received content:", enhancedContent ? "Yes" : "No");
     } catch (error) {
-      console.error('Enhancement process failed and was caught in AnalysisScreen.');
-      // Parent will handle user-facing error.
+      console.error('Enhancement process failed and was caught in AnalysisScreen:', error);
     }
   };
 
@@ -611,7 +647,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
     doc.save(`${title}.pdf`);
   };
 
-// Replace your handleDownloadTxt function with this:
   const handleDownloadTxt = () => {
     if (!currentReport) return;
     const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
@@ -630,7 +665,6 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
     URL.revokeObjectURL(url);
   };
 
-// Replace your handleDownloadDocx function with this:
   const handleDownloadDocx = () => {
     if (!currentReport) return;
     const title = currentReport.title.replace(/\.[^/.]+$/, '') || 'document';
@@ -669,14 +703,20 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
 
   if (!currentReport) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">No active report. Please select an analysis from the dashboard.</p>
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <BackButton onBack={handleBack} />
+        <p className="text-gray-500 mt-4">No active report. Please select an analysis from the dashboard.</p>
       </div>
     );
   }
 
   return (
     <div className="relative h-full">
+      {/* Add back button at the top */}
+      <div className="absolute top-4 left-4 z-10">
+        <BackButton onBack={handleBack} title="Back to Dashboard" />
+      </div>
+
       {/* Overlay loader when enhancing/analyzing */}
       {isEnhancing && (
         <div className="absolute inset-0 z-50 grid place-items-center bg-white/70 dark:bg-neutral-900/70 backdrop-blur-sm">
@@ -688,7 +728,8 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 h-full overflow-hidden">
+      {/* Add top padding to account for back button */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 pt-16 h-full overflow-hidden">
         {feedbackFinding && <FeedbackModal finding={feedbackFinding} onClose={() => setFeedbackFinding(null)} onSubmit={handleDismiss} />}
 
         <div className="xl:col-span-2 h-full min-h-[80vh]">

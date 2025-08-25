@@ -358,3 +358,9 @@ export const UploadIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <line x1="12" y1="3" x2="12" y2="15" />
   </svg>
 );
+
+export const ArrowLeftIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  </svg>
+);
