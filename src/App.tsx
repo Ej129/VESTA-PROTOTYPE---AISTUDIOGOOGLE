@@ -208,10 +208,11 @@ const loadWorkspaceData = useCallback(async (workspaceId: string, keepActiveRepo
       return () => clearInterval(intervalId);
   }, [currentUser, refreshWorkspaces, refreshInvitations]);
   
-  const addAuditLog = useCallback(async (action: AuditLogAction, details: string) => {
-    if(!currentUser || !selectedWorkspace) return;
+  const addAuditLog = useCallback(async (action: AuditLogAction, details: string, keepActiveReport = false) => {
+    if (!currentUser || !selectedWorkspace) return;
     await workspaceApi.addAuditLog(selectedWorkspace.id, currentUser.email, action, details);
-    loadWorkspaceData(selectedWorkspace.id);
+    // Reload workspace data; optionally preserve the current active report
+    await loadWorkspaceData(selectedWorkspace.id, keepActiveReport);
   }, [currentUser, selectedWorkspace, loadWorkspaceData]);
 
   const handleCreateWorkspace = async (name: string) => {
@@ -362,8 +363,8 @@ const handleAutoEnhance = async (report: AnalysisReport): Promise<string> => {
       prevReports.map(r => r.id === report.id ? enhancedReport : r)
     );
 
-    // Add audit log
-    addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`);
+    // Add audit log but preserve the enhanced activeReport while workspace data reloads
+    await addAuditLog('Auto-Fix', `Generated enhancement draft for document: ${report.title}`, true);
 
     console.log("Auto-enhance completed successfully");
     return improvedContentWithDiff;
