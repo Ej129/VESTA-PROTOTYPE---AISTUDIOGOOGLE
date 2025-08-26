@@ -135,60 +135,44 @@ const App: React.FC = () => {
 
   // Auto-enhance handler: improve the document then re-run analysis to update scores
   const handleAutoEnhance = useCallback(async (maybeReport?: AnalysisReport) => {
-    // Resolve target report (prefer id match, fallback to activeReport)
     const targetReport = (maybeReport && maybeReport.id)
       ? reports.find(r => r.id === maybeReport.id) ?? maybeReport
       : activeReport;
-
+  
     if (!targetReport || !selectedWorkspace) {
       console.warn('Auto-enhance: no target report or workspace');
       return;
     }
-
+  
     setIsEnhancing(true);
     try {
-      // 1) Produce improved document text
+      // 1. Call our new, secure backend function
       const { text: improvedText, highlightedHtml } = await improvePlanWithHighlights(targetReport.documentContent, targetReport);
-
-      // save draft object instead of plain string
-      setEnhancedDrafts(prev => ({ ...prev, [targetReport.id!]: { text: improvedText, highlightedHtml } }));
-
-      // 2) Re-run analysis on improved text to update scores/findings
+  
+      // 2. Re-run local analysis on the improved text to update scores/findings
       const newReportData = await analyzePlan(
         improvedText,
         knowledgeBaseSources,
         dismissalRules,
         customRegulations
       );
-
-      // 3) Merge results, preserving identity fields
+  
+      // 3. Merge results
       const updatedReport: AnalysisReport = {
         ...targetReport,
         documentContent: improvedText,
-        title: newReportData.title ?? targetReport.title,
-        summary: newReportData.summary ?? targetReport.summary,
-        findings: newReportData.findings ?? targetReport.findings,
-        scores: newReportData.scores ?? targetReport.scores,
-        resilienceScore: newReportData.resilienceScore ?? targetReport.resilienceScore,
-        // Store HTML diff so the editor can render highlights immediately
-        diffContent: highlightedHtml,
+        ...newReportData,
+        diffContent: highlightedHtml, // Store HTML diff for the editor
       };
-
-      // 4) Update local state (match by id if present)
-      setReports(prev =>
-        updatedReport.id
-          ? prev.map(r => (r.id === updatedReport.id ? updatedReport : r))
-          : prev.map(r => (r === targetReport ? updatedReport : r))
-      );
+  
+      // 4. Update state
+      setReports(prev => prev.map(r => (r.id === updatedReport.id ? updatedReport : r)));
       setActiveReport(updatedReport);
-
-      // 5) Optional persist (uncomment and adapt if you have an API)
-      // try { await workspaceApi.updateReport?.(selectedWorkspace.id, updatedReport); } catch (e) { console.warn(e); }
-
-      // 6) Audit log and keep activeReport during reloads
-      await addAuditLog('Auto-Fix', `Auto-enhanced report: ${updatedReport.title}`, true);
+      await addAuditLog('Auto-Enhance', `Auto-enhanced report: ${updatedReport.title}`, true);
+  
     } catch (err) {
       console.error('Auto-enhance failed', err);
+      alert((err as Error).message);
     } finally {
       setIsEnhancing(false);
     }
@@ -200,8 +184,6 @@ const App: React.FC = () => {
     dismissalRules,
     customRegulations,
     addAuditLog,
-    setReports,
-    setActiveReport
   ]);
 
   // Global Theme Persistence Fix

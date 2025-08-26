@@ -1,118 +1,95 @@
 // netlify/functions/enhance.ts
 
 import { Handler, HandlerEvent } from '@netlify/functions';
-import { GoogleGenerativeAI as GoogleGenAI, HarmCategory, HarmBlockThreshold, GenerationConfig } from "@google/generative-ai";
-import { AnalysisReport, KnowledgeSource, EnhancedAnalysisResponse } from '../../src/types';
+import { GoogleGenerativeAI as GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { AnalysisReport } from '../../src/types';
+import { diffWordsWithSpace } from 'diff';
 
 // Securely initialize the Gemini client on the server
 function getGenAIClient(): GoogleGenAI {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        // This error will be visible in the function logs on Netlify
         throw new Error("GEMINI_API_KEY environment variable is not set in the Netlify build environment.");
     }
-    return new GoogleGenAI(apiKey);
+    return new GoogleGenAI({ apiKey });
 }
 
-// This is the main entry point for the Netlify Function.
-// It MUST be a named export called "handler".
+// Helper function to generate highlighted HTML from text differences
+function highlightChanges(original: string, revised: string): string {
+  const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const parts = diffWordsWithSpace(original || '', revised || '');
+  return parts.map(p => {
+    const v = escapeHtml(p.value);
+    if (p.added) return `<ins class="vesta-added" style="background:#e6ffed;color:#064e3b;text-decoration:none;">${v}</ins>`;
+    if (p.removed) return `<del class="vesta-removed" style="background:#ffecec;color:#991b1b;text-decoration:line-through;">${v}</del>`;
+    return v;
+  }).join('');
+}
+
+
 export const handler: Handler = async (event: HandlerEvent) => {
     if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            body: JSON.stringify({ message: 'Method Not Allowed' }),
-        };
+        return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
 
     try {
-        const { planContent, report, knowledgeSources } = JSON.parse(event.body || '{}') as {
+        const { planContent, report } = JSON.parse(event.body || '{}') as {
             planContent: string;
             report: AnalysisReport;
-            knowledgeSources: KnowledgeSource[];
         };
 
-        if (!planContent || !report) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ message: 'Missing planContent or report in the request body.' }),
-            };
+        if (!planContent || !report || !report.findings) {
+            return { statusCode: 400, body: JSON.stringify({ error: 'Missing planContent or report in the request body.' }) };
         }
 
         const genAI = getGenAIClient();
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const knowledgeContext = (knowledgeSources || [])
-            .map(s => `--- KNOWLEDGE SOURCE: ${s.title} ---\n${s.content}`)
-            .join('\n\n');
+        const findingsSummary = report.findings.map(f =>
+            `- Finding: "${f.title}" (Severity: ${f.severity})\n` +
+            `  - Recommendation: ${f.recommendation}`
+        ).join('\n\n');
 
-        const systemInstruction = `You are Vesta, an expert AI assistant specializing in regulatory compliance and risk analysis for the financial sector. Your task is to take a document, a list of its identified flaws (findings), and a knowledge base, and then produce an improved version of the document.
+        const systemPrompt = `You are an expert compliance editor. Your task is to produce a single, fully revised version of the provided project plan that integrates the suggested recommendations. Return ONLY the full revised document text. Do NOT include commentary, annotations, or metadata. Preserve all original formatting and section headings.`;
 
-        1.  **Analyze the original document and its findings**: Understand the core issues identified.
-        2.  **Use the knowledge base**: Incorporate relevant information from the provided knowledge sources to strengthen the document.
-        3.  **Rewrite and Enhance**: Rewrite sections of the document to address the findings directly. Do not just list changes; integrate them seamlessly. The goal is a complete, improved document.
-        4.  **Produce a Highlighted HTML Diff**: In addition to the full text, generate an HTML representation showing the changes. Use '<ins>' tags for additions and '<del>' tags for deletions. This is crucial for visualization.
-        5.  **Re-analyze the improved document**: After creating the improved text, perform a new analysis on it. Generate a new set of findings and scores based *only* on the improved version.
-
-        You MUST respond in the following JSON format:
-        {
-          "text": "The full, enhanced version of the document text...",
-          "highlightedHtml": "The HTML version of the document with <ins> and <del> tags for changes...",
-          "newReportData": {
-            "findings": [{ "title": "...", "severity": "...", "sourceSnippet": "...", "recommendation": "..." }],
-            "scores": { "project": 0, "strategicGoals": 0, "regulations": 0, "risk": 0 },
-            "summary": { "critical": 0, "warning": 0 },
-            "resilienceScore": 0
-          }
-        }`;
-
-        const prompt = `
-        Original Document:
+        const userPrompt = `
+        Original Plan:
         ---
         ${planContent}
         ---
 
-        Identified Findings:
+        Findings & Recommendations to address:
         ---
-        ${report.findings.map(f => `- ${f.title}: ${f.recommendation}`).join('\n')}
-        ---
-
-        Contextual Knowledge Base:
-        ---
-        ${knowledgeContext}
+        ${findingsSummary}
         ---
 
-        Now, please provide the enhanced document and a new analysis in the required JSON format.
+        Return the full revised document text only.
         `;
 
-        const generationConfig: GenerationConfig = {
-            temperature: 0.3,
-            responseMimeType: "application/json",
-        };
-
         const result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
-            generationConfig,
-            safetySettings: [
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
+             safetySettings: [
                 { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
                 { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
                 { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
                 { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
             ],
         });
-
-        const enhancedResponse: EnhancedAnalysisResponse = JSON.parse(result.response.text());
+        
+        const enhancedText = result.response.text().trim();
+        const highlightedHtml = highlightChanges(planContent, enhancedText);
 
         return {
             statusCode: 200,
-            body: JSON.stringify(enhancedResponse),
+            body: JSON.stringify({ text: enhancedText, highlightedHtml }),
         };
 
     } catch (error) {
         console.error('Error in enhance function:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: 'An internal error occurred during the enhancement process.', details: (error as Error).message }),
+            body: JSON.stringify({ error: 'An internal error occurred during enhancement.', details: (error as Error).message }),
         };
     }
 };

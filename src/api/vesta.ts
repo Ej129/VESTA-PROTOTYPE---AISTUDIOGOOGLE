@@ -392,15 +392,6 @@ export function highlightChanges(original: string, revised: string): string {
   }).join('');
 }
 
-/**
- * Convenience wrapper: returns both cleaned enhanced text and HTML-highlighted diff.
- * Use this in App.handleAutoEnhance to save the draft and show a preview with highlights.
- */
-export async function improvePlanWithHighlights(planContent: string, report: AnalysisReport): Promise<{ text: string; highlightedHtml: string }> {
-  const text = await improvePlan(planContent, report);
-  const highlightedHtml = highlightChanges(planContent, text);
-  return { text, highlightedHtml };
-}
 
 export async function getChatResponse(documentContent: string, history: ChatMessage[], newMessage: string): Promise<string> {
     const contents = [
@@ -429,3 +420,25 @@ export async function getChatResponse(documentContent: string, history: ChatMess
         return "Sorry, I encountered an error while processing your request. Please try again.";
     }
 }
+// Add this new function to src/api/vesta.ts
+
+export async function improvePlanWithHighlights(planContent: string, report: AnalysisReport): Promise<{ text: string; highlightedHtml: string }> {
+    const response = await fetch('/.netlify/functions/enhance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            planContent,
+            report,
+        }),
+    });
+  
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API Error from /netlify/functions/enhance:", errorData);
+        throw new Error(errorData.error || 'The enhancement process failed.');
+    }
+  
+    return await response.json();
+  }
