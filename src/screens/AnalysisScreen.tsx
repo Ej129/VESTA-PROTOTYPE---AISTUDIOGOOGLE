@@ -594,13 +594,7 @@ const AnalysisScreen: React.FC<AnalysisScreenProps> = ({
     }
   }, [activeReport, currentReport]);
 
-  // Auto-enable compare view the first time we see a diff for this report
-  useEffect(() => {
-    if (!isEditing && autoCompareArmed && currentReport?.diffContent) {
-      setShowComparison(true);
-      setAutoCompareArmed(false);
-    }
-  }, [isEditing, autoCompareArmed, currentReport?.diffContent]);
+  // Auto-compare view logic removed pending controlled state wiring
 
   // Default back handler if none provided
   const handleBack = () => {
