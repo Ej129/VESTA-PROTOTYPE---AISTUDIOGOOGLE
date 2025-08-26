@@ -146,29 +146,54 @@ const App: React.FC = () => {
   
     setIsEnhancing(true);
     try {
-      // 1. Call our new, secure backend function
+      // STEP 1: Securely get the enhanced text from the backend. (This part is working for you)
       const { text: improvedText, highlightedHtml } = await improvePlanWithHighlights(targetReport.documentContent, targetReport);
   
-      // 2. Re-run local analysis on the improved text to update scores/findings
-      const newReportData = await analyzePlan(
-        improvedText,
-        knowledgeBaseSources,
-        dismissalRules,
-        customRegulations
-      );
+      // STEP 2 (THE FIX): Securely re-analyze the enhanced text using our backend function.
+      // We will call the same endpoint as a new upload, but with the enhanced text.
+      const token = await getToken();
+      if (!token) {
+          throw new Error("Authentication token not found for re-analysis.");
+      }
   
-      // 3. Merge results
+      const reanalysisResponse = await fetch('/.netlify/functions/add-report', {
+          method: 'POST',
+          headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+              textContent: improvedText,
+              fileName: `${targetReport.title} (Enhanced)`,
+              workspaceId: selectedWorkspace.id,
+              analysisType: 'full', // or 'quick' depending on your preference
+          }),
+      });
+  
+      if (!reanalysisResponse.ok) {
+          const errorBody = await reanalysisResponse.json();
+          throw new Error(errorBody.error || 'Failed to re-analyze the enhanced document.');
+      }
+  
+      const newReportData = await reanalysisResponse.json();
+  
+      // STEP 3: Merge the results into the existing report to preserve its ID.
       const updatedReport: AnalysisReport = {
-        ...targetReport,
+        ...targetReport, // Keep original ID, createdAt, etc.
         documentContent: improvedText,
-        ...newReportData,
-        diffContent: highlightedHtml, // Store HTML diff for the editor
+        title: newReportData.title,
+        summary: newReportData.summary,
+        findings: newReportData.findings,
+        scores: newReportData.scores,
+        resilienceScore: newReportData.resilienceScore,
+        diffContent: highlightedHtml, // Add the highlighted diff
       };
   
-      // 4. Update state
+      // 4. Update state and save the final, merged report
+      await workspaceApi.updateReport(updatedReport); // Use updateReport to save over the old one
       setReports(prev => prev.map(r => (r.id === updatedReport.id ? updatedReport : r)));
       setActiveReport(updatedReport);
-      await addAuditLog('Auto-Enhance', `Auto-enhanced report: ${updatedReport.title}`, true);
+      await addAuditLog('Auto-Enhance', `Auto-enhanced and re-analyzed report: ${updatedReport.title}`, true);
   
     } catch (err) {
       console.error('Auto-enhance failed', err);
@@ -180,9 +205,7 @@ const App: React.FC = () => {
     reports,
     activeReport,
     selectedWorkspace,
-    knowledgeBaseSources,
-    dismissalRules,
-    customRegulations,
+    getToken, // Add getToken to dependencies
     addAuditLog,
   ]);
 
