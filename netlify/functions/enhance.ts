@@ -11,7 +11,7 @@ function getGenAIClient(): GoogleGenAI {
     if (!apiKey) {
         throw new Error("GEMINI_API_KEY environment variable is not set in the Netlify build environment.");
     }
-    return new GoogleGenAI({ apiKey });
+    return new GoogleGenAI(apiKey);
 }
 
 // Helper function to generate highlighted HTML from text differences
